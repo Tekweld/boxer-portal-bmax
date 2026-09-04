@@ -14,11 +14,10 @@ const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 
 const router = express.Router();
 
 const { SB_SISTEMAS_URL, sbSistemasAnon: sbSistemas } = require("../config/supabaseSistemas");
-const { sbBmax } = require("../config/supabaseBmax");
 const { sensitiveActionRateLimit } = require("../middlewares/rateLimit");
 
 async function fetchAllRevendasAtivas() {
-    return await sbBmax('/comercial_revendas_bmax?ativo=eq.true&select=nome&order=nome');
+    return await sbSistemas('/comercial_revendas_bmax?ativo=eq.true&select=nome&order=nome');
 }
 
 async function syncRevendasAfterChange() {
@@ -237,11 +236,11 @@ router.patch("/users/:id/reset-password", authenticate, authorize(["adm"]), asyn
     }
 });
 
-// ─── CRUD Revendas BMax (Supabase boxer-bmax) ───────────────
+// ─── CRUD Revendas BMax (Supabase boxer-sistemas) ───────────
 
 router.get("/revendas-bmax", authenticate, authorize(["adm"]), async (req, res) => {
     try {
-        const rows = await sbBmax('/comercial_revendas_bmax?select=id,nome,cidade,estado,classe,ativo,rep,grupo,telefone,email,cnpj,cep&order=nome');
+        const rows = await sbSistemas('/comercial_revendas_bmax?select=id,nome,cidade,estado,classe,ativo,rep,grupo,telefone,email,cnpj,cep&order=nome');
         res.json(rows);
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -252,7 +251,7 @@ router.post("/revendas-bmax", authenticate, authorize(["adm"]), async (req, res)
     try {
         const { nome, cidade, estado, classe, rep, grupo } = req.body;
         if (!nome || !nome.trim()) return res.status(400).json({ error: "Nome é obrigatório" });
-        const row = await sbBmax('/comercial_revendas_bmax', 'POST', {
+        const row = await sbSistemas('/comercial_revendas_bmax', 'POST', {
             nome: nome.trim(), cidade: cidade || null, estado: estado || null,
             classe: classe || null, rep: rep || null, grupo: grupo || null, ativo: true
         });
@@ -275,7 +274,7 @@ router.patch("/revendas-bmax/:id", authenticate, authorize(["adm"]), async (req,
         updates.editado_em = new Date().toISOString();
         updates.editado_por = req.user.username || req.user.email || 'admin';
 
-        const row = await sbBmax(`/comercial_revendas_bmax?id=eq.${id}`, 'PATCH', updates);
+        const row = await sbSistemas(`/comercial_revendas_bmax?id=eq.${id}`, 'PATCH', updates);
         invalidateConfigCache();
         const needsSync = 'nome' in updates || 'ativo' in updates;
         const sync = needsSync ? await syncRevendasAfterChange() : null;

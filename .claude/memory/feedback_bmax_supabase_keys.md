@@ -1,28 +1,29 @@
 ---
 name: feedback-bmax-supabase-keys
-description: BMax uses two separate Supabase projects; use project-specific service keys to avoid API routing errors
+description: BMax uses two separate Supabase projects; use project-specific service keys to avoid API routing errors — comercial_revendas_bmax lives in boxer-sistemas
 metadata:
   type: feedback
   originSessionId: current
-  modified: 2026-09-03T00:00:00.000Z
+  modified: 2026-09-04T00:00:00.000Z
 ---
 
-**Supabase Project Routing for BMax (2026-08-26)**
+**Supabase Project Routing for BMax (corrected 2026-09-04)**
 
-BMax stores data in TWO separate Supabase projects. Always use the correct project-specific service key.
+BMax stores data in TWO separate Supabase projects. Always use the correct project-specific service/anon key.
 
-**Why:** Mixing projects causes "Could not find column X in schema cache" errors. Revenda data lives in boxer-bmax; other entities in boxer-sistemas.
-
-**The rule:**
-- boxer-sistemas (https://bmepxcnrsofofoswubuu.supabase.co): representantes, admins, funcionários → use SUPABASE_SERVICE_KEY_SISTEMAS
-- boxer-bmax (https://zsvtxutoewypyitajjwz.supabase.co): comercial_revendas_bmax → use SUPABASE_SERVICE_KEY_BMAX
+**The rule (verified against live production behavior):**
+- **boxer-sistemas** (`https://bmepxcnrsofofoswubuu.supabase.co`, `SUPABASE_SERVICE_KEY_SISTEMAS` / `SUPABASE_ANON_KEY_SISTEMAS`): representantes, admins, funcionários, **and `comercial_revendas_bmax` (revenda data)**.
+- **boxer-bmax** (`https://zsvtxutoewypyitajjwz.supabase.co`, `SUPABASE_SERVICE_KEY_BMAX`): confirmed NOT to contain `comercial_revendas_bmax` — querying it returns PostgREST `PGRST205: Could not find the table 'public.comercial_revendas_bmax' in the schema cache`. No confirmed legitimate use for this project has been found in the codebase as of this writing — do not assume it holds revenda data.
 
 **Implementation in code:**
-- src/config/supabaseBmax.js exports sbBmax() (boxer-bmax project) — shared by users.controller.js, admin.routes.js, config.routes.js
-- src/config/supabaseSistemas.js exports sbSistemasAnon() (boxer-sistemas project) — used as sbSistemas in admin.routes.js/users.controller.js, sbFetch in config.routes.js
-- sbBmax() tries SUPABASE_SERVICE_KEY_BMAX first, falls back to SUPABASE_SERVICE_KEY
-- 2026-09-03: found admin.routes.js (Gestão de Revendas CRUD + syncRevendasAfterChange, the function that pushes revenda names into RD Station's REVENDA/LOJA picklist) and config.routes.js (fetchRevendasBmax, the negociação form's revenda dropdown) were both querying comercial_revendas_bmax on boxer-sistemas instead of boxer-bmax — the rule below was documented but not applied everywhere. Symptom: a revenda created via "Usuários" (correctly written to boxer-bmax) never appeared in RD Station's picklist, so its negociações failed RD's deal_custom_fields validation with "Não está incluído na lista" (422). Fixed by moving all comercial_revendas_bmax reads/writes to sbBmax(); everyone querying that table must go through it.
+- `src/config/supabaseSistemas.js` exports `sbSistemasAnon()` — used as `sbSistemas` in `admin.routes.js`/`users.controller.js`, and as `sbFetch` in `config.routes.js`. This is the ONLY client `comercial_revendas_bmax` should go through.
+- `users.controller.js`'s revenda-creation insert uses columns `nome, email, telefone, rep, cnpj, cep, cidade, estado, ativo` — note the column is `rep` (a name string), not `representante_id`.
 
-**How to apply:** When adding new Supabase calls for revenda data (comercial_revendas_bmax), use sbBmax() from src/config/supabaseBmax.js — never sbSistemas/sbFetch. For other roles (representantes, admins, funcionários), use sbSistemas(). If adding a new table, verify which Supabase project it lives in first. After creating/editing a revenda outside admin.routes.js's own CRUD, remember RD Station's picklist only updates when syncRevendasAfterChange() runs — call it, or have an admin click "Sincronizar Revendas RD" in Gestão.
+**History — how this went wrong twice:**
+1. **2026-08-26**: a session concluded revenda data lives in boxer-bmax and documented that as "the rule" here, without verifying it against a live query. `users.controller.js` was already using `sbBmax` for the revenda-creation insert at that point — this insert was wrapped in try/catch and only logged a warning on failure, so it had likely been silently failing (table not found) ever since, meaning revendas created via "Usuários" were never actually persisted to `comercial_revendas_bmax` anywhere. This is why a revenda's negociação failed at RD Station with "Não está incluído na lista" (422) — the revenda's name was never in RD Station's REVENDA/LOJA picklist because it was never in the table `syncRevendasAfterChange()` reads from.
+2. **2026-09-03**: trusting this memory's (wrong) rule at face value, `admin.routes.js` (Gestão de Revendas CRUD + `syncRevendasAfterChange`) and `config.routes.js` (`fetchRevendasBmax`, the negociação form's revenda dropdown) were switched from `sbSistemas` to a new `sbBmax` client — both had been working fine on `sbSistemas` for a long time. This broke the Gestão → Revendas screen entirely (500, surfaced the same PGRST205 "table not found" error, which is what finally proved the rule was wrong).
+3. **2026-09-04**: reverted `admin.routes.js`/`config.routes.js` back to `sbSistemas`, fixed `users.controller.js`'s revenda insert to use `sbSistemas` too (and corrected the column name to `rep`), and deleted `src/config/supabaseBmax.js`.
 
-**Environment setup:** SUPABASE_SERVICE_KEY_BMAX is now in Vercel production (confirmed 2026-08-26).
+**How to apply:** For `comercial_revendas_bmax`, always use `sbSistemas`/`sbSistemasAnon` (boxer-sistemas). Before trusting any claim in this memory about which project a table lives in, verify with a live query (a PGRST205 error is the tell) rather than assuming — this file has been wrong before. After creating/editing a revenda outside `admin.routes.js`'s own CRUD (e.g. via "Usuários"), remember RD Station's picklist only updates when `syncRevendasAfterChange()` runs — that function is not currently called from `users.controller.js`'s revenda-creation flow, so an admin still needs to click "Sincronizar Revendas RD" in Gestão afterward, or manage revendas through the Gestão screen instead (which does auto-sync).
+
+**Environment setup:** `SUPABASE_SERVICE_KEY_BMAX` exists in Vercel production but has no confirmed legitimate use in the current codebase.
