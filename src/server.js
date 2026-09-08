@@ -3,6 +3,7 @@ const express = require("express");
 const { validateEnv } = require("./config/validateEnv");
 const { sequelize } = require("./database");
 const app = require("./app");
+const { logger } = require("./logger");
 
 validateEnv();
 
@@ -21,10 +22,10 @@ async function startServer() {
         // }
         const PORT = process.env.PORT || 3000;
         app.listen(PORT, "0.0.0.0", () => {
-            console.log(`API rodando na porta ${PORT}`);
+            logger.info({ message: "API rodando", port: PORT });
         });
     } catch (err) {
-        console.error("ERRO AO INICIAR:", err);
+        logger.error({ message: "Erro ao iniciar servidor", error: err.message, stack: err.stack });
     }
 }
 

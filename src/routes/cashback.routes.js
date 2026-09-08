@@ -8,6 +8,7 @@ const { getLeads, mapDealToCard, getCustomField } = require("../services/rd.lead
 const { lerPlanilhaCashback } = require("../services/cashback.service");
 const { sequelize } = require("../database");
 const { sensitiveActionRateLimit } = require("../middlewares/rateLimit");
+const { logger } = require("../logger");
 
 const router = express.Router();
 
@@ -81,7 +82,7 @@ router.post("/saques", authenticate, authorize(["revenda"]), sensitiveActionRate
                     if (rep && rep !== "?????" && rep !== "N/D" && rep.trim()) { representante = rep.trim(); break; }
                 }
             }
-        } catch (e) { console.error("Erro ao buscar representante do saque:", e); }
+        } catch (e) { logger.error({ message: "Erro ao buscar representante do saque", error: e.message }); }
 
         const result = await solicitarSaque(req.user.name, representante, Number(valor), tipo_uso);
         res.json({ ok: true, saque: result });
@@ -130,7 +131,7 @@ router.post("/saques/:id/aprovar", authenticate, authorize(["representante", "ad
                 }
             }
         } catch (emailErr) {
-            console.error("Erro ao enviar email do cheque:", emailErr);
+            logger.error({ message: "Erro ao enviar email do cheque", error: emailErr.message });
         }
 
         res.json({ ok: true, codigo_cheque: saque.codigo_cheque });
@@ -208,7 +209,7 @@ router.post("/creditar-retroativo", authenticate, authorize(["adm"]), sensitiveA
                 detalhes.push({ dealId, revenda, valor: cashbackValor });
             } catch (err) {
                 erros++;
-                console.error(`Erro creditando deal ${dealId}:`, err.message);
+                logger.error({ message: "Erro creditando deal", dealId, error: err.message });
             }
         }
 
@@ -268,7 +269,7 @@ router.post("/recalcular", authenticate, authorize(["adm"]), sensitiveActionRate
                 detalhes.push({ dealId, revenda, pci, anterior: atual, correto, diff });
             } catch (err) {
                 erros++;
-                console.error(`Erro recalculando deal ${dealId}:`, err.message);
+                logger.error({ message: "Erro recalculando deal", dealId, error: err.message });
             }
         }
 
@@ -315,7 +316,7 @@ router.post("/processar-expirados", authenticate, authorize(["adm"]), async (req
                         </div>`
                     );
                 } catch (emailErr) {
-                    console.error("Erro ao enviar aviso de vencimento:", emailErr);
+                    logger.error({ message: "Erro ao enviar aviso de vencimento", error: emailErr.message });
                 }
             }
         }

@@ -2,7 +2,7 @@ const express = require("express");
 const { authenticate, authorize } = require("../middlewares/auth");
 const { sequelize } = require("../database");
 const { QueryTypes } = require("sequelize");
-const { getLeads, getCustomField, syncRevendasToRD, syncRepresentantesToRD, renomearRepresentanteNoRD } = require("../services/rd.leads.service");
+const { getLeads, getCustomField, syncRevendasToRD, syncRepresentantesToRD, renomearRepresentanteNoRD, renomearRevendaNoRD } = require("../services/rd.leads.service");
 const { User, Revenda, Representante } = require("../database");
 const bcrypt = require("bcryptjs");
 const { invalidateConfigCache } = require("./config.routes");
@@ -15,6 +15,7 @@ const router = express.Router();
 
 const { SB_SISTEMAS_URL, sbSistemasAnon: sbSistemas } = require("../config/supabaseSistemas");
 const { sensitiveActionRateLimit } = require("../middlewares/rateLimit");
+const { logger } = require("../logger");
 
 async function fetchAllRevendasAtivas() {
     return await sbSistemas('/comercial_revendas_bmax?ativo=eq.true&select=nome&order=nome');
@@ -26,7 +27,7 @@ async function syncRevendasAfterChange() {
         const nomes = revendas.map(r => r.nome);
         return await syncRevendasToRD(nomes);
     } catch (err) {
-        console.error("Erro sync revendas → RD:", err);
+        logger.error({ message: "Erro sync revendas → RD", error: err.message });
         return { error: err.message };
     }
 }
@@ -73,7 +74,7 @@ router.get("/revendas-rd", authenticate, authorize(["adm"]), async (req, res) =>
 
         res.json({ revendas: result, alertas });
     } catch (err) {
-        console.error("Erro revendas-rd:", err);
+        logger.error({ message: "Erro revendas-rd", error: err.message, stack: err.stack });
         res.status(500).json({ error: err.message });
     }
 });
@@ -138,7 +139,7 @@ router.get("/users", authenticate, authorize(["adm"]), async (req, res) => {
         try {
             const canon = await sbSistemas('/comercial_representantes_bmax?select=*&order=nome');
             canonRepsMap = Object.fromEntries(canon.map(r => [r.nome, r]));
-        } catch (e) { console.error("Erro ao buscar representantes canônicos:", e); }
+        } catch (e) { logger.error({ message: "Erro ao buscar representantes canônicos", error: e.message }); }
 
         const result = [];
         const nomesComLogin = new Set();
@@ -271,14 +272,37 @@ router.patch("/revendas-bmax/:id", authenticate, authorize(["adm"]), async (req,
             if (req.body[key] !== undefined) updates[key] = req.body[key];
         }
         if (Object.keys(updates).length === 0) return res.status(400).json({ error: "Nenhum campo para atualizar" });
+
+        let nomeAntigo = null;
+        if ('nome' in updates) {
+            const atual = await sbSistemas(`/comercial_revendas_bmax?id=eq.${id}&select=nome`);
+            nomeAntigo = atual[0]?.nome || null;
+        }
+
         updates.editado_em = new Date().toISOString();
         updates.editado_por = req.user.username || req.user.email || 'admin';
 
         const row = await sbSistemas(`/comercial_revendas_bmax?id=eq.${id}`, 'PATCH', updates);
         invalidateConfigCache();
         const needsSync = 'nome' in updates || 'ativo' in updates;
+        // Ordem obrigatória: sincronizar o picklist do RD (que já inclui o nome novo,
+        // pois vem da lista de revendas ativas pós-PATCH) ANTES de reescrever os deals —
+        // o campo REVENDA/LOJA no RD é um picklist estrito e descarta valores fora da
+        // lista de opções (mesmo bug corrigido em renomearRepresentanteNoRD).
         const sync = needsSync ? await syncRevendasAfterChange() : null;
-        res.json({ revenda: row[0] || row, sync });
+
+        let renomeRD = null;
+        const houveRename = nomeAntigo && updates.nome && nomeAntigo !== updates.nome;
+        if (houveRename) {
+            try {
+                renomeRD = await renomearRevendaNoRD(nomeAntigo, updates.nome);
+            } catch (e) {
+                logger.error({ message: "Erro ao renomear revenda no RD", error: e.message });
+                renomeRD = { error: e.message };
+            }
+        }
+
+        res.json({ revenda: row[0] || row, sync, renomeRD });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
@@ -342,6 +366,8 @@ router.put("/representantes-bmax", authenticate, authorize(["adm"]), async (req,
         if (!Array.isArray(representantes)) return res.status(400).json({ error: "Array de representantes esperado" });
 
         let renomeRD = null;
+        let sync = null;
+        const nomesAtivos = representantes.filter(r => r.ativo).map(r => r.nome);
 
         // Renomear é uma operação diferente de editar: precisa mudar a chave primária
         // (nome) do registro existente — e o username de login, se houver — em vez de
@@ -369,10 +395,19 @@ router.put("/representantes-bmax", authenticate, authorize(["adm"]), async (req,
                     .catch(() => {}); // best-effort: atualiza display name se ele tiver acesso ao Motor
             }
 
+            // Importante: o campo REPRESENTANTE no RD é um picklist estrito (allow_new:false) —
+            // o RD rejeita silenciosamente qualquer valor de deal que não esteja na lista de
+            // opções. Por isso o picklist tem que ser atualizado com o nome novo ANTES de
+            // tentar reescrever os deals, senão a escrita não persiste (bug encontrado em
+            // 2026-09-04: a ordem estava invertida e o rename nunca fazia efeito de verdade).
+            try {
+                sync = await syncRepresentantesToRD(nomesAtivos);
+            } catch (e) { logger.error({ message: "Erro sync reps → RD", error: e.message }); sync = { error: e.message }; }
+
             try {
                 renomeRD = await renomearRepresentanteNoRD(alvoNomeAntigo, alvoNome);
             } catch (e) {
-                console.error("Erro ao renomear representante no RD:", e);
+                logger.error({ message: "Erro ao renomear representante no RD", error: e.message });
                 renomeRD = { error: e.message };
             }
         }
@@ -399,7 +434,7 @@ router.put("/representantes-bmax", authenticate, authorize(["adm"]), async (req,
             const legado = todos.map(r => ({ nome: r.nome, ativo: r.ativo }));
             await sbSistemas('/comercial_bmax_config?chave=eq.representantes_bmax', 'PATCH', { valor: JSON.stringify(legado) })
                 .catch(() => sbSistemas('/comercial_bmax_config', 'POST', { chave: 'representantes_bmax', valor: JSON.stringify(legado) }));
-        } catch (e) { console.error("Erro ao espelhar representantes para comercial_bmax_config:", e); }
+        } catch (e) { logger.error({ message: "Erro ao espelhar representantes para comercial_bmax_config", error: e.message }); }
 
         const alvo = alvoNome ? representantes.find(r => r.nome === alvoNome) : null;
         let acesso = null;
@@ -438,11 +473,12 @@ router.put("/representantes-bmax", authenticate, authorize(["adm"]), async (req,
         }
 
         invalidateConfigCache();
-        let sync = null;
-        try {
-            const nomesAtivos = representantes.filter(r => r.ativo).map(r => r.nome);
-            sync = await syncRepresentantesToRD(nomesAtivos);
-        } catch (e) { console.error("Erro sync reps → RD:", e); sync = { error: e.message }; }
+        // Se não houve rename, ainda precisamos sincronizar o picklist (ativo/inativo pode ter mudado).
+        if (!(alvoNomeAntigo && alvoNome && alvoNomeAntigo !== alvoNome)) {
+            try {
+                sync = await syncRepresentantesToRD(nomesAtivos);
+            } catch (e) { logger.error({ message: "Erro sync reps → RD", error: e.message }); sync = { error: e.message }; }
+        }
         res.json({ ok: true, count: representantes.length, sync, acesso, renomeRD });
     } catch (err) {
         res.status(500).json({ error: err.message });

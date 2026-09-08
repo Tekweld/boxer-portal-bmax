@@ -3,6 +3,7 @@ const { sendEmail } = require("../services/email.service");
 const { lerPlanilhaResponsavel } = require("../services/responsavel.service");
 const { getRepresentativeEmailByName } = require("../services/user.service");
 const { getCachedLeads, setCachedLeads, invalidateLeadsCache } = require("../services/cache.service");
+const { logger } = require("../logger");
 const {
     RD_STAGE_ASSUMIDO,
     RD_OWNERS,
@@ -76,7 +77,7 @@ async function listLeads(req, res) {
         return res.json(cards);
 
     } catch (err) {
-        console.error("Erro List Leads:", err);
+        logger.error({ message: "Erro List Leads", error: err.message, stack: err.stack });
 
         return res.status(500).json({
             error: err.message || "Falha ao buscar leads do RD"
@@ -176,7 +177,7 @@ async function updateLeadPci(req, res) {
             const destinatarioEmail = emailRepresentante || EMAIL_FALLBACK;
 
             if (!emailRepresentante) {
-                console.error(`E-mail do representante não encontrado para "${representanteNome}". Usando destinatário padrão.`);
+                logger.warn({ message: "E-mail do representante não encontrado, usando destinatário padrão", representanteNome });
             }
             let cnpj = getCustomField(result, "CNPJ") || "";
             cnpj = cnpj.replace(/\D/g, "");
@@ -198,13 +199,13 @@ async function updateLeadPci(req, res) {
                     ${formatarHistoricoNotas(historico)}`
                 );
             } catch (error) {
-                console.error("Falha ao enviar e-mail de notificação:", error);
+                logger.error({ message: "Falha ao enviar e-mail de notificação", error: error.message });
             }
         }
 
         return res.json(result);
     } catch (err) {
-        console.error("Erro ao atualizar PCI:", err);
+        logger.error({ message: "Erro ao atualizar PCI", error: err.message, stack: err.stack });
 
         return res.status(500).json({
             error: err.message || "Falha ao atualizar PCI"
@@ -280,7 +281,7 @@ async function updateLeadResultado(req, res) {
                     await creditarCashback(revenda, cashbackValor, `Venda ${dealId} — ${pci} (${(comissao * 100).toFixed(1)}%)`, dealId);
                 }
             } catch (cashErr) {
-                console.error("Erro ao creditar cashback:", cashErr);
+                logger.error({ message: "Erro ao creditar cashback", error: cashErr.message, stack: cashErr.stack });
             }
         }
 
@@ -288,7 +289,7 @@ async function updateLeadResultado(req, res) {
 
         return res.json(result);
     } catch (err) {
-        console.error("Erro ao atualizar resultado:", err);
+        logger.error({ message: "Erro ao atualizar resultado", error: err.message, stack: err.stack });
 
         return res.status(500).json({
             error: err.message || "Falha ao atualizar resultado"

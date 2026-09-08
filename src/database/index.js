@@ -4,6 +4,7 @@ const createRevendaModel = require("../models/Revenda");
 const createRevendaFilialModel = require("../models/RevendaFilial");
 const createNegociacaoModel = require("../models/Negociacao");
 const createAuditLogModel = require("../models/AuditLog");
+const createRateLimitHitModel = require("../models/RateLimitHit");
 const dotenv = require("dotenv");
 const { Sequelize } = require("sequelize");
 
@@ -40,6 +41,7 @@ const Revenda = createRevendaModel(sequelize);
 const RevendaFilial = createRevendaFilialModel(sequelize);
 const Negociacao = createNegociacaoModel(sequelize);
 const AuditLog = createAuditLogModel(sequelize);
+const RateLimitHit = createRateLimitHitModel(sequelize);
 
 // Relacionamentos
 User.hasOne(Representante, { foreignKey: "user_id" });
@@ -61,5 +63,6 @@ module.exports = {
     Revenda,
     RevendaFilial,
     Negociacao,
-    AuditLog
+    AuditLog,
+    RateLimitHit
 };

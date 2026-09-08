@@ -2,6 +2,7 @@ const express = require("express");
 const { authenticate, authorize } = require("../middlewares/auth");
 const { getCachedLeads } = require("../services/cache.service");
 const { getLeads, mapDealToCard } = require("../services/rd.leads.service");
+const { logger } = require("../logger");
 
 const router = express.Router();
 
@@ -70,7 +71,7 @@ router.get(
             res.setHeader("Content-Disposition", 'attachment; filename="leads_bmax.csv"');
             res.send(csv);
         } catch (err) {
-            console.error("Erro export:", err);
+            logger.error({ message: "Erro export", error: err.message, stack: err.stack });
             res.status(500).json({ error: "Falha ao exportar leads" });
         }
     }

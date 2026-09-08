@@ -16,6 +16,10 @@
     {
       "path": "/api/cron/expirar-cashback",
       "schedule": "0 10 * * *"
+    },
+    {
+      "path": "/api/cron/sync-revenda-rep-rd",
+      "schedule": "*/30 * * * *"
     }
   ]
 }

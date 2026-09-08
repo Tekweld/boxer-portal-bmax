@@ -1,7 +1,9 @@
+const { logger } = require("../logger");
+
 async function sendEmail(to, subject, html) {
     const apiKey = process.env.RESEND_API_KEY;
     if (!apiKey) {
-        console.error("RESEND_API_KEY não configurada");
+        logger.error({ message: "RESEND_API_KEY não configurada" });
         return false;
     }
 
@@ -22,14 +24,14 @@ async function sendEmail(to, subject, html) {
 
         if (!res.ok) {
             const error = await res.text();
-            console.error("Resend error:", error);
+            logger.error({ message: "Resend error", error, to });
             return false;
         }
 
-        console.log(`Email enviado para ${to}: ${subject}`);
+        logger.info({ message: "Email enviado", to, subject });
         return true;
     } catch (err) {
-        console.error("Erro ao enviar email:", err.message);
+        logger.error({ message: "Erro ao enviar email", to, error: err.message });
         return false;
     }
 }

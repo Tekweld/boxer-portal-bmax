@@ -21,6 +21,7 @@ const {
 const RD_CRM_V1 = "https://crm.rdstation.com/api/v1";
 
 const { sbSistemasAnon } = require("../config/supabaseSistemas");
+const { logger } = require("../logger");
 
 let _aliasCache = { data: null, ts: 0 };
 async function getAliasMaps() {
@@ -112,7 +113,7 @@ async function rdFetch(path, method = "GET", body = null) {
         const json = await res.json();
 
         if (!res.ok) {
-            console.error(`RD ${method} ${path} → ${res.status}:`, json);
+            logger.error({ message: "Erro na resposta do RD Station", method, path, status: res.status, body: json });
             const detail = json?.errors ? JSON.stringify(json.errors) : (json?.message || JSON.stringify(json));
             throw new Error(`Erro RD ${res.status}: ${detail}`);
         }
@@ -144,7 +145,7 @@ async function fetchAllDealsFromRD() {
         if (!json.has_more) break;
         page++;
     }
-    if (page > RD_MAX_PAGES) console.error(`fetchAllDealsFromRD: atingiu o teto de ${RD_MAX_PAGES} páginas — dados podem estar incompletos.`);
+    if (page > RD_MAX_PAGES) logger.error({ message: "fetchAllDealsFromRD atingiu o teto de páginas — dados podem estar incompletos", maxPages: RD_MAX_PAGES });
     _leadsCache = { data: allDeals, ts: Date.now() };
     return allDeals;
 }
@@ -281,9 +282,19 @@ async function getLeadByCnpj(cnpj) {
 // Corrige o nome do representante em TODAS as negociações já existentes no RD
 // (histórico completo, sem filtro de data) — usado quando o admin renomeia um
 // representante, para que ele não perca visibilidade/comissão sobre leads antigos.
-async function renomearRepresentanteNoRD(nomeAntigo, nomeNovo) {
+//
+// IMPORTANTE: o campo REPRESENTANTE no RD é um picklist estrito (allow_new:false) —
+// o RD aceita a chamada mas descarta silenciosamente qualquer valor que não esteja
+// na lista de opções do campo. O chamador PRECISA garantir que `nomeNovo` já foi
+// adicionado ao picklist (via syncRepresentantesToRD) ANTES de chamar esta função,
+// senão a escrita não persiste em nenhum deal.
+//
+// dryRun:true só conta/lista os deals que seriam afetados, sem gravar nada — use
+// para conferir o escopo (quantos deals, quais IDs) antes de rodar de verdade.
+async function renomearRepresentanteNoRD(nomeAntigo, nomeNovo, { dryRun = false } = {}) {
     const pipelines = [RD_PIPELINE_INDUSTRIA, RD_PIPELINE_BMAX_INTERNO];
     let total = 0, updated = 0, failed = 0;
+    const dealIds = [];
 
     for (const pipelineId of pipelines) {
         let page = 1;
@@ -295,12 +306,14 @@ async function renomearRepresentanteNoRD(nomeAntigo, nomeNovo) {
             for (const d of deals) {
                 if (getCustomField(d, "REPRESENTANTE") !== nomeAntigo) continue;
                 total++;
+                const dealId = d._id || d.id;
+                if (dryRun) { dealIds.push(dealId); continue; }
                 try {
-                    await updateLead(d._id || d.id, { data: { custom_fields: { representante: nomeNovo } } });
+                    await updateLead(dealId, { data: { custom_fields: { representante: nomeNovo } } });
                     updated++;
                 } catch (e) {
                     failed++;
-                    console.error(`Erro ao renomear representante no deal ${d._id || d.id}:`, e.message);
+                    logger.error({ message: "Erro ao renomear representante no deal", dealId, error: e.message });
                 }
             }
 
@@ -309,7 +322,52 @@ async function renomearRepresentanteNoRD(nomeAntigo, nomeNovo) {
         }
     }
 
+    if (dryRun) return { total, dealIds, dryRun: true };
     _leadsCache = { data: null, ts: 0 }; // invalida cache — próximo getLeads busca dados atualizados
+    return { total, updated, failed };
+}
+
+// Corrige o nome da revenda em TODAS as negociações já existentes no RD (histórico
+// completo, sem filtro de data) — mesma lógica de renomearRepresentanteNoRD, mas
+// varre também RD_PIPELINE_REVENDAS (onde deals de revenda também podem viver, ao
+// contrário do rename de representante que só varre INDUSTRIA/BMAX_INTERNO).
+//
+// Mesma regra do picklist estrito se aplica ao campo REVENDA/LOJA: o chamador
+// PRECISA rodar syncRevendasToRD com o nome novo incluído ANTES de chamar esta
+// função, senão a escrita não persiste.
+async function renomearRevendaNoRD(nomeAntigo, nomeNovo, { dryRun = false } = {}) {
+    const pipelines = [RD_PIPELINE_INDUSTRIA, RD_PIPELINE_BMAX_INTERNO, RD_PIPELINE_REVENDAS];
+    let total = 0, updated = 0, failed = 0;
+    const dealIds = [];
+
+    for (const pipelineId of pipelines) {
+        let page = 1;
+        while (page <= RD_MAX_PAGES) {
+            const json = await rdFetch(`/deals?deal_pipeline_id=${pipelineId}&page=${page}&limit=200`);
+            const deals = json.deals || [];
+            if (deals.length === 0) break;
+
+            for (const d of deals) {
+                if (getCustomField(d, "REVENDA/LOJA") !== nomeAntigo) continue;
+                total++;
+                const dealId = d._id || d.id;
+                if (dryRun) { dealIds.push(dealId); continue; }
+                try {
+                    await updateLead(dealId, { data: { custom_fields: { "revenda-loja": nomeNovo } } });
+                    updated++;
+                } catch (e) {
+                    failed++;
+                    logger.error({ message: "Erro ao renomear revenda no deal", dealId, error: e.message });
+                }
+            }
+
+            if (!json.has_more) break;
+            page++;
+        }
+    }
+
+    if (dryRun) return { total, dealIds, dryRun: true };
+    _leadsCache = { data: null, ts: 0 };
     return { total, updated, failed };
 }
 
@@ -504,5 +562,6 @@ module.exports = {
     syncRevendasToRD,
     syncRepresentantesToRD,
     getAliasMaps,
-    renomearRepresentanteNoRD
+    renomearRepresentanteNoRD,
+    renomearRevendaNoRD
 };

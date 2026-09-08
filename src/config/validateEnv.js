@@ -1,3 +1,5 @@
+const { logger } = require("../logger");
+
 const REQUIRED = [
     "RD_CRM_TOKEN",
     "JWT_SECRET",
@@ -23,9 +25,7 @@ function validateEnv() {
     }
 
     if (missing.length > 0) {
-        console.error("=== ENV VARS FALTANDO ===");
-        missing.forEach(k => console.error(`  - ${k}`));
-        console.error("=========================");
+        logger.error({ message: "Variáveis de ambiente faltando", missing });
         if (process.env.NODE_ENV === "production") {
             process.exit(1);
         }

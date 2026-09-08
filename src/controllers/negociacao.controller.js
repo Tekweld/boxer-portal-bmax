@@ -3,6 +3,7 @@ const {
     listNegociacoes
 } = require("../services/negociacao.service");
 const { AuditLog } = require("../services/audit.service");
+const { logger } = require("../logger");
 
 async function create(req, res) {
     try {
@@ -27,7 +28,7 @@ async function create(req, res) {
 
     } catch (err) {
 
-        console.error("Erro Create Negociação:", err);
+        logger.error({ message: "Erro Create Negociação", error: err.message, stack: err.stack });
 
         return res.status(400).json({
             error: err.message || "Erro ao criar negociação"
@@ -43,7 +44,7 @@ async function list(req, res) {
         return res.json(negociacoes);
     } catch (err) {
 
-        console.error("Erro List Negociacoes:", err);
+        logger.error({ message: "Erro List Negociacoes", error: err.message, stack: err.stack });
 
         return res.status(500).json({
             error: "Erro ao listar negociações"
