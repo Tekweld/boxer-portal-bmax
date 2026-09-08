@@ -2,6 +2,7 @@ const db = require("../database");
 const { createLead, createTask, getLeadByCnpj } = require("./rd.leads.service");
 const { sendEmail } = require("./email.service");
 const { getRepresentativeEmailByName } = require("./user.service");
+const { aplicarCaminhoVenda } = require("./caminhoVenda.service");
 const { RD_OWNERS, RD_OWNER_DEFAULT, EMAIL_FALLBACK } = require("../config/constants");
 const { logger } = require("../logger");
 
@@ -53,6 +54,14 @@ async function createNegociacao(data) {
     };
 
     await createTask(taskData);
+
+    if (data.caminho) {
+        try {
+            await aplicarCaminhoVenda(leadId, data.caminho, data.cidade, data.estado);
+        } catch (error) {
+            logger.error({ message: "Falha ao definir caminho de venda na criação da negociação", error: error.message });
+        }
+    }
 
     try {
         let representanteNome = data.representante || "";

@@ -21,7 +21,8 @@ async function create(req, res) {
                 nome: negociacao.nome,
                 cnpj: negociacao.cnpj,
                 revenda: negociacao.revenda,
-                representante: negociacao.representante
+                representante: negociacao.representante,
+                caminho: data.caminho || null
             }
         });
         return res.status(201).json(negociacao);

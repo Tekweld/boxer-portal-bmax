@@ -189,7 +189,7 @@
       </div>
     </div>
 
-    <section class="card" style="padding:20px; margin-bottom:20px;">
+    <section class="card" id="negociacaoFormCard" style="padding:12px; margin-bottom:12px;">
       <div class="form-grid">
         <div class="field">
           <label>CNPJ <span class="req">*</span></label>
@@ -214,6 +214,21 @@
         <div class="field">
           <label>Observacoes</label>
           <input type="text" id="negObs" placeholder="Link do orcamento, detalhes adicionais...">
+        </div>
+
+        <div id="blocoCaminhoVenda" class="form-grid full hidden">
+          <div class="field">
+            <label>Estado <span class="req">*</span></label>
+            <input type="text" id="negEstado" placeholder="UF ou nome do estado">
+          </div>
+          <div class="field">
+            <label>Caminho de Venda <span class="req">*</span></label>
+            <select id="negCaminho">
+              <option value="">Como deseja atender este lead?</option>
+              <option value="BOX>REV">Eu assumo a venda (revenda atende)</option>
+              <option value="BOX+REV>IND">Boxer vende, eu ganho comissao</option>
+            </select>
+          </div>
         </div>
 
         <div id="blocoCamposRepresentante" class="form-grid full hidden">
@@ -244,7 +259,7 @@
         </div>
       </div>
 
-      <div style="margin-top:20px;">
+      <div style="margin-top:12px;">
         <button class="btn primary" id="btnSalvarNegociacao">Salvar Negociacao</button>
       </div>
     </section>

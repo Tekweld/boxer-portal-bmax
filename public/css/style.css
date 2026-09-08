@@ -19,11 +19,24 @@
 
 *{box-sizing:border-box}
 html,body{height:100%}
-#screenDash {
+#screenDash, #screenNegociacoes {
   display: flex;
   flex-direction: column;
   min-height: 100vh;
   overflow-y: auto;
+}
+#negociacaoFormCard {
+  flex: 0 0 auto;
+}
+#negociacaoFormCard .form-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+@media (max-width: 900px) {
+  #negociacaoFormCard .form-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 760px) {
+  #negociacaoFormCard .form-grid { grid-template-columns: 1fr; }
 }
 body{
   margin:0;
@@ -757,7 +770,7 @@ input::placeholder{color: rgba(159,176,214,.75); font-weight:650}
 
 /* ====== MOBILE RESPONSIVE ====== */
 @media (max-width: 768px){
-  #screenDash{height:auto;overflow:auto}
+  #screenDash, #screenNegociacoes{height:auto;overflow:auto}
   .board{overflow:visible}
   .board-grid{overflow-y:visible}
 }

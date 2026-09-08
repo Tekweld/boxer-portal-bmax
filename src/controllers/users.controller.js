@@ -3,6 +3,7 @@ const { UniqueConstraintError } = require("sequelize");
 const db = require("../database");
 const { sendAccessCredentials } = require("../services/email.service");
 const { logger } = require("../logger");
+const { sbBmax } = require("../config/supabaseBmax");
 
 const { User, Revenda, RevendaFilial, Representante, sequelize } = db;
 
@@ -16,36 +17,12 @@ function generateRandomPassword(length = 16) {
 }
 
 const SB_SISTEMAS_URL = 'https://bmepxcnrsofofoswubuu.supabase.co';
-const SB_BMAX_URL = 'https://zsvtxutoewypyitajjwz.supabase.co';
 
 async function sbSistemas(path, method = 'GET', body = null) {
     const serviceKey = process.env.SUPABASE_SERVICE_KEY_SISTEMAS;
     if (!serviceKey) throw new Error("SUPABASE_SERVICE_KEY_SISTEMAS não configurada");
 
     const url = `${SB_SISTEMAS_URL}/rest/v1${path}`;
-    const opts = {
-        method,
-        headers: {
-            apikey: serviceKey,
-            Authorization: `Bearer ${serviceKey}`,
-            "Content-Type": "application/json"
-        }
-    };
-    if (body) opts.body = JSON.stringify(body);
-
-    const res = await fetch(url, opts);
-    if (!res.ok) {
-        const json = await res.json().catch(() => ({}));
-        throw new Error(json?.message || json?.error || `HTTP ${res.status}`);
-    }
-    return res.json().catch(() => ({}));
-}
-
-async function sbBmax(path, method = 'GET', body = null) {
-    const serviceKey = process.env.SUPABASE_SERVICE_KEY_BMAX || process.env.SUPABASE_SERVICE_KEY;
-    if (!serviceKey) throw new Error("SUPABASE_SERVICE_KEY_BMAX não configurada");
-
-    const url = `${SB_BMAX_URL}/rest/v1${path}`;
     const opts = {
         method,
         headers: {

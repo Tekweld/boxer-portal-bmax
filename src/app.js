@@ -137,6 +137,7 @@ app.get("/api/cron/sync-revenda-rep-rd", async (req, res) => {
     }
     try {
         const { sbSistemasAnon } = require("./config/supabaseSistemas");
+        const { sbBmax } = require("./config/supabaseBmax");
         const { syncRevendasToRD, renomearRevendaNoRD } = require("./services/rd.leads.service");
 
         async function getSnapshot(chave) {
@@ -152,7 +153,7 @@ app.get("/api/cron/sync-revenda-rep-rd", async (req, res) => {
 
         // Revendas
         const snapshotRevendas = await getSnapshot("revenda_rd_snapshot");
-        const revendasAtuais = await sbSistemasAnon("/comercial_revendas_bmax?select=id,nome,ativo");
+        const revendasAtuais = await sbBmax("/comercial_revendas_bmax?select=id,nome,ativo");
         const revendasMudadas = revendasAtuais.filter(r => snapshotRevendas[r.id] && snapshotRevendas[r.id] !== r.nome);
 
         if (revendasMudadas.length) {

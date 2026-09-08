@@ -1,51 +1,14 @@
-const { getLeads, mapDealToCard, updateLead, getTask, updateTask, createTask, getLeadNotes, getCustomField } = require("../services/rd.leads.service");
-const { sendEmail } = require("../services/email.service");
-const { lerPlanilhaResponsavel } = require("../services/responsavel.service");
-const { getRepresentativeEmailByName } = require("../services/user.service");
+const { getLeads, mapDealToCard, updateLead, getTask, updateTask } = require("../services/rd.leads.service");
 const { getCachedLeads, setCachedLeads, invalidateLeadsCache } = require("../services/cache.service");
 const { logger } = require("../logger");
+const { aplicarCaminhoVenda } = require("../services/caminhoVenda.service");
+const { AuditLog } = require("../services/audit.service");
 const {
-    RD_STAGE_ASSUMIDO,
-    RD_OWNERS,
-    RD_OWNER_DEFAULT,
-    PCI_POR_CAMINHO,
-    EMAIL_FALLBACK,
     RD_STAGE_VENDIDO,
     RD_STAGE_PERDIDO
 } = require("../config/constants");
 const { lerPlanilhaCashback } = require("../services/cashback.service");
 const { creditarCashback, getCreditosPorLeads } = require("../services/saldo.service");
-
-function formatarHistoricoNotas(historico) {
-    const notas = Array.isArray(historico?.annotations) ? historico.annotations : Array.isArray(historico?.data) ? historico.data : [];
-
-    if (!notas.length) {
-        return "<p><em>Sem histórico disponível para este lead.</em></p>";
-    }
-
-    const itens = notas.map((nota) => {
-        const data = (nota.registered_at || nota.created_at)
-            ? new Date(nota.registered_at || nota.created_at).toLocaleString("pt-BR")
-            : "Data não informada";
-        const descricao = nota.description || nota.text || "Sem descrição";
-
-        return `
-            <li style="margin-bottom:12px;">
-                <div><strong>${data}</strong></div>
-                <div>${descricao}</div>
-            </li>
-        `;
-    }).join("");
-
-    return `
-        <div style="margin-top:16px;">
-            <p style="margin:0 0 8px;"><strong>Histórico da Negociação</strong></p>
-            <ul style="padding-left:18px; margin:0;">
-                ${itens}
-            </ul>
-        </div>
-    `;
-}
 
 async function listLeads(req, res) {
     try {
@@ -101,55 +64,8 @@ async function updateLeadPci(req, res) {
             });
         }
 
-        const novoPci = PCI_POR_CAMINHO[caminho];
+        const { novoPci, responsavel, result } = await aplicarCaminhoVenda(dealId, caminho, cidade, estado);
 
-        if (!novoPci) {
-            return res.status(400).json({
-                error: "Caminho inválido"
-            });
-        }
-
-        const responsavel = await lerPlanilhaResponsavel(cidade, estado);
-
-        if (!responsavel) {
-            return res.status(400).json({
-                error: `Responsável não encontrado para a cidade "${cidade}" e estado "${estado}"`
-            });
-        }
-
-        const responsavelId = RD_OWNERS[responsavel];
-
-        if (!responsavelId) {
-            return res.status(400).json({
-                error: `ID não encontrado para o responsável "${responsavel}"`
-            });
-        }
-
-        const body = {
-            data: {
-                stage_id: RD_STAGE_ASSUMIDO,
-                owner_id: `${responsavelId}`,
-                custom_fields: {
-                    "perfil-pci": `${novoPci}`
-                }
-            }
-        };
-
-        if (novoPci === "PCI 12b") {
-            const taskData = {
-                deal_id: dealId,
-                name: "Revenda Autorizou",
-                description:"Revenda Selecionou Caminho BOX+REV>IND - Boxer assume venda",
-                created_by_id: RD_OWNERS["Revenda"],
-                owner_ids: [
-                    RD_OWNER_DEFAULT
-                ],
-                type: "task"
-            };
-            await createTask(taskData);
-        }
-
-        const result = await updateLead(dealId, body);
         await AuditLog(req, {
             action: "SELECT_CAMINHO_VENDA",
             entityType: "Lead",
@@ -166,48 +82,11 @@ async function updateLeadPci(req, res) {
 
         try { await invalidateLeadsCache(); } catch (_) {}
 
-        const resultPci = getCustomField(result, "PERFIL PCI");
-        if (resultPci === "PCI 12b") {
-            let historico = await getLeadNotes(dealId);
-            const { getAliasMaps } = require("../services/rd.leads.service");
-            const { rdToUsername } = await getAliasMaps();
-            let representanteNome = getCustomField(result, "REPRESENTANTE") || "";
-            representanteNome = rdToUsername[representanteNome] || representanteNome;
-            const emailRepresentante = await getRepresentativeEmailByName(representanteNome);
-            const destinatarioEmail = emailRepresentante || EMAIL_FALLBACK;
-
-            if (!emailRepresentante) {
-                logger.warn({ message: "E-mail do representante não encontrado, usando destinatário padrão", representanteNome });
-            }
-            let cnpj = getCustomField(result, "CNPJ") || "";
-            cnpj = cnpj.replace(/\D/g, "");
-            if (cnpj.length !== 14) cnpj = "--------------";
-            else cnpj = cnpj.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/,"$1.$2.$3/$4-$5");
-            try {
-                await sendEmail(
-                    destinatarioEmail,
-                    `BMAX - Negociação Assumida (Boxer vende)`,
-                    `<p>Uma negociação do BMAX foi assumida pela Boxer (caminho BOX+REV>IND):</p>
-                    <ul>
-                        <li><strong>Cliente:</strong> ${result?.name}</li>
-                        <li><strong>CNPJ:</strong> ${cnpj}</li>
-                        <li><strong>Cidade:</strong> ${getCustomField(result, "CIDADE")}</li>
-                        <li><strong>Estado:</strong> ${getCustomField(result, "ESTADO")}</li>
-                        <li><strong>Máquina:</strong> ${getCustomField(result, "MÁQUINA DE INTERESSE")}</li>
-                        <li><strong>Preço Total:</strong> ${result?.amount_total || 0} R$</li>
-                    </ul>
-                    ${formatarHistoricoNotas(historico)}`
-                );
-            } catch (error) {
-                logger.error({ message: "Falha ao enviar e-mail de notificação", error: error.message });
-            }
-        }
-
         return res.json(result);
     } catch (err) {
         logger.error({ message: "Erro ao atualizar PCI", error: err.message, stack: err.stack });
 
-        return res.status(500).json({
+        return res.status(err.status || 500).json({
             error: err.message || "Falha ao atualizar PCI"
         });
     }
@@ -300,6 +179,5 @@ async function updateLeadResultado(req, res) {
 module.exports = {
     listLeads,
     updateLeadPci,
-    updateLeadResultado,
-    formatarHistoricoNotas
+    updateLeadResultado
 };

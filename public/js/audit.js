@@ -29,7 +29,7 @@ async function loadAuditLogs(page = 1) {
         const params = new URLSearchParams({ page, pageSize: AUDIT_PAGE_SIZE });
         if (userId) params.set("userId", userId);
 
-        const res = await fetch(`${API_URL}/audit/?${params}`, { headers: { Authorization: `Bearer ${token}` } });
+        const res = await fetch(`${API_URL}/audit?${params}`, { headers: { Authorization: `Bearer ${token}` } });
         if (!res.ok) throw new Error("Erro ao carregar logs de auditoria");
         const data = await res.json();
 
@@ -111,7 +111,7 @@ function renderAuditPagination() {
 }
 
 function openAuditDetalhesModal(id) {
-    const log = AUDIT_LOGS.find(l => l.id === id);
+    const log = AUDIT_LOGS.find(l => String(l.id) === String(id));
     if (!log) return;
 
     const modal = $("adminModal");

@@ -244,6 +244,7 @@ async function createLead(negociacao) {
             deal_custom_fields: [
                 { custom_field_id: RD_CUSTOM_FIELDS.CNPJ, value: formattedCnpj },
                 { custom_field_id: RD_CUSTOM_FIELDS.CIDADE, value: negociacao.cidade },
+                { custom_field_id: RD_CUSTOM_FIELDS.ESTADO, value: negociacao.estado || "" },
                 { custom_field_id: RD_CUSTOM_FIELDS.REVENDA_LOJA, value: matchRevendaRD(negociacao.revenda) },
                 { custom_field_id: RD_CUSTOM_FIELDS.REPRESENTANTE, value: negociacao.representante },
                 { custom_field_id: RD_CUSTOM_FIELDS.MAQUINA, value: negociacao.maquinainteresse },

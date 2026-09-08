@@ -62,6 +62,11 @@ $("btnSalvarNegociacao").addEventListener("click", async () => {
 
   if (session.role === "revenda") {
     novaNegociacao.revenda = session.name;
+
+    if (!$("negEstado").value.trim()) return toast("Informe o Estado.", "warn");
+    if (!$("negCaminho").value) return toast("Selecione o Caminho de Venda.", "warn");
+    novaNegociacao.estado = $("negEstado").value.trim();
+    novaNegociacao.caminho = $("negCaminho").value;
   } else {
     novaNegociacao.revenda = $("negRevenda").value;
   }
@@ -119,6 +124,8 @@ $("btnSalvarNegociacao").addEventListener("click", async () => {
   $("negResponsavel").value = "";
   $("negRevenda").value = "";
   $("negPci").value = "";
+  $("negEstado").value = "";
+  $("negCaminho").value = "";
 
   toast("Negociação Registrada!");
   } finally {

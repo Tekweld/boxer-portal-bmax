@@ -206,10 +206,12 @@ function render() {
   }
   $("statVendas").textContent = vendas.length;
 
-  const cashbackTotal = data.reduce((total, card) => total + (card.cashback || 0), 0);
-  const cashValEl = $("statCashbackVal");
-  cashValEl.textContent = `R$ ${cashbackTotal.toLocaleString("pt-BR", {minimumFractionDigits:2, maximumFractionDigits:2})}`;
-  cashValEl.className = cashbackTotal > 0 ? "cashback-positive" : "";
+  if (session.role !== "revenda") {
+    const cashbackTotal = data.reduce((total, card) => total + (card.cashback || 0), 0);
+    const cashValEl = $("statCashbackVal");
+    cashValEl.textContent = `R$ ${cashbackTotal.toLocaleString("pt-BR", {minimumFractionDigits:2, maximumFractionDigits:2})}`;
+    cashValEl.className = cashbackTotal > 0 ? "cashback-positive" : "";
+  }
   const cashLabel = $("statCashback")?.querySelector(".k");
   if (cashLabel) cashLabel.textContent = session.role === "representante" ? "Comissao Total" : "Cashback Total";
 
