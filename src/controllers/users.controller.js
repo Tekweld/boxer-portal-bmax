@@ -3,7 +3,6 @@ const { UniqueConstraintError } = require("sequelize");
 const db = require("../database");
 const { sendAccessCredentials } = require("../services/email.service");
 const { logger } = require("../logger");
-const { sbBmax } = require("../config/supabaseBmax");
 
 const { User, Revenda, RevendaFilial, Representante, sequelize } = db;
 
@@ -224,11 +223,11 @@ async function createUser(req, res) {
 
         if (role === "revenda") {
             try {
-                await sbBmax('/comercial_revendas_bmax', 'POST', {
+                await sbSistemas('/comercial_revendas_bmax', 'POST', {
                     nome: name,
                     email: email || null,
                     telefone: telefone || null,
-                    representante_id: representante || null,
+                    rep: representante || null,
                     cnpj: cnpj || null,
                     cep: cep || null,
                     cidade: cidade || null,

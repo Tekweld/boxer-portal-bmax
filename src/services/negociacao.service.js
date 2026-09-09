@@ -1,7 +1,7 @@
 const db = require("../database");
 const { createLead, createTask, getLeadByCnpj } = require("./rd.leads.service");
 const { sendEmail } = require("./email.service");
-const { getRepresentativeEmailByName } = require("./user.service");
+const { getRepresentativeEmailByName, getRevendaEmailByName } = require("./user.service");
 const { aplicarCaminhoVenda } = require("./caminhoVenda.service");
 const { RD_OWNERS, RD_OWNER_DEFAULT, EMAIL_FALLBACK } = require("../config/constants");
 const { logger } = require("../logger");
@@ -60,6 +60,29 @@ async function createNegociacao(data) {
             await aplicarCaminhoVenda(leadId, data.caminho, data.cidade, data.estado);
         } catch (error) {
             logger.error({ message: "Falha ao definir caminho de venda na criação da negociação", error: error.message });
+        }
+    } else {
+        try {
+            const emailRevenda = await getRevendaEmailByName(data.revenda);
+            const destinatarioEmail = emailRevenda || EMAIL_FALLBACK;
+
+            if (!emailRevenda) {
+                logger.warn({ message: "E-mail da revenda não encontrado para aviso de caminho pendente, usando destinatário padrão", revendaNome: data.revenda });
+            }
+
+            await sendEmail(
+                destinatarioEmail,
+                `BMAX - Lead aguardando definição de caminho de venda`,
+                `<p>Um novo lead foi registrado no Portal BMAX e precisa que você escolha o caminho de venda:</p>
+                 <ul>
+                    <li><strong>Cliente:</strong> ${novaNegociacao.nome}</li>
+                    <li><strong>Máquina:</strong> ${novaNegociacao.maquina}</li>
+                    <li><strong>Cidade:</strong> ${novaNegociacao.cidade}</li>
+                 </ul>
+                 <p>Acesse o <a href="https://bmax.boxersoldas.com.br">Portal BMAX</a> e selecione "Como deseja atender este lead?" no card correspondente.</p>`
+            );
+        } catch (error) {
+            logger.error({ message: "Falha ao enviar e-mail de aviso de caminho pendente", error: error.message });
         }
     }
 

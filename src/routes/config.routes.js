@@ -4,7 +4,6 @@ const { REPRESENTANTES, RESPONSAVEIS, PCI_POR_CAMINHO } = require("../config/con
 const router = express.Router();
 
 const { sbSistemasAnon } = require("../config/supabaseSistemas");
-const { sbBmax } = require("../config/supabaseBmax");
 
 const PCIS = [
     "PCI 1", "PCI 2", "PCI 3", "PCI 4", "PCI 5",
@@ -29,7 +28,7 @@ async function sbFetch(path) {
 async function fetchRevendasBmax() {
     if (_revendasCache.data && Date.now() - _revendasCache.ts < CACHE_TTL) return _revendasCache.data;
     try {
-        const rows = await sbBmax('/comercial_revendas_bmax?ativo=eq.true&select=id,nome,cidade,estado,classe&order=nome');
+        const rows = await sbFetch('/comercial_revendas_bmax?ativo=eq.true&select=id,nome,cidade,estado,classe&order=nome');
         _revendasCache = { data: rows || [], ts: Date.now() };
         return _revendasCache.data;
     } catch { return []; }
