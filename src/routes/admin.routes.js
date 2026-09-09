@@ -275,7 +275,7 @@ router.patch("/revendas-bmax/:id", authenticate, authorize(["adm"]), async (req,
 
         let nomeAntigo = null;
         if ('nome' in updates) {
-            const atual = await sbBmax(`/comercial_revendas_bmax?id=eq.${id}&select=nome`);
+            const atual = await sbSistemas(`/comercial_revendas_bmax?id=eq.${id}&select=nome`);
             nomeAntigo = atual[0]?.nome || null;
         }
 

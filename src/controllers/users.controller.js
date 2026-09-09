@@ -3,7 +3,6 @@ const { UniqueConstraintError } = require("sequelize");
 const db = require("../database");
 const { sendAccessCredentials } = require("../services/email.service");
 const { logger } = require("../logger");
-const { sbBmax } = require("../config/supabaseBmax");
 
 const { User, Revenda, RevendaFilial, Representante, sequelize } = db;
 
