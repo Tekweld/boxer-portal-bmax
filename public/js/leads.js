@@ -147,8 +147,7 @@ function render() {
     const inv = ["", "?????", "?", "Vazio", "N/D"];
     data = API_LEADS.filter(l => inv.includes((l.representante || "").trim()));
   } else if (activeAlertFilter === "semClasse") {
-    const pcisPorClasse = ["PCI13", "PCI14", "PCI15"];
-    data = API_LEADS.filter(l => pcisPorClasse.includes(normalizePci(l.pci)) && !l.classePreco);
+    data = API_LEADS.filter(l => !l.classePreco);
   } else if (activeAlertFilter === "repInvalido") {
     const validReps = new Set((APP_CONFIG?.representantes || []).map(r => r.trim()));
     const inv = ["", "?????", "?", "Vazio", "N/D"];
@@ -259,11 +258,7 @@ function render() {
       alertRep.classList.add("hidden");
     }
 
-    const pcisPorClasse = ["PCI13", "PCI14", "PCI15"];
-    const semClasse = data.filter(l => {
-      const pciNorm = normalizePci(l.pci);
-      return pcisPorClasse.includes(pciNorm) && !l.classePreco;
-    });
+    const semClasse = data.filter(l => !l.classePreco);
     const alertClasse = $("alertaSemClasse");
     if (semClasse.length > 0) {
       $("qtdSemClasse").textContent = semClasse.length;
