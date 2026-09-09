@@ -137,7 +137,6 @@ app.get("/api/cron/sync-revenda-rep-rd", async (req, res) => {
     }
     try {
         const { sbSistemasAnon } = require("./config/supabaseSistemas");
-        const { sbBmax } = require("./config/supabaseBmax");
         const { syncRevendasToRD, renomearRevendaNoRD } = require("./services/rd.leads.service");
 
         async function getSnapshot(chave) {
@@ -153,7 +152,7 @@ app.get("/api/cron/sync-revenda-rep-rd", async (req, res) => {
 
         // Revendas
         const snapshotRevendas = await getSnapshot("revenda_rd_snapshot");
-        const revendasAtuais = await sbBmax("/comercial_revendas_bmax?select=id,nome,ativo");
+        const revendasAtuais = await sbSistemasAnon("/comercial_revendas_bmax?select=id,nome,ativo");
         const revendasMudadas = revendasAtuais.filter(r => snapshotRevendas[r.id] && snapshotRevendas[r.id] !== r.nome);
 
         if (revendasMudadas.length) {
@@ -171,6 +170,60 @@ app.get("/api/cron/sync-revenda-rep-rd", async (req, res) => {
         }
         const novoSnapshotRevendas = Object.fromEntries(revendasAtuais.map(r => [r.id, r.nome]));
         await saveSnapshot("revenda_rd_snapshot", novoSnapshotRevendas);
+
+        // Avisa por e-mail leads com PCI12 que chegaram direto no RD Station (fora do
+        // Portal), já que nesse caso não existe nenhuma ação nossa disparando na hora
+        // que o lead aparece. Roda nesse mesmo cron diário — plano Hobby da Vercel só
+        // permite 1x/dia por job — comparando com um snapshot dos leads já avisados
+        // para não reenviar e-mail toda vez que o job rodar.
+        try {
+            const { getLeads, getCustomField } = require("./services/rd.leads.service");
+            const { getRevendaEmailByName } = require("./services/user.service");
+            const { sendEmail } = require("./services/email.service");
+            const { EMAIL_FALLBACK } = require("./config/constants");
+
+            const jaAvisados = await getSnapshot("pci12_leads_avisados");
+            const todosDeals = await getLeads("admin", "adm");
+
+            const pendentes = todosDeals.filter(d => {
+                const pci = (getCustomField(d, "PERFIL PCI") || "").trim().replace(/\s/g, "");
+                const revenda = getCustomField(d, "REVENDA/LOJA") || "";
+                return pci === "PCI12" && revenda && revenda !== "?????" && revenda !== "Sem Revenda";
+            });
+
+            const novosSnapshot = {};
+            for (const d of pendentes) {
+                const dealId = d.id || d._id;
+                novosSnapshot[dealId] = true;
+                if (jaAvisados[dealId]) continue;
+
+                const revendaNome = getCustomField(d, "REVENDA/LOJA") || "";
+                try {
+                    const emailRevenda = await getRevendaEmailByName(revendaNome);
+                    const destinatarioEmail = emailRevenda || EMAIL_FALLBACK;
+
+                    if (!emailRevenda) {
+                        logger.warn({ message: "E-mail da revenda não encontrado para aviso de PCI12 pendente, usando destinatário padrão", revendaNome });
+                    }
+
+                    await sendEmail(
+                        destinatarioEmail,
+                        `BMAX - Lead aguardando definição de caminho de venda`,
+                        `<p>Um lead do RD Station foi atribuído à sua revenda e precisa que você escolha o caminho de venda:</p>
+                         <ul>
+                            <li><strong>Cliente:</strong> ${d.name || "?????"}</li>
+                         </ul>
+                         <p>Acesse o <a href="https://bmax.boxersoldas.com.br">Portal BMAX</a> e selecione "Como deseja atender este lead?" no card correspondente.</p>`
+                    );
+                    resultado.pci12Avisados = (resultado.pci12Avisados || 0) + 1;
+                } catch (e) {
+                    logger.error({ message: "Erro ao avisar revenda de lead PCI12 pendente", dealId, revendaNome, error: e.message });
+                }
+            }
+            await saveSnapshot("pci12_leads_avisados", novosSnapshot);
+        } catch (e) {
+            logger.error({ message: "Erro na varredura de leads PCI12 pendentes (reconciliação)", error: e.message });
+        }
 
         // Nota: não há reconciliação equivalente para representantes aqui — a tabela
         // comercial_representantes_bmax não tem PK estável além do próprio `nome`
