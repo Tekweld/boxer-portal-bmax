@@ -407,6 +407,8 @@ input::placeholder{color: rgba(159,176,214,.75); font-weight:650}
   align-items:center;
   gap:10px;
   font-weight:700;
+  flex:0 0 auto;
+  white-space:nowrap;
 }
 .alert-icon{
   width:22px; height:22px;
@@ -422,8 +424,10 @@ input::placeholder{color: rgba(159,176,214,.75); font-weight:650}
   max-width:1400px;
   margin:0 auto 10px;
   display:flex;
-  flex-wrap:wrap;
+  flex-wrap:nowrap;
+  overflow-x:auto;
   gap:6px;
+  scrollbar-width:thin;
 }
 .alert-bar{cursor:pointer;transition:opacity .15s}
 .alert-bar:hover{opacity:.8}

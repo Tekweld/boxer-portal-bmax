@@ -40,11 +40,10 @@ router.get(
             } else if (filter === "semRevenda") {
                 filtered = cards.filter(l => invalidos.includes((l.revenda || "").trim()));
             } else if (filter === "semClasse") {
-                const pcisPorClasse = ["PCI13", "PCI14", "PCI15"];
-                filtered = cards.filter(l => pcisPorClasse.includes((l.pci || "").toUpperCase().replace(/[^A-Z0-9]/g, "")) && !l.classePreco);
+                filtered = cards.filter(l => !l.classePreco);
             }
 
-            const headers = ["Nome", "CNPJ", "Cidade", "UF", "Revenda", "Rep", "Data", "PCI", "Máquina", "Valor", "Oportunidade", "Cashback", "Status"];
+            const headers = ["Nome", "CNPJ", "Cidade", "UF", "Revenda", "Rep", "Data", "PCI", "Máquina", "Valor", "Oportunidade", "Classe Preço", "Cashback", "Status"];
             const rows = filtered.map(l => [
                 l.nome || "",
                 l.cnpj || "",
@@ -57,6 +56,7 @@ router.get(
                 l.maquinainteresse || "",
                 l.valor || "",
                 l.oportunidadedevendas || "",
+                l.classePreco || "",
                 l.cashback || 0,
                 l.tag || ""
             ]);
