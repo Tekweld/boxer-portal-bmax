@@ -11,7 +11,7 @@ if (process.env.NODE_ENV !== "production" || !process.env.VERCEL) {
 }
 
 const logger = winston.createLogger({
-    level: "error",
+    level: process.env.LOG_LEVEL || "info",
     format: winston.format.combine(
         winston.format.timestamp(),
         winston.format.json()

@@ -15,6 +15,7 @@ const cashbackRoutes = require("./routes/cashback.routes");
 const adminRoutes = require("./routes/admin.routes");
 const auditRoutes = require("./routes/audit.routes");
 const errorMiddleware = require("./middlewares/errorMiddleware");
+const { logger } = require("./logger");
 
 const ALLOWED_ORIGINS = [
     "https://bmax.boxersoldas.com.br",
@@ -110,14 +111,77 @@ app.get("/api/cron/expirar-cashback", async (req, res) => {
                         </div>`
                     );
                 } catch (emailErr) {
-                    console.error("Erro ao enviar aviso de vencimento:", emailErr);
+                    logger.error({ message: "Erro ao enviar aviso de vencimento", error: emailErr.message });
                 }
             }
         }
 
         res.json({ ok: true, expirados: expirados.length, notificados: aNotificar.length });
     } catch (err) {
-        console.error("Erro no cron expirar-cashback:", err);
+        logger.error({ message: "Erro no cron expirar-cashback", error: err.message, stack: err.stack });
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Reconciliação periódica: o Motor (bmax-motor/index.html) escreve nomes de revenda
+// direto no Supabase (chave anon), sem nunca passar pela API do Portal — então uma
+// renomeação feita por lá não dispara syncRevendasToRD/renomearRevendaNoRD como
+// acontece quando o rename é feito pela tela de admin do Portal. Este job detecta
+// qualquer mudança de nome comparando com o último snapshot conhecido (venha de onde
+// vier: Motor, edição direta no Supabase, ou até o próprio Portal) e propaga para o
+// RD Station. Serve também de rede de segurança para representantes.
+app.get("/api/cron/sync-revenda-rep-rd", async (req, res) => {
+    const secret = req.headers["authorization"];
+    if (secret !== `Bearer ${process.env.CRON_SECRET}`) {
+        return res.status(401).json({ error: "unauthorized" });
+    }
+    try {
+        const { sbSistemasAnon } = require("./config/supabaseSistemas");
+        const { sbBmax } = require("./config/supabaseBmax");
+        const { syncRevendasToRD, renomearRevendaNoRD } = require("./services/rd.leads.service");
+
+        async function getSnapshot(chave) {
+            const rows = await sbSistemasAnon(`/comercial_bmax_config?chave=eq.${chave}&select=valor`);
+            try { return JSON.parse(rows[0]?.valor || "{}"); } catch { return {}; }
+        }
+        async function saveSnapshot(chave, valor) {
+            await sbSistemasAnon(`/comercial_bmax_config?chave=eq.${chave}`, "PATCH", { valor: JSON.stringify(valor) })
+                .catch(() => sbSistemasAnon("/comercial_bmax_config", "POST", { chave, valor: JSON.stringify(valor) }));
+        }
+
+        const resultado = { revendas: [] };
+
+        // Revendas
+        const snapshotRevendas = await getSnapshot("revenda_rd_snapshot");
+        const revendasAtuais = await sbBmax("/comercial_revendas_bmax?select=id,nome,ativo");
+        const revendasMudadas = revendasAtuais.filter(r => snapshotRevendas[r.id] && snapshotRevendas[r.id] !== r.nome);
+
+        if (revendasMudadas.length) {
+            const nomesAtivos = revendasAtuais.filter(r => r.ativo).map(r => r.nome);
+            await syncRevendasToRD(nomesAtivos).catch(e => logger.error({ message: "Erro sync revendas → RD (reconciliação)", error: e.message }));
+            for (const r of revendasMudadas) {
+                try {
+                    const r1 = await renomearRevendaNoRD(snapshotRevendas[r.id], r.nome);
+                    resultado.revendas.push({ id: r.id, de: snapshotRevendas[r.id], para: r.nome, ...r1 });
+                } catch (e) {
+                    logger.error({ message: "Erro ao renomear revenda no RD (reconciliação)", revendaId: r.id, error: e.message });
+                    resultado.revendas.push({ id: r.id, de: snapshotRevendas[r.id], para: r.nome, error: e.message });
+                }
+            }
+        }
+        const novoSnapshotRevendas = Object.fromEntries(revendasAtuais.map(r => [r.id, r.nome]));
+        await saveSnapshot("revenda_rd_snapshot", novoSnapshotRevendas);
+
+        // Nota: não há reconciliação equivalente para representantes aqui — a tabela
+        // comercial_representantes_bmax não tem PK estável além do próprio `nome`
+        // (é a chave usada no rename), então não dá pra detectar renomeação por diff
+        // de snapshot como fazemos para revenda (que tem `id` numérico). O único
+        // caminho de rename de representante é a tela de admin do Portal, já coberto
+        // pelo fix síncrono em admin.routes.js (PUT /representantes-bmax).
+
+        res.json({ ok: true, ...resultado });
+    } catch (err) {
+        logger.error({ message: "Erro no cron sync-revenda-rep-rd", error: err.message, stack: err.stack });
         res.status(500).json({ error: err.message });
     }
 });

@@ -2,6 +2,7 @@ const { updateLead, createTask, getLeadNotes, getCustomField, getAliasMaps } = r
 const { lerPlanilhaResponsavel } = require("./responsavel.service");
 const { getRepresentativeEmailByName } = require("./user.service");
 const { sendEmail } = require("./email.service");
+const { logger } = require("../logger");
 const {
     RD_STAGE_ASSUMIDO,
     RD_OWNERS,
@@ -54,7 +55,7 @@ async function notificarNegociacaoAssumida(dealId, result) {
     const destinatarioEmail = emailRepresentante || EMAIL_FALLBACK;
 
     if (!emailRepresentante) {
-        console.error(`E-mail do representante não encontrado para "${representanteNome}". Usando destinatário padrão.`);
+        logger.warn({ message: "E-mail do representante não encontrado, usando destinatário padrão", representanteNome });
     }
 
     let cnpj = getCustomField(result, "CNPJ") || "";
@@ -79,7 +80,7 @@ async function notificarNegociacaoAssumida(dealId, result) {
             ${formatarHistoricoNotas(historico)}`
         );
     } catch (error) {
-        console.error("Falha ao enviar e-mail de notificação:", error);
+        logger.error({ message: "Falha ao enviar e-mail de notificação", error: error.message });
     }
 }
 

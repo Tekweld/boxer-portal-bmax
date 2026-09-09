@@ -2,6 +2,8 @@ const bcrypt = require("bcryptjs");
 const { UniqueConstraintError } = require("sequelize");
 const db = require("../database");
 const { sendAccessCredentials } = require("../services/email.service");
+const { logger } = require("../logger");
+const { sbBmax } = require("../config/supabaseBmax");
 
 const { User, Revenda, RevendaFilial, Representante, sequelize } = db;
 
@@ -209,14 +211,14 @@ async function createUser(req, res) {
                     ativo: true
                 });
             } catch (e) {
-                console.error("Aviso: falha ao salvar representante em comercial_representantes_bmax:", e.message);
+                logger.error({ message: "Falha ao salvar representante em comercial_representantes_bmax", error: e.message });
             }
 
             // Envia convite ao representante para acesso ao Motor (Supabase Auth)
             try {
                 await sbSistemasAuthInvite(email);
             } catch (e) {
-                console.error("Aviso: falha ao enviar convite do Motor para representante:", e.message);
+                logger.error({ message: "Falha ao enviar convite do Motor para representante", error: e.message });
             }
         }
 
@@ -234,14 +236,14 @@ async function createUser(req, res) {
                     ativo: true
                 });
             } catch (e) {
-                console.error("Aviso: falha ao salvar revenda em comercial_revendas_bmax:", e.message);
+                logger.error({ message: "Falha ao salvar revenda em comercial_revendas_bmax", error: e.message });
             }
 
             // Envia convite ao representante para acesso ao Motor (Supabase Auth)
             try {
                 await sbSistemasAuthInvite(email);
             } catch (e) {
-                console.error("Aviso: falha ao enviar convite do Motor para revenda:", e.message);
+                logger.error({ message: "Falha ao enviar convite do Motor para revenda", error: e.message });
             }
         }
 
@@ -253,14 +255,14 @@ async function createUser(req, res) {
                     ativo: true
                 });
             } catch (e) {
-                console.error("Aviso: falha ao salvar funcionário em comercial_funcionarios_bmax:", e.message);
+                logger.error({ message: "Falha ao salvar funcionário em comercial_funcionarios_bmax", error: e.message });
             }
 
             // Envia convite ao funcionário para acesso ao Motor (Supabase Auth)
             try {
                 await sbSistemasAuthInvite(email);
             } catch (e) {
-                console.error("Aviso: falha ao enviar convite do Motor para funcionário:", e.message);
+                logger.error({ message: "Falha ao enviar convite do Motor para funcionário", error: e.message });
             }
         }
 
@@ -272,31 +274,31 @@ async function createUser(req, res) {
                     ativo: true
                 });
             } catch (e) {
-                console.error("Aviso: falha ao salvar admin em comercial_admin_bmax:", e.message);
+                logger.error({ message: "Falha ao salvar admin em comercial_admin_bmax", error: e.message });
             }
 
             // Envia convite ao admin para acesso ao Motor (Supabase Auth)
             try {
                 await sbSistemasAuthInvite(email);
             } catch (e) {
-                console.error("Aviso: falha ao enviar convite do Motor para admin:", e.message);
+                logger.error({ message: "Falha ao enviar convite do Motor para admin", error: e.message });
             }
         }
 
         // Envia email consolidado com credenciais para Portal e Motor
         if (email) {
             try {
-                console.log(`📧 Enviando email para ${email}...`);
+                logger.info({ message: "Enviando email de credenciais", email });
                 const emailResult = await sendAccessCredentials(email, username, finalPassword, role);
-                console.log(`📧 Resultado do envio: ${emailResult ? "✓ Sucesso" : "✗ Falhou"}`);
+                logger.info({ message: "Resultado do envio de email", email, sucesso: !!emailResult });
                 if (!emailResult) {
-                    console.error("⚠️ Email não foi enviado, mas usuário foi criado");
+                    logger.warn({ message: "Email não foi enviado, mas usuário foi criado", email });
                 }
             } catch (e) {
-                console.error("❌ Erro ao enviar email de credenciais:", e.message);
+                logger.error({ message: "Erro ao enviar email de credenciais", email, error: e.message });
             }
         } else {
-            console.warn("⚠️ Email não fornecido, não será enviado");
+            logger.warn({ message: "Email não fornecido, não será enviado", username });
         }
 
         return res.status(201).json({
@@ -305,7 +307,7 @@ async function createUser(req, res) {
             role: user.role
         });
     } catch (err) {
-        console.error("Erro createUser:", err);
+        logger.error({ message: "Erro createUser", error: err.message, stack: err.stack });
 
         if (err instanceof UniqueConstraintError) {
             return res.status(400).json({

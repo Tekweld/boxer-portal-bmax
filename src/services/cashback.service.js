@@ -1,4 +1,5 @@
 const { sbSistemasAnon } = require("../config/supabaseSistemas");
+const { logger } = require("../logger");
 
 let _comCache = { data: null, ts: 0 };
 const COM_CACHE_TTL = 10 * 60 * 1000;
@@ -10,7 +11,7 @@ async function fetchComTabela() {
     try {
         rows = await sbSistemasAnon('/comercial_bmax_config?chave=eq.comissao_tabela&select=valor');
     } catch (err) {
-        console.error('Erro ao buscar comissao_tabela do boxer-sistemas:', err.message);
+        logger.error({ message: "Erro ao buscar comissao_tabela do boxer-sistemas", error: err.message });
         return null;
     }
     if (!rows.length) return null;

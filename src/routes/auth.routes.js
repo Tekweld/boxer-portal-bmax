@@ -3,6 +3,7 @@ const { login } = require("../controllers/auth.controller");
 const { loginRateLimit, forgotPasswordRateLimit } = require("../middlewares/rateLimit");
 const { sendEmail } = require("../services/email.service");
 const { User } = require("../database");
+const { logger } = require("../logger");
 
 const router = express.Router();
 
@@ -44,7 +45,7 @@ router.post("/forgot-password", forgotPasswordRateLimit, async (req, res) => {
 
         res.json({ message: "Solicitação recebida. Um administrador entrará em contato em breve." });
     } catch (err) {
-        console.error(err);
+        logger.error({ message: "Erro ao processar forgot-password", error: err.message, stack: err.stack });
         res.status(500).json({ error: "Erro ao processar solicitação" });
     }
 });

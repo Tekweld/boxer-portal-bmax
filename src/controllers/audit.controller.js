@@ -1,4 +1,5 @@
 const { listAuditUsers, listAuditLogs } = require("../services/audit.service");
+const { logger } = require("../logger");
 
 async function list(req, res) {
     try {
@@ -21,7 +22,7 @@ async function list(req, res) {
             hasPrev: page > 1
         });
     } catch (err) {
-        console.error("Erro List Audit Logs:", err);
+        logger.error({ message: "Erro List Audit Logs", error: err.message, stack: err.stack });
         return res.status(500).json({
             error: err.message || "Falha ao consultar logs"
         });
@@ -34,7 +35,7 @@ async function users(req, res) {
 
         return res.json(usersList);
     } catch (err) {
-        console.error("Erro List Audit Users:", err);
+        logger.error({ message: "Erro List Audit Users", error: err.message, stack: err.stack });
         return res.status(500).json({
             error: err.message || "Falha ao consultar usuários"
         });

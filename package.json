@@ -7,7 +7,8 @@
     "dev": "nodemon src/server.js",
     "start": "node src/server.js",
     "setup-audit": "node scripts/create-audit-table.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "setup-rate-limit": "node scripts/create-rate-limit-table.js",
+    "test": "jest"
   },
   "engines": {
     "node": ">=18"
@@ -32,6 +33,8 @@
     "xlsx": "^0.18.5"
   },
   "devDependencies": {
-    "nodemon": "^3.1.11"
+    "jest": "^30.5.1",
+    "nodemon": "^3.1.11",
+    "supertest": "^7.2.2"
   }
 }

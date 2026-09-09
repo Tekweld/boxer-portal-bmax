@@ -4,6 +4,7 @@ const { sendEmail } = require("./email.service");
 const { getRepresentativeEmailByName } = require("./user.service");
 const { aplicarCaminhoVenda } = require("./caminhoVenda.service");
 const { RD_OWNERS, RD_OWNER_DEFAULT, EMAIL_FALLBACK } = require("../config/constants");
+const { logger } = require("../logger");
 
 const { Negociacao, User, Representante } = db;
 
@@ -58,7 +59,7 @@ async function createNegociacao(data) {
         try {
             await aplicarCaminhoVenda(leadId, data.caminho, data.cidade, data.estado);
         } catch (error) {
-            console.error("Falha ao definir caminho de venda na criação da negociação:", error.message);
+            logger.error({ message: "Falha ao definir caminho de venda na criação da negociação", error: error.message });
         }
     }
 
@@ -68,7 +69,7 @@ async function createNegociacao(data) {
         const destinatarioEmail = emailRepresentante || EMAIL_FALLBACK;
 
         if (!emailRepresentante) {
-            console.error(`E-mail do representante não encontrado para "${representanteNome}". Usando destinatário padrão.`);
+            logger.warn({ message: "E-mail do representante não encontrado, usando destinatário padrão", representanteNome });
         }
 
         await sendEmail(
@@ -83,7 +84,7 @@ async function createNegociacao(data) {
              </ul>`
         );
     } catch (error) {
-        console.error("Falha ao enviar e-mail de notificação:", error);
+        logger.error({ message: "Falha ao enviar e-mail de notificação", error: error.message });
     }
 
     return novaNegociacao;

@@ -1,5 +1,6 @@
 const { Op } = require("sequelize");
 const { AuditLog: AuditLogModel, sequelize } = require("../database");
+const { logger } = require("../logger");
 
 let auditTableExists = null;
 
@@ -12,10 +13,10 @@ async function isAuditTableAvailable() {
         auditTableExists = tableNames.includes(AuditLogModel.getTableName());
 
         if (!auditTableExists) {
-            console.warn("Tabela AuditLogs não encontrada. Logs de auditoria serão ignorados até ela ser criada.");
+            logger.warn({ message: "Tabela AuditLogs não encontrada. Logs de auditoria serão ignorados até ela ser criada." });
         }
     } catch (error) {
-        console.error("Falha ao verificar tabela AuditLogs:", error.message);
+        logger.error({ message: "Falha ao verificar tabela AuditLogs", error: error.message });
         auditTableExists = false;
     }
 
@@ -53,7 +54,7 @@ async function AuditLog(req, {
             metadata
         });
     } catch (error) {
-        console.error("Falha ao registrar log de auditoria:", error.message);
+        logger.error({ message: "Falha ao registrar log de auditoria", error: error.message });
         return null;
     }
 }

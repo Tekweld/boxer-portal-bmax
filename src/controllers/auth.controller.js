@@ -2,6 +2,7 @@ const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
 const { User, Revenda } = require("../database");
 const { AuditLog } = require("../services/audit.service");
+const { logger } = require("../logger");
 
 async function login(req, res) {
     try {
@@ -97,7 +98,7 @@ async function login(req, res) {
         });
 
     } catch (error) {
-        console.error("ERRO LOGIN:", error);
+        logger.error({ message: "Erro no login", error: error.message, stack: error.stack });
         return res.status(500).json({ message: "Erro interno do servidor" });
     }
 }

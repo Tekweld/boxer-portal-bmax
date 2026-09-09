@@ -1,5 +1,6 @@
 const { getLeads, mapDealToCard, updateLead, getTask, updateTask } = require("../services/rd.leads.service");
 const { getCachedLeads, setCachedLeads, invalidateLeadsCache } = require("../services/cache.service");
+const { logger } = require("../logger");
 const { aplicarCaminhoVenda } = require("../services/caminhoVenda.service");
 const { AuditLog } = require("../services/audit.service");
 const {
@@ -39,7 +40,7 @@ async function listLeads(req, res) {
         return res.json(cards);
 
     } catch (err) {
-        console.error("Erro List Leads:", err);
+        logger.error({ message: "Erro List Leads", error: err.message, stack: err.stack });
 
         return res.status(500).json({
             error: err.message || "Falha ao buscar leads do RD"
@@ -83,7 +84,7 @@ async function updateLeadPci(req, res) {
 
         return res.json(result);
     } catch (err) {
-        console.error("Erro ao atualizar PCI:", err);
+        logger.error({ message: "Erro ao atualizar PCI", error: err.message, stack: err.stack });
 
         return res.status(err.status || 500).json({
             error: err.message || "Falha ao atualizar PCI"
@@ -159,7 +160,7 @@ async function updateLeadResultado(req, res) {
                     await creditarCashback(revenda, cashbackValor, `Venda ${dealId} — ${pci} (${(comissao * 100).toFixed(1)}%)`, dealId);
                 }
             } catch (cashErr) {
-                console.error("Erro ao creditar cashback:", cashErr);
+                logger.error({ message: "Erro ao creditar cashback", error: cashErr.message, stack: cashErr.stack });
             }
         }
 
@@ -167,7 +168,7 @@ async function updateLeadResultado(req, res) {
 
         return res.json(result);
     } catch (err) {
-        console.error("Erro ao atualizar resultado:", err);
+        logger.error({ message: "Erro ao atualizar resultado", error: err.message, stack: err.stack });
 
         return res.status(500).json({
             error: err.message || "Falha ao atualizar resultado"
