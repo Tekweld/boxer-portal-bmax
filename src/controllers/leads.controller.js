@@ -1,4 +1,4 @@
-const { getLeads, mapDealToCard, updateLead, getTask, updateTask } = require("../services/rd.leads.service");
+const { buildLeadsCards, updateLead, getTask, updateTask } = require("../services/rd.leads.service");
 const { getCachedLeads, setCachedLeads, invalidateLeadsCache } = require("../services/cache.service");
 const { logger } = require("../logger");
 const { aplicarCaminhoVenda } = require("../services/caminhoVenda.service");
@@ -8,7 +8,7 @@ const {
     RD_STAGE_PERDIDO
 } = require("../config/constants");
 const { lerPlanilhaCashback } = require("../services/cashback.service");
-const { creditarCashback, getCreditosPorLeads } = require("../services/saldo.service");
+const { creditarCashback } = require("../services/saldo.service");
 
 async function listLeads(req, res) {
     try {
@@ -24,14 +24,7 @@ async function listLeads(req, res) {
             if (cached) return res.json(cached);
         } catch (_) {}
 
-        const leads = await getLeads(userIdentifier, req.user.role, req.user.grupo);
-
-        const leadIds = leads.map(d => d.id || d._id).filter(Boolean);
-        const creditosMap = await getCreditosPorLeads(leadIds);
-
-        const cards = await Promise.all(
-            leads.map(lead => mapDealToCard(lead, req.user.role, creditosMap))
-        );
+        const cards = await buildLeadsCards(req.user.role, userIdentifier, req.user.grupo);
 
         try {
             await setCachedLeads(cacheKey, cards);

@@ -211,21 +211,49 @@ $("btnGoLogin").addEventListener("click", () => {
   window.scrollTo({ top: 0, behavior: "smooth" });
 });
 $("btnNovaNegociacao").addEventListener("click", () => show("negociacoes"));
+const ALERT_LABELS = {
+  semRevenda: "Sem revenda",
+  semPci: "Sem PCI",
+  semOportunidade: "Sem Op. de Venda",
+  semRepresentante: "Sem Rep.",
+  semClasse: "Sem Classe Preço",
+  repInvalido: "Nome Rep. Invalido"
+};
+
 $("btnExport").addEventListener("click", async () => {
   const btn = $("btnExport");
+
+  // O export reaproveita o alerta ativo na tela — sem essa confirmação, o
+  // arquivo baixado é uma fatia filtrada mas com cara de exportação completa.
+  let useFilter = !!activeAlertFilter;
+  if (activeAlertFilter) {
+    const label = ALERT_LABELS[activeAlertFilter] || activeAlertFilter;
+    useFilter = confirm(
+      `O filtro "${label}" está ativo.\n\nOK = exportar somente esses leads.\nCancelar = limpar o filtro e exportar todos os leads.`
+    );
+    if (!useFilter) {
+      activeAlertFilter = null;
+      document.querySelectorAll(".alert-bar").forEach(el => el.classList.remove("active"));
+      render();
+    }
+  }
+
   btnLoading(btn, true);
   try {
     const token = localStorage.getItem("token");
-    const filterParam = activeAlertFilter ? `?filter=${encodeURIComponent(activeAlertFilter)}` : "";
+    const filterParam = useFilter && activeAlertFilter ? `?filter=${encodeURIComponent(activeAlertFilter)}` : "";
     const res = await fetch(`${API_URL}/export/leads${filterParam}`, {
       headers: { Authorization: `Bearer ${token}` }
     });
     if (!res.ok) { toast("Erro ao exportar", "error"); return; }
+    const disposition = res.headers.get("content-disposition") || "";
+    const match = disposition.match(/filename="([^"]+)"/);
+    const filename = match ? match[1] : "leads_bmax.xlsx";
     const blob = await res.blob();
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = "leads_bmax.xlsx";
+    a.download = filename;
     a.click();
     URL.revokeObjectURL(url);
     toast("Exportacao concluida");

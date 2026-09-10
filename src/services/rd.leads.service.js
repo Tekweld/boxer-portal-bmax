@@ -548,8 +548,22 @@ async function mapDealToCard(deal, role, creditosMap) {
     };
 }
 
+// Monta os cards de leads exatamente como o dashboard (GET /api/leads) monta —
+// usada tanto pelo dashboard quanto pela exportação, para que os dois nunca
+// possam divergir (cashback, PCI, etc. sempre calculados da mesma forma).
+async function buildLeadsCards(role, identifier, grupo) {
+    const { getCreditosPorLeads } = require("./saldo.service");
+
+    const leads = await getLeads(identifier, role, grupo);
+    const leadIds = leads.map(d => d.id || d._id).filter(Boolean);
+    const creditosMap = await getCreditosPorLeads(leadIds);
+
+    return Promise.all(leads.map(lead => mapDealToCard(lead, role, creditosMap)));
+}
+
 module.exports = {
     getLeads,
+    buildLeadsCards,
     createLead,
     updateLead,
     getOrg,
