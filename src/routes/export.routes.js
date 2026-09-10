@@ -1,4 +1,5 @@
 const express = require("express");
+const XLSX = require("xlsx");
 const { authenticate, authorize } = require("../middlewares/auth");
 const { getCachedLeads } = require("../services/cache.service");
 const { getLeads, mapDealToCard } = require("../services/rd.leads.service");
@@ -43,7 +44,7 @@ router.get(
                 filtered = cards.filter(l => !l.classePreco);
             }
 
-            const headers = ["Nome", "CNPJ", "Cidade", "UF", "Revenda", "Rep", "Data", "PCI", "Máquina", "Valor", "Oportunidade", "Classe Preço", "Cashback", "Status"];
+            const headers = ["Nome", "CNPJ", "Cidade", "UF", "Revenda", "Rep", "Responsável RD", "Data", "PCI", "Máquina", "Valor", "Oportunidade", "Classe Preço", "Cashback", "Status"];
             const rows = filtered.map(l => [
                 l.nome || "",
                 l.cnpj || "",
@@ -51,6 +52,7 @@ router.get(
                 l.estado || "",
                 l.revenda || "",
                 l.representante || "",
+                l.responsavelRd || "",
                 l.criadoem || "",
                 l.pci || "",
                 l.maquinainteresse || "",
@@ -61,15 +63,17 @@ router.get(
                 l.tag || ""
             ]);
 
-            let csv = "﻿";
-            csv += headers.join(";") + "\n";
-            rows.forEach(r => {
-                csv += r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(";") + "\n";
-            });
+            const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+            ws["!cols"] = headers.map((h, i) => ({
+                wch: Math.max(h.length, ...rows.map(r => String(r[i] ?? "").length)) + 2
+            }));
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "Leads");
+            const buf = XLSX.write(wb, { type: "buffer", bookType: "xlsx" });
 
-            res.setHeader("Content-Type", "text/csv; charset=utf-8");
-            res.setHeader("Content-Disposition", 'attachment; filename="leads_bmax.csv"');
-            res.send(csv);
+            res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+            res.setHeader("Content-Disposition", 'attachment; filename="leads_bmax.xlsx"');
+            res.send(Buffer.from(buf));
         } catch (err) {
             logger.error({ message: "Erro export", error: err.message, stack: err.stack });
             res.status(500).json({ error: "Falha ao exportar leads" });

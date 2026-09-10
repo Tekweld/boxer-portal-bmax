@@ -225,7 +225,7 @@ $("btnExport").addEventListener("click", async () => {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = "leads_bmax.csv";
+    a.download = "leads_bmax.xlsx";
     a.click();
     URL.revokeObjectURL(url);
     toast("Exportacao concluida");
