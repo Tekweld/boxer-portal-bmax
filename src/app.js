@@ -178,7 +178,7 @@ app.get("/api/cron/sync-revenda-rep-rd", async (req, res) => {
         // para não reenviar e-mail toda vez que o job rodar.
         try {
             const { getLeads, getCustomField } = require("./services/rd.leads.service");
-            const { getRevendaEmailByName } = require("./services/user.service");
+            const { getRevendaEmailByName, getRepresentativeEmailByName } = require("./services/user.service");
             const { sendEmail } = require("./services/email.service");
             const { EMAIL_FALLBACK } = require("./config/constants");
 
@@ -198,18 +198,24 @@ app.get("/api/cron/sync-revenda-rep-rd", async (req, res) => {
                 if (jaAvisados[dealId]) continue;
 
                 const revendaNome = getCustomField(d, "REVENDA/LOJA") || "";
+                const representanteNome = getCustomField(d, "REPRESENTANTE") || "";
                 try {
                     const emailRevenda = await getRevendaEmailByName(revendaNome);
-                    const destinatarioEmail = emailRevenda || EMAIL_FALLBACK;
+                    const emailRepresentante = await getRepresentativeEmailByName(representanteNome);
+                    const destinatarios = [...new Set([emailRevenda, emailRepresentante].filter(Boolean))];
+                    if (!destinatarios.length) destinatarios.push(EMAIL_FALLBACK);
 
                     if (!emailRevenda) {
-                        logger.warn({ message: "E-mail da revenda não encontrado para aviso de PCI12 pendente, usando destinatário padrão", revendaNome });
+                        logger.warn({ message: "E-mail da revenda não encontrado para aviso de PCI12 pendente", revendaNome });
+                    }
+                    if (!emailRepresentante) {
+                        logger.warn({ message: "E-mail do representante não encontrado para aviso de PCI12 pendente", representanteNome });
                     }
 
                     await sendEmail(
-                        destinatarioEmail,
+                        destinatarios,
                         `BMAX - Lead aguardando definição de caminho de venda`,
-                        `<p>Um lead do RD Station foi atribuído à sua revenda e precisa que você escolha o caminho de venda:</p>
+                        `<p>Um lead do RD Station foi atribuído à revenda <strong>${revendaNome || "?????"}</strong> e precisa que o caminho de venda seja escolhido:</p>
                          <ul>
                             <li><strong>Cliente:</strong> ${d.name || "?????"}</li>
                          </ul>
@@ -217,7 +223,7 @@ app.get("/api/cron/sync-revenda-rep-rd", async (req, res) => {
                     );
                     resultado.pci12Avisados = (resultado.pci12Avisados || 0) + 1;
                 } catch (e) {
-                    logger.error({ message: "Erro ao avisar revenda de lead PCI12 pendente", dealId, revendaNome, error: e.message });
+                    logger.error({ message: "Erro ao avisar revenda/representante de lead PCI12 pendente", dealId, revendaNome, representanteNome, error: e.message });
                 }
             }
             await saveSnapshot("pci12_leads_avisados", novosSnapshot);
