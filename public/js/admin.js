@@ -3,6 +3,10 @@ let ADMIN_ALERTAS = [];
 let ADMIN_USERS = [];
 let ADMIN_REV_BMAX = [];
 let ADMIN_REPS_BMAX = [];
+let ADMIN_VENDEDORES = [];
+let ADMIN_REP_BMAX_LIST = [];
+let ADMIN_COMISSAO = {};
+let ADMIN_COMISSAO_LOADED = false;
 
 // Masks e formatação
 function maskCNPJ(v) { return v.replace(/\D/g, '').replace(/(\d{2})(\d)/, '$1.$2').replace(/(\d{3})(\d)/, '$1.$2').replace(/(\d{3})(\d)/, '$1/$2').replace(/(\d{4})(\d)/, '$1-$2').substring(0, 18); }
@@ -630,6 +634,9 @@ function showAdminTab(tab, el) {
     el.classList.add("active");
     if (tab === "logs") initAuditLogs();
     if (tab === "cobertura" && !COB_DATA.length) { loadCobertura().then(() => renderCobertura()); }
+    if (tab === "vendedores" && !ADMIN_VENDEDORES.length) { loadVendedoresBmax().then(() => renderVendedoresBmax()); }
+    if (tab === "repbmax" && !ADMIN_REP_BMAX_LIST.length) { loadRepBmaxList().then(() => renderRepBmaxList()); }
+    if (tab === "comissao" && !ADMIN_COMISSAO_LOADED) { loadComissaoConfig().then(() => renderComissaoConfig()); }
 }
 
 // ─── Revendas BMax (Supabase) ────────────────────────────────
@@ -1094,6 +1101,247 @@ async function downloadCobertura() {
         a.href = url; a.download = "cobertura_bmax.xlsx"; a.click();
         URL.revokeObjectURL(url);
     } catch (e) { toast(e.message, "error"); }
+}
+
+// ─── Vendedores BMax (área de atuação = ddds) ────────────────
+
+async function loadVendedoresBmax() {
+    try {
+        const token = localStorage.getItem("token");
+        const res = await fetch(`${API_URL}/admin/vendedores-bmax`, { headers: { Authorization: `Bearer ${token}` } });
+        if (!res.ok) throw new Error("Erro ao carregar vendedores");
+        ADMIN_VENDEDORES = await res.json();
+    } catch (e) { console.error(e); toast("Erro ao carregar vendedores", "error"); }
+}
+
+function renderVendedoresBmax() {
+    const wrap = $("adminVendedoresBody");
+    if (!wrap) return;
+    if (!ADMIN_VENDEDORES.length) { wrap.innerHTML = '<div class="empty-state">Nenhum vendedor cadastrado.</div>'; return; }
+
+    let html = `<table class="extrato-table"><thead><tr>
+        <th>Nome</th><th>Tipo</th><th>Cor</th><th>Área de atuação (DDDs)</th><th>Fallback</th><th>Status</th><th>Ações</th>
+    </tr></thead><tbody>`;
+    for (const v of ADMIN_VENDEDORES) {
+        const badge = v.ativo ? '<span class="status-badge status-aprovado">Ativo</span>' : '<span class="status-badge status-rejeitado">Inativo</span>';
+        html += `<tr>
+            <td><strong>${esc(v.nome)}</strong></td>
+            <td>${esc(v.tipo)}</td>
+            <td><span style="display:inline-block;width:16px;height:16px;border-radius:4px;background:${esc(v.cor || '#60a5fa')};vertical-align:middle"></span></td>
+            <td>${(v.ddds || []).length ? esc((v.ddds || []).join(", ")) : '<span style="color:var(--muted)">—</span>'}</td>
+            <td>${v.fallback ? "Sim" : "—"}</td>
+            <td>${badge}</td>
+            <td style="white-space:nowrap">
+                <button class="btn btn-sm" onclick='openVendedorModal(${JSON.stringify(v)})'>Editar</button>
+                <button class="btn btn-sm ${v.ativo ? "btn-danger" : "primary"}" onclick="toggleVendedorBmax(${v.id},${!v.ativo})">${v.ativo ? "Desativar" : "Ativar"}</button>
+            </td>
+        </tr>`;
+    }
+    html += "</tbody></table>";
+    wrap.innerHTML = html;
+}
+
+function openVendedorModal(v) {
+    const isEdit = !!v;
+    const modal = $("adminModal");
+    const content = $("adminModalContent");
+    content.innerHTML = `
+        <h3>${isEdit ? "Editar" : "Novo"} Vendedor</h3>
+        <div class="form-row"><label>Nome</label><input type="text" id="modalVendNome" value="${esc(v?.nome || "")}"></div>
+        <div class="form-row"><label>Tipo</label>
+            <select id="modalVendTipo">
+                ${["VI", "VT1", "VT2"].map(t => `<option value="${t}" ${v?.tipo === t ? "selected" : ""}>${t}</option>`).join("")}
+            </select>
+        </div>
+        <div class="form-row"><label>Cor</label><input type="color" id="modalVendCor" value="${esc(v?.cor || '#60a5fa')}"></div>
+        <div class="form-row"><label>DDDs (área de atuação, separados por vírgula)</label>
+            <input type="text" id="modalVendDdds" value="${esc((v?.ddds || []).join(", "))}" placeholder="Ex: 11, 12, 13">
+        </div>
+        <div class="form-row"><label><input type="checkbox" id="modalVendFallback" ${v?.fallback ? "checked" : ""}> Fallback — atende DDDs não mapeados</label></div>
+        <div class="form-actions">
+            <button class="btn" onclick="closeAdminModal()">Cancelar</button>
+            <button class="btn primary" onclick="salvarVendedorBmax(${v?.id ?? "null"})">${isEdit ? "Salvar" : "Criar"}</button>
+        </div>`;
+    modal.classList.add("show");
+}
+
+async function salvarVendedorBmax(id) {
+    const nome = $("modalVendNome").value.trim();
+    if (!nome) { toast("Nome é obrigatório", "error"); return; }
+    const ddds = $("modalVendDdds").value.split(",").map(s => parseInt(s.trim(), 10)).filter(n => !isNaN(n));
+    const body = {
+        nome,
+        tipo: $("modalVendTipo").value,
+        cor: $("modalVendCor").value,
+        ddds: ddds.length ? ddds : null,
+        fallback: $("modalVendFallback").checked
+    };
+    try {
+        const token = localStorage.getItem("token");
+        const method = id ? "PATCH" : "POST";
+        const url = id ? `${API_URL}/admin/vendedores-bmax/${id}` : `${API_URL}/admin/vendedores-bmax`;
+        const res = await fetch(url, { method, headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify(body) });
+        if (!res.ok) { const e = await res.json(); throw new Error(e.error); }
+        closeAdminModal();
+        await loadVendedoresBmax();
+        renderVendedoresBmax();
+        toast(id ? "Vendedor atualizado" : "Vendedor criado");
+    } catch (e) { toast(e.message || "Erro ao salvar", "error"); }
+}
+
+async function toggleVendedorBmax(id, ativo) {
+    try {
+        const token = localStorage.getItem("token");
+        const res = await fetch(`${API_URL}/admin/vendedores-bmax/${id}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+            body: JSON.stringify({ ativo })
+        });
+        if (!res.ok) { const e = await res.json(); throw new Error(e.error); }
+        await loadVendedoresBmax();
+        renderVendedoresBmax();
+        toast(ativo ? "Vendedor ativado" : "Vendedor desativado");
+    } catch (e) { toast(e.message || "Erro", "error"); }
+}
+
+// ─── Lista mestre "Representantes BMax" (dropdown de Cobertura) ─
+
+async function loadRepBmaxList() {
+    try {
+        const token = localStorage.getItem("token");
+        const res = await fetch(`${API_URL}/admin/rep-bmax-list`, { headers: { Authorization: `Bearer ${token}` } });
+        if (!res.ok) throw new Error("Erro ao carregar lista");
+        ADMIN_REP_BMAX_LIST = await res.json();
+    } catch (e) { console.error(e); toast("Erro ao carregar lista de representantes BMax", "error"); }
+}
+
+function renderRepBmaxList() {
+    const wrap = $("adminRepBmaxListBody");
+    if (!wrap) return;
+    if (!ADMIN_REP_BMAX_LIST.length) { wrap.innerHTML = '<div class="empty-state">Nenhum representante nesta lista.</div>'; return; }
+
+    let html = `<table class="extrato-table"><thead><tr><th>Nome</th><th>Status</th><th>Ações</th></tr></thead><tbody>`;
+    ADMIN_REP_BMAX_LIST.forEach((r, i) => {
+        html += `<tr>
+            <td><strong>${esc(r.nome)}</strong></td>
+            <td>${r.ativo ? '<span class="status-badge status-aprovado">Ativo</span>' : '<span class="status-badge status-rejeitado">Inativo</span>'}</td>
+            <td style="white-space:nowrap">
+                <button class="btn btn-sm" onclick="toggleRepBmaxListItem(${i})">${r.ativo ? "Desativar" : "Ativar"}</button>
+                <button class="btn btn-sm btn-danger" onclick="removeRepBmaxListItem(${i})">Excluir</button>
+            </td>
+        </tr>`;
+    });
+    html += "</tbody></table>";
+    wrap.innerHTML = html;
+}
+
+function openRepBmaxListModal() {
+    const modal = $("adminModal");
+    const content = $("adminModalContent");
+    content.innerHTML = `
+        <h3>Adicionar Representante BMax</h3>
+        <div class="form-row"><label>Nome</label><input type="text" id="modalRepBmaxListNome"></div>
+        <div class="form-actions">
+            <button class="btn" onclick="closeAdminModal()">Cancelar</button>
+            <button class="btn primary" onclick="addRepBmaxListItem()">Adicionar</button>
+        </div>`;
+    modal.classList.add("show");
+}
+
+async function addRepBmaxListItem() {
+    const nome = $("modalRepBmaxListNome").value.trim();
+    if (!nome) { toast("Nome é obrigatório", "error"); return; }
+    if (ADMIN_REP_BMAX_LIST.some(r => r.nome.toLowerCase() === nome.toLowerCase())) {
+        toast("Já existe um representante com este nome na lista", "error"); return;
+    }
+    ADMIN_REP_BMAX_LIST.push({ nome, ativo: true });
+    await saveRepBmaxList();
+    closeAdminModal();
+    renderRepBmaxList();
+    toast("Adicionado");
+}
+
+async function toggleRepBmaxListItem(i) {
+    ADMIN_REP_BMAX_LIST[i].ativo = !ADMIN_REP_BMAX_LIST[i].ativo;
+    await saveRepBmaxList();
+    renderRepBmaxList();
+}
+
+async function removeRepBmaxListItem(i) {
+    const nome = ADMIN_REP_BMAX_LIST[i].nome;
+    if (!confirm(`Excluir "${nome}" da lista? Cidades com este representante ficam sem representante atribuído.`)) return;
+    ADMIN_REP_BMAX_LIST.splice(i, 1);
+    await saveRepBmaxList();
+    renderRepBmaxList();
+    toast("Removido");
+}
+
+async function saveRepBmaxList() {
+    try {
+        const token = localStorage.getItem("token");
+        const res = await fetch(`${API_URL}/admin/rep-bmax-list`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+            body: JSON.stringify({ lista: ADMIN_REP_BMAX_LIST })
+        });
+        if (!res.ok) { const e = await res.json(); throw new Error(e.error); }
+    } catch (e) { toast(e.message || "Erro ao salvar lista", "error"); }
+}
+
+// ─── Matriz de Comissão / Parâmetros de Classificação PCI ────
+
+const COMISSAO_FIELDS = [
+    { key: "raio_km", label: "Raio máximo revenda (km)", type: "number" },
+    { key: "nf_threshold", label: "Faturamento de corte para NF (R$)", type: "number" },
+    { key: "vinculo_dias", label: "Dias de vínculo", type: "number" },
+    { key: "rep_pct_r1", label: "Comissão rep — faixa 1 (%)", type: "number" },
+    { key: "rep_pct_r3a", label: "Comissão rep — faixa 3a (%)", type: "number" },
+    { key: "rep_pct_r3b", label: "Comissão rep — faixa 3b (%)", type: "number" },
+    { key: "rep_pct_r5", label: "Comissão rep — faixa 5 (%)", type: "number" },
+    { key: "vi_pct", label: "Comissão VI (%)", type: "number" }
+];
+
+async function loadComissaoConfig() {
+    try {
+        const token = localStorage.getItem("token");
+        const res = await fetch(`${API_URL}/admin/comissao-config`, { headers: { Authorization: `Bearer ${token}` } });
+        if (!res.ok) throw new Error("Erro ao carregar configuração de comissão");
+        ADMIN_COMISSAO = await res.json();
+        ADMIN_COMISSAO_LOADED = true;
+    } catch (e) { console.error(e); toast("Erro ao carregar comissão/classificação", "error"); }
+}
+
+function renderComissaoConfig() {
+    const wrap = $("adminComissaoBody");
+    if (!wrap) return;
+    let html = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;max-width:700px">';
+    for (const f of COMISSAO_FIELDS) {
+        html += `<div class="form-row"><label>${f.label}</label>
+            <input type="${f.type}" step="any" id="modalCom_${f.key}" value="${esc(ADMIN_COMISSAO[f.key] ?? "")}"></div>`;
+    }
+    html += '</div>';
+    html += `<p style="color:var(--muted);font-size:12px;margin-top:12px">A matriz de comissão por PCI/classe (tabela completa) continua sendo editada apenas via suporte técnico nesta primeira versão — os parâmetros acima já cobrem o ajuste do dia a dia.</p>`;
+    wrap.innerHTML = html;
+}
+
+async function salvarComissaoConfig() {
+    const body = {};
+    for (const f of COMISSAO_FIELDS) {
+        const val = $(`modalCom_${f.key}`)?.value;
+        if (val !== undefined && val !== "") body[f.key] = val;
+    }
+    try {
+        const token = localStorage.getItem("token");
+        const res = await fetch(`${API_URL}/admin/comissao-config`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+            body: JSON.stringify(body)
+        });
+        if (!res.ok) { const e = await res.json(); throw new Error(e.error); }
+        await loadComissaoConfig();
+        renderComissaoConfig();
+        toast("Parâmetros salvos — refletem no Motor na próxima consulta");
+    } catch (e) { toast(e.message || "Erro ao salvar", "error"); }
 }
 
 // ─── Init ────────────────────────────────────────────────────

@@ -326,8 +326,12 @@
     <div class="extrato-tabs">
       <div class="admin-tab active" onclick="showAdminTab('revendas-bmax',this)">Revendas BMax</div>
       <div class="admin-tab" onclick="showAdminTab('cobertura',this)">Cobertura</div>
+      <div class="admin-tab" onclick="showAdminTab('vendedores',this)">Vendedores</div>
+      <div class="admin-tab" onclick="showAdminTab('repbmax',this)">Representantes BMax</div>
+      <div class="admin-tab" onclick="showAdminTab('comissao',this)">Comissão / Classificação</div>
       <div class="admin-tab" onclick="showAdminTab('usuarios',this)">Usuarios</div>
       <div class="admin-tab" onclick="showAdminTab('logs',this)">Logs de Auditoria</div>
+      <div class="admin-tab" onclick="showAdminTab('ajuda',this)">Ajuda</div>
     </div>
 
     <section class="card" style="padding:20px">
@@ -367,6 +371,27 @@
         <div id="cobResumoBody"></div>
         <div id="cobTabelaBody" style="margin-top:12px;max-height:500px;overflow-y:auto"></div>
       </div>
+      <div class="admin-tab-content hidden" id="admin-vendedores">
+        <p style="color:var(--muted);font-size:13px;margin-bottom:12px">Vendedores Boxer (VI/VT1/VT2) e a área de atuação (DDDs) de cada um — usado pelo BMax Motor para atribuir quem atende cada lead. <a href="#" onclick="showAdminTab('ajuda', document.querySelector('.admin-tab:last-of-type')); return false">Como funciona?</a></p>
+        <div style="display:flex;gap:8px;margin-bottom:12px">
+          <button class="btn primary" onclick="openVendedorModal()">+ Novo Vendedor</button>
+        </div>
+        <div id="adminVendedoresBody"></div>
+      </div>
+      <div class="admin-tab-content hidden" id="admin-repbmax">
+        <p style="color:var(--muted);font-size:13px;margin-bottom:12px">Lista de representantes usada no dropdown de atribuição da Cobertura (não é o cadastro de Representante do RD Station — esse fica na aba Usuarios).</p>
+        <div style="display:flex;gap:8px;margin-bottom:12px">
+          <button class="btn primary" onclick="openRepBmaxListModal()">+ Adicionar</button>
+        </div>
+        <div id="adminRepBmaxListBody"></div>
+      </div>
+      <div class="admin-tab-content hidden" id="admin-comissao">
+        <p style="color:var(--muted);font-size:13px;margin-bottom:12px">Parâmetros de classificação de PCI e percentuais de comissão usados pelo BMax Motor. Alterar aqui reflete no Motor na próxima consulta, sem precisar de deploy.</p>
+        <div id="adminComissaoBody"></div>
+        <div class="form-actions" style="margin-top:16px">
+          <button class="btn primary" onclick="salvarComissaoConfig()">Salvar Parâmetros</button>
+        </div>
+      </div>
       <div class="admin-tab-content hidden" id="admin-usuarios">
         <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;align-items:center">
           <input class="search" id="adminUserFilter" placeholder="Buscar usuario..." oninput="renderAdminUsers()" style="max-width:250px">
@@ -389,6 +414,22 @@
         </div>
         <div id="adminLogsBody"></div>
         <div id="adminLogsPagination" style="display:flex;justify-content:center;align-items:center;gap:12px;margin-top:12px"></div>
+      </div>
+      <div class="admin-tab-content hidden" id="admin-ajuda" style="max-width:800px;line-height:1.6">
+        <h3>Como ajustar cada coisa do BMax</h3>
+        <p style="color:var(--muted)">Desde 2026-09, o <strong>Portal BMax é o único lugar</strong> onde essas definições são feitas. O BMax Motor apenas lê e reflete o que está aqui — não existe mais tela de cadastro no Motor.</p>
+        <table class="extrato-table" style="margin-top:12px">
+          <thead><tr><th>O quê</th><th>Onde mexer</th><th>Reflete no Motor</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Revendas BMax</strong> (classe, grupo, rep vinculado)</td><td>Aba "Revendas BMax"</td><td>Na próxima consulta, sem reload</td></tr>
+            <tr><td><strong>Cobertura</strong> (qual representante atende cada cidade)</td><td>Aba "Cobertura"</td><td>Na próxima consulta</td></tr>
+            <tr><td><strong>Vendedores Boxer</strong> (VI/VT1/VT2) e área de atuação (DDDs)</td><td>Aba "Vendedores"</td><td>Na próxima consulta</td></tr>
+            <tr><td><strong>Lista de Representantes BMax</strong> (dropdown da Cobertura)</td><td>Aba "Representantes BMax"</td><td>Na próxima consulta</td></tr>
+            <tr><td><strong>Matriz de Comissão / parâmetros de PCI</strong> (raio, faturamento de corte, percentuais)</td><td>Aba "Comissão / Classificação"</td><td>Na próxima consulta — afeta a classificação de novos leads</td></tr>
+            <tr><td><strong>Quem é admin</strong> (Portal e Motor)</td><td>Aba "Usuarios" (tipo ADM)</td><td>Imediato — mesmo login serve para os dois</td></tr>
+          </tbody>
+        </table>
+        <p style="color:var(--muted);font-size:13px;margin-top:16px">Dúvidas ou algo não bateu com o esperado? Confira primeiro se a alteração foi salva aqui no Portal — o Motor nunca vai mostrar algo que não esteja definido aqui.</p>
       </div>
     </section>
   </main>

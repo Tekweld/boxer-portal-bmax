@@ -643,4 +643,123 @@ router.get("/cobertura/download", authenticate, authorize(["adm"]), async (req, 
     }
 });
 
+// ─── Vendedores BMax (comercial_bmax_vendedores) ───────────
+// Migrado do BMax Motor — antes só existia lá (client-side, causava bugs de
+// RLS). Área de atuação = campo `ddds`.
+
+router.get("/vendedores-bmax", authenticate, authorize(["adm"]), async (req, res) => {
+    try {
+        const rows = await sbSistemas('/comercial_bmax_vendedores?select=id,nome,tipo,cor,ddds,fallback,ativo&order=tipo,nome');
+        res.json(rows);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+router.post("/vendedores-bmax", authenticate, authorize(["adm"]), async (req, res) => {
+    try {
+        const { nome, tipo, cor, ddds, fallback } = req.body;
+        if (!nome || !nome.trim()) return res.status(400).json({ error: "Nome é obrigatório" });
+        if (!["VI", "VT1", "VT2"].includes(tipo)) return res.status(400).json({ error: "Tipo inválido" });
+        const row = await sbSistemas('/comercial_bmax_vendedores', 'POST', {
+            nome: nome.trim(), tipo, cor: cor || '#60a5fa',
+            ddds: Array.isArray(ddds) ? ddds : null,
+            fallback: !!fallback, ativo: true
+        });
+        res.json(row[0] || row);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+router.patch("/vendedores-bmax/:id", authenticate, authorize(["adm"]), async (req, res) => {
+    try {
+        const { id } = req.params;
+        const updates = {};
+        for (const key of ['nome', 'tipo', 'cor', 'ddds', 'fallback', 'ativo']) {
+            if (req.body[key] !== undefined) updates[key] = req.body[key];
+        }
+        if (Object.keys(updates).length === 0) return res.status(400).json({ error: "Nenhum campo para atualizar" });
+        const row = await sbSistemas(`/comercial_bmax_vendedores?id=eq.${id}`, 'PATCH', updates);
+        res.json(row[0] || row);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+router.delete("/vendedores-bmax/:id", authenticate, authorize(["adm"]), async (req, res) => {
+    try {
+        await sbSistemas(`/comercial_bmax_vendedores?id=eq.${req.params.id}`, 'DELETE');
+        res.json({ ok: true });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// ─── Lista mestre "Representantes BMax" (dropdown de cobertura) ─
+// Migrado do BMax Motor — comercial_bmax_config, chave 'representantes_bmax'.
+// Não confundir com comercial_representantes_bmax (representante do RD Station).
+
+router.get("/rep-bmax-list", authenticate, authorize(["adm"]), async (req, res) => {
+    try {
+        const rows = await sbSistemas("/comercial_bmax_config?chave=eq.representantes_bmax&select=valor");
+        let lista = [];
+        if (rows[0]?.valor) {
+            try { lista = JSON.parse(rows[0].valor); } catch { lista = []; }
+        }
+        res.json(lista);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+router.put("/rep-bmax-list", authenticate, authorize(["adm"]), async (req, res) => {
+    try {
+        const lista = req.body.lista;
+        if (!Array.isArray(lista)) return res.status(400).json({ error: "lista deve ser um array" });
+        await sbSistemas('/comercial_bmax_config', 'POST',
+            { chave: 'representantes_bmax', valor: JSON.stringify(lista) },
+            { Prefer: 'resolution=merge-duplicates,return=minimal' });
+        res.json({ ok: true, total: lista.length });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// ─── Matriz de Comissão / Parâmetros de Classificação PCI ──
+// Migrado do BMax Motor — comercial_bmax_config, chaves usadas pelo cálculo
+// de PCI e comissão (raio, faturamento de corte, vínculo, percentuais).
+
+const COMISSAO_KEYS = [
+    'raio_km', 'nf_threshold', 'vinculo_dias',
+    'rep_pct_r1', 'rep_pct_r3a', 'rep_pct_r3b', 'rep_pct_r5', 'vi_pct',
+    'comissao_tabela', 'comissao_complementos'
+];
+
+router.get("/comissao-config", authenticate, authorize(["adm"]), async (req, res) => {
+    try {
+        const rows = await sbSistemas(`/comercial_bmax_config?chave=in.(${COMISSAO_KEYS.join(',')})&select=chave,valor`);
+        const config = {};
+        for (const r of rows) config[r.chave] = r.valor;
+        res.json(config);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+router.put("/comissao-config", authenticate, authorize(["adm"]), async (req, res) => {
+    try {
+        const entries = Object.entries(req.body).filter(([k]) => COMISSAO_KEYS.includes(k));
+        if (!entries.length) return res.status(400).json({ error: "Nenhum parâmetro válido enviado" });
+        for (const [chave, valor] of entries) {
+            await sbSistemas('/comercial_bmax_config', 'POST',
+                { chave, valor: String(valor) },
+                { Prefer: 'resolution=merge-duplicates,return=minimal' });
+        }
+        res.json({ ok: true, updated: entries.map(([k]) => k) });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 module.exports = router;

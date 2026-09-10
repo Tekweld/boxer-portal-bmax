@@ -74,9 +74,12 @@ async function loadLeads() {
     }
 
     if (session.role === "adm") {
+      // "Sem revenda" é só mais um filtro sobre a lista completa — nunca deve
+      // remover leads de API_LEADS, senão todo outro alerta (PCI, Oportunidade,
+      // Classe, etc.) sub-conta silenciosamente por já não ver esses leads.
       const invalidos = ["", "?????", "?", "Vazio", "N/D"];
+      API_LEADS = data;
       LEADS_SEM_REVENDA = data.filter(l => invalidos.includes((l.revenda || "").trim()));
-      API_LEADS = data.filter(l => !invalidos.includes((l.revenda || "").trim()));
     } else {
       API_LEADS = data;
       LEADS_SEM_REVENDA = [];
@@ -112,7 +115,8 @@ function setupFilter() {
   }
 
   sel.disabled = false;
-  const revendas = uniq(data.map(l => l.revenda)).sort();
+  const invalidosRev = ["", "?????", "?", "Vazio", "N/D"];
+  const revendas = uniq(data.map(l => l.revenda).filter(r => !invalidosRev.includes((r || "").trim()))).sort();
 
   const optAll = document.createElement("option");
   optAll.value = "all";
@@ -201,7 +205,8 @@ function render() {
     $("statRevendas").textContent = data.length;
   } else {
     $("statRevendas").parentElement.querySelector(".k").textContent = "Revendas";
-    $("statRevendas").textContent = uniq(data.map(l => l.revenda)).length;
+    const invalidosRev = ["", "?????", "?", "Vazio", "N/D"];
+    $("statRevendas").textContent = uniq(data.map(l => l.revenda).filter(r => !invalidosRev.includes((r || "").trim()))).length;
   }
   $("statVendas").textContent = vendas.length;
 
