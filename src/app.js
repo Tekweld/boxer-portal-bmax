@@ -90,7 +90,11 @@ app.get("/api/motor/consulta-lead", async (req, res) => {
 // funil e guarda o resultado em cache.service.js (tabela leads_cache).
 app.get("/api/cron/sync-consulta-lead", async (req, res) => {
     const secret = req.headers["authorization"];
-    if (secret !== `Bearer ${process.env.CRON_SECRET}`) {
+    // CRON_TRIGGER_KEY é uma segunda chave só pra disparo manual (o CRON_SECRET
+    // é "Secret" no Vercel — não dá pra reler/copiar o valor já salvo).
+    const valido = secret === `Bearer ${process.env.CRON_SECRET}` ||
+        (process.env.CRON_TRIGGER_KEY && secret === `Bearer ${process.env.CRON_TRIGGER_KEY}`);
+    if (!valido) {
         return res.status(401).json({ error: "unauthorized" });
     }
     try {
