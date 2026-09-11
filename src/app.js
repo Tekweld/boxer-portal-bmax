@@ -20,6 +20,7 @@ const { logger } = require("./logger");
 const ALLOWED_ORIGINS = [
     "https://bmax.boxersoldas.com.br",
     "https://boxer-portal-bmax.vercel.app",
+    "https://bmax-motor.pages.dev",
     process.env.NODE_ENV !== "production" && "http://localhost:3000"
 ].filter(Boolean);
 
