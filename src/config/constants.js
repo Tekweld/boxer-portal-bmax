@@ -59,7 +59,10 @@ const RD_OWNERS = {
     "Carlos": "66152391467aac000da67451",
     "Lucas Ferreira": "69c5314a81439100135437c7",
     "Max": "6a2007b8b9704500268c5624",
-    "Revenda": "661572a5823cb7000e85e146",
+    // Pedido do André 2026-09-11: negociações com Responsável = "Revenda"
+    // (revenda/adm criando via Portal) passam a ter André Coelho como dono
+    // no RD, não mais o Billy.
+    "Revenda": "67efe9d367f94d002a8c4929",
     "Representante": "661572a5823cb7000e85e146"
 };
 

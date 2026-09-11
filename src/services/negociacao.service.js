@@ -50,7 +50,11 @@ async function createNegociacao(data) {
         owner_ids: [
             RD_OWNER_DEFAULT
         ],
-        type: "task"
+        type: "task",
+        // Campo "Observações" do formulário — o RD não expôs (ou não achamos)
+        // uma API de anotação de verdade no card; grava aqui, visível ao abrir
+        // a tarefa "Lead BMAX" que já é criada pra toda negociação.
+        notes: data.observacoes || undefined
     };
 
     await createTask(taskData);

@@ -489,7 +489,8 @@ async function createTask(taskData) {
             type: taskData.type || "task",
             date: taskData.date,
             hour: taskData.hour,
-            user_id: taskData.owner_id || taskData.user_id || RD_OWNER_DEFAULT
+            user_id: taskData.owner_id || taskData.user_id || RD_OWNER_DEFAULT,
+            notes: taskData.notes || undefined
         }
     };
     return await rdFetch("/tasks", "POST", body);
