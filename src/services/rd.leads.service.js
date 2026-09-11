@@ -296,18 +296,26 @@ function normalizeCnpj(raw) {
     return (raw || '').replace(/[.\-\/\s]/g, '');
 }
 
+// Checagem de duplicata na criação de negociação (Nova Negociação). Corrigido
+// 2026-09-11: só olhava o funil INDÚSTRIA-INTERNO — desde que representante/
+// revenda passaram a criar sempre no BMAX (mesmo dia), essa checagem ficava
+// cega pro próprio funil onde a maioria das negociações novas (e muitas já
+// existentes) realmente está, deixando duplicar CNPJs já cadastrados. Agora
+// varre os 5 funis de verdade (mesma varredura ao vivo da Consulta de Lead,
+// não o índice em cache — aqui precisa ser o estado mais atual possível,
+// mesmo custando ~15s a mais na hora de salvar).
 async function getLeadByCnpj(cnpj) {
     const cnpjClean = normalizeCnpj(cnpj);
     if (!cnpjClean) return null;
 
-    const json = await rdFetch(`/deals?deal_pipeline_id=${RD_PIPELINE_INDUSTRIA}&q=${encodeURIComponent(cnpjClean)}&limit=200`);
-    const deals = (json.deals || []).filter(d => {
+    const deals = await fetchAllDealsAllPipelines();
+    const encontrado = deals.find(d => {
         if (!d.deal_stage || d.deal_stage.id === RD_STAGE_VENDA_EFETIVADA || d.deal_stage.id === RD_STAGE_EXCLUIDO || d.deal_stage.id === RD_STAGE_PERDIDO) return false;
         const dealCnpj = normalizeCnpj(getCustomField(d, 'CNPJ'));
         return dealCnpj === cnpjClean;
     });
 
-    return deals.length > 0 ? deals[0] : null;
+    return encontrado || null;
 }
 
 // Corrige o nome do representante em TODAS as negociações já existentes no RD
