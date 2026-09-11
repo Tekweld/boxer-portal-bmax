@@ -618,7 +618,7 @@ async function fetchAllDealsAllPipelines() {
 }
 
 const CONSULTA_LEAD_CACHE_KEY = "consulta_lead_index";
-const CONSULTA_LEAD_CACHE_TTL = 25 * 60 * 60 * 1000; // 25h — cron roda 1x/dia (limite do plano Hobby da Vercel)
+const CONSULTA_LEAD_CACHE_TTL = 7 * 60 * 60 * 1000; // 7h — cron roda 3x/dia (9h/14h/18h), folga sobre o intervalo de 5h entre execuções
 
 // Chamado só pelo cron (/api/cron/sync-consulta-lead) — faz a varredura pesada
 // uma vez por dia e guarda o resultado já no formato final de exibição.

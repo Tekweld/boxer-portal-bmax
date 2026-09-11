@@ -23,7 +23,15 @@
     },
     {
       "path": "/api/cron/sync-consulta-lead",
-      "schedule": "0 9 * * *"
+      "schedule": "0 12 * * *"
+    },
+    {
+      "path": "/api/cron/sync-consulta-lead",
+      "schedule": "0 17 * * *"
+    },
+    {
+      "path": "/api/cron/sync-consulta-lead",
+      "schedule": "0 21 * * *"
     }
   ]
 }

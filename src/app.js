@@ -85,9 +85,10 @@ app.get("/api/motor/consulta-lead", async (req, res) => {
     }
 });
 
-// Cron diário — gera o índice usado por /api/motor/consulta-lead. Roda 1x/dia
-// (limite do plano Hobby da Vercel); varre os 5 funis do RD em paralelo por
-// funil e guarda o resultado em cache.service.js (tabela leads_cache).
+// Gera o índice usado por /api/motor/consulta-lead. Roda 3x/dia (9h/14h/18h
+// BRT, via 3 entradas de cron em vercel.json — cada uma dispara 1x/dia,
+// respeitando o limite do plano Hobby da Vercel); varre os 5 funis do RD em
+// paralelo por funil e guarda o resultado em cache.service.js (leads_cache).
 app.get("/api/cron/sync-consulta-lead", async (req, res) => {
     const secret = req.headers["authorization"];
     // CRON_TRIGGER_KEY é uma segunda chave só pra disparo manual (o CRON_SECRET
