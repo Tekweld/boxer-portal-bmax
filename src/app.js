@@ -72,6 +72,8 @@ app.get("/api/health", (req, res) => {
 // quem chama é o Motor (site estático, só tem a chave anon do Supabase, não
 // tem token do RD). Protegida só por CORS (mesmo modelo que o Motor já usa
 // hoje pra tudo). Sem dado sensível de conta/senha, só negociações do RD.
+// Só lê o índice pré-computado pelo cron abaixo — nunca varre o RD na hora
+// do clique (varrer os 5 funis ao vivo excede o timeout do Vercel).
 app.get("/api/motor/consulta-lead", async (req, res) => {
     try {
         const { buscarLead } = require("./services/rd.leads.service");
@@ -80,6 +82,24 @@ app.get("/api/motor/consulta-lead", async (req, res) => {
     } catch (err) {
         logger.error({ message: "Erro na consulta de lead", error: err.message, stack: err.stack });
         res.status(500).json({ error: "Falha ao consultar RD Station" });
+    }
+});
+
+// Cron diário — gera o índice usado por /api/motor/consulta-lead. Roda 1x/dia
+// (limite do plano Hobby da Vercel); varre os 5 funis do RD em paralelo por
+// funil e guarda o resultado em cache.service.js (tabela leads_cache).
+app.get("/api/cron/sync-consulta-lead", async (req, res) => {
+    const secret = req.headers["authorization"];
+    if (secret !== `Bearer ${process.env.CRON_SECRET}`) {
+        return res.status(401).json({ error: "unauthorized" });
+    }
+    try {
+        const { buildConsultaLeadIndex } = require("./services/rd.leads.service");
+        const total = await buildConsultaLeadIndex();
+        res.json({ ok: true, total });
+    } catch (err) {
+        logger.error({ message: "Erro no cron sync-consulta-lead", error: err.message, stack: err.stack });
+        res.status(500).json({ error: err.message });
     }
 });
 

@@ -555,6 +555,15 @@ async function mapDealToCard(deal, role, creditosMap) {
 // a venda é dela, não da Boxer). O `q=` da API do RD não filtra de verdade
 // (testado ao vivo) — por isso, igual a getLeadByCnpj, buscamos tudo e
 // filtramos no client.
+//
+// Varrer 5 funis inteiros (sem filtro de data) é pesado demais pra caber no
+// timeout de uma função serverless do Vercel (confirmado ao vivo: 504
+// FUNCTION_INVOCATION_TIMEOUT na primeira tentativa, buscando tudo na hora
+// do clique). Por isso o índice é pré-computado por um cron diário
+// (buildConsultaLeadIndex, chamado por /api/cron/sync-consulta-lead) e
+// guardado em cache.service.js (tabela leads_cache, TTL de 25h — sobrevive
+// folgado entre execuções diárias do cron). O endpoint de busca só lê esse
+// índice já pronto — nunca faz a varredura na hora da consulta do usuário.
 
 let _pipelinesCache = { data: null, ts: 0 };
 const PIPELINES_CACHE_TTL = 60 * 60 * 1000;
@@ -567,28 +576,58 @@ async function getAllPipelines() {
     return pipelines;
 }
 
-let _allDealsCache = { data: null, ts: 0 };
-const ALL_DEALS_CACHE_TTL = 10 * 60 * 1000;
+const PAGE_LIMIT = 200;
+const PAGE_CONCURRENCY = 6; // não estourar rate-limit do RD buscando página demais de uma vez
 
-async function fetchAllDealsAllPipelines() {
-    if (_allDealsCache.data && Date.now() - _allDealsCache.ts < ALL_DEALS_CACHE_TTL) return _allDealsCache.data;
+function marcarPipeline(deals, pipelineId, pipelineNome) {
+    for (const d of deals) { d._pipelineId = pipelineId; d._pipelineNome = pipelineNome; }
+    return deals;
+}
 
-    const pipelines = await getAllPipelines();
-    let allDeals = [];
-    for (const p of pipelines) {
-        let page = 1;
-        while (page <= RD_MAX_PAGES) {
-            const json = await rdFetch(`/deals?deal_pipeline_id=${p.id}&page=${page}&limit=200`);
-            const deals = json.deals || [];
-            if (deals.length === 0) break;
-            for (const d of deals) { d._pipelineId = p.id; d._pipelineNome = p.nome; }
-            allDeals = allDeals.concat(deals);
-            if (!json.has_more) break;
-            page++;
-        }
+// Busca a 1ª página pra descobrir o total de páginas (a API do RD devolve
+// `total`), depois busca o resto em paralelo (em lotes, pra não estourar
+// rate-limit) em vez de página por página em série — é o que faz a varredura
+// completa dos 5 funis caber no timeout do Vercel (sequencial passava de 50s
+// só no maior funil).
+async function fetchDealsForPipeline(pipelineId, pipelineNome) {
+    const primeira = await rdFetch(`/deals?deal_pipeline_id=${pipelineId}&page=1&limit=${PAGE_LIMIT}`);
+    let deals = marcarPipeline(primeira.deals || [], pipelineId, pipelineNome);
+    if (!primeira.has_more) return deals;
+
+    const totalPaginas = Math.min(Math.ceil((primeira.total || deals.length) / PAGE_LIMIT), RD_MAX_PAGES);
+    const paginasRestantes = [];
+    for (let p = 2; p <= totalPaginas; p++) paginasRestantes.push(p);
+
+    for (let i = 0; i < paginasRestantes.length; i += PAGE_CONCURRENCY) {
+        const lote = paginasRestantes.slice(i, i + PAGE_CONCURRENCY);
+        const respostas = await Promise.all(
+            lote.map(p => rdFetch(`/deals?deal_pipeline_id=${pipelineId}&page=${p}&limit=${PAGE_LIMIT}`))
+        );
+        for (const json of respostas) deals.push(...marcarPipeline(json.deals || [], pipelineId, pipelineNome));
     }
-    _allDealsCache = { data: allDeals, ts: Date.now() };
-    return allDeals;
+    return deals;
+}
+
+// Busca os 5 funis em paralelo, e dentro de cada funil também pagina em
+// paralelo (ver fetchDealsForPipeline) — reduz bastante o tempo total em
+// relação a buscar página por página, funil por funil, em série.
+async function fetchAllDealsAllPipelines() {
+    const pipelines = await getAllPipelines();
+    const porFunil = await Promise.all(pipelines.map(p => fetchDealsForPipeline(p.id, p.nome)));
+    return porFunil.flat();
+}
+
+const CONSULTA_LEAD_CACHE_KEY = "consulta_lead_index";
+const CONSULTA_LEAD_CACHE_TTL = 25 * 60 * 60 * 1000; // 25h — cron roda 1x/dia (limite do plano Hobby da Vercel)
+
+// Chamado só pelo cron (/api/cron/sync-consulta-lead) — faz a varredura pesada
+// uma vez por dia e guarda o resultado já no formato final de exibição.
+async function buildConsultaLeadIndex() {
+    const { setCachedLeads } = require("./cache.service");
+    const deals = await fetchAllDealsAllPipelines();
+    const resultados = deals.map(dealParaResultado);
+    await setCachedLeads(CONSULTA_LEAD_CACHE_KEY, resultados);
+    return resultados.length;
 }
 
 function soDigitos(s) {
@@ -631,46 +670,40 @@ function dealParaResultado(deal) {
     };
 }
 
+// Busca no índice já pronto (ver buildConsultaLeadIndex) — nunca chama o RD
+// na hora do clique do usuário, só lê o que o cron diário já deixou pronto.
 async function buscarLead(termoBruto) {
     const termo = (termoBruto || "").trim();
-    if (!termo) return { termo, tipoDetectado: null, total: 0, resultados: [] };
+    if (!termo) return { termo, tipoDetectado: null, total: 0, resultados: [], indiceDisponivel: true };
+
+    const { getCachedLeads } = require("./cache.service");
+    const indice = await getCachedLeads(CONSULTA_LEAD_CACHE_KEY, CONSULTA_LEAD_CACHE_TTL);
+    if (!indice) {
+        return { termo, tipoDetectado: null, total: 0, resultados: [], indiceDisponivel: false };
+    }
 
     const tipo = detectarTipoBusca(termo);
     const digitos = soDigitos(termo);
     const termoLower = termo.toLowerCase();
 
-    const deals = await fetchAllDealsAllPipelines();
-
-    const encontrados = deals.filter(deal => {
+    const encontrados = indice.filter(r => {
         if (tipo === "cnpj") {
-            return soDigitos(getCustomField(deal, "CNPJ")) === digitos;
+            return soDigitos(r.cnpj) === digitos;
         }
         if (tipo === "email") {
-            return (deal.contacts || []).some(c =>
-                (c.emails || []).some(e => (e.email || "").toLowerCase() === termoLower)
-            );
+            return (r.contatos || []).some(c => (c.emails || []).some(e => (e || "").toLowerCase() === termoLower));
         }
         if (tipo === "telefone") {
             const alvo = digitos.slice(-8);
-            return (deal.contacts || []).some(c =>
-                (c.phones || []).some(p => soDigitos(p.phone).slice(-8) === alvo)
-            );
+            return (r.contatos || []).some(c => (c.telefones || []).some(t => soDigitos(t).slice(-8) === alvo));
         }
         // nome — negociação, organização ou contato
-        const nomes = [
-            deal.name,
-            deal.organization?.name,
-            ...(deal.contacts || []).map(c => c.name)
-        ].filter(Boolean).map(n => n.toLowerCase());
+        const nomes = [r.nome, r.organizacao, ...(r.contatos || []).map(c => c.nome)]
+            .filter(Boolean).map(n => n.toLowerCase());
         return nomes.some(n => n.includes(termoLower));
     });
 
-    return {
-        termo,
-        tipoDetectado: tipo,
-        total: encontrados.length,
-        resultados: encontrados.map(dealParaResultado)
-    };
+    return { termo, tipoDetectado: tipo, total: encontrados.length, resultados: encontrados, indiceDisponivel: true };
 }
 
 // Monta os cards de leads exatamente como o dashboard (GET /api/leads) monta —
@@ -690,6 +723,7 @@ module.exports = {
     getLeads,
     buildLeadsCards,
     buscarLead,
+    buildConsultaLeadIndex,
     createLead,
     updateLead,
     getOrg,

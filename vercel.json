@@ -20,6 +20,10 @@
     {
       "path": "/api/cron/sync-revenda-rep-rd",
       "schedule": "30 10 * * *"
+    },
+    {
+      "path": "/api/cron/sync-consulta-lead",
+      "schedule": "0 9 * * *"
     }
   ]
 }

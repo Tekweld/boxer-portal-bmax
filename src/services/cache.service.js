@@ -3,7 +3,7 @@ const { QueryTypes } = require("sequelize");
 
 const CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutos
 
-async function getCachedLeads(cacheKey) {
+async function getCachedLeads(cacheKey, ttlMs = CACHE_TTL_MS) {
     const rows = await sequelize.query(
         `SELECT data, updated_at FROM leads_cache WHERE cache_key = :key LIMIT 1`,
         { replacements: { key: cacheKey }, type: QueryTypes.SELECT }
@@ -14,7 +14,7 @@ async function getCachedLeads(cacheKey) {
     const row = rows[0];
     const age = Date.now() - new Date(row.updated_at).getTime();
 
-    if (age > CACHE_TTL_MS) return null;
+    if (age > ttlMs) return null;
 
     return row.data;
 }
