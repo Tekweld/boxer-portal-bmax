@@ -182,11 +182,14 @@ function logout() {
 async function populateConfigSelects() {
   const cfg = await loadAppConfig();
   if (!cfg) return;
-  populateSelect("negRepresentante", cfg.representantes, "Selecione o Representante");
+  // "Sem Representante"/"Sem Revenda" existem de verdade no RD (picklist estrito) como
+  // "N/D" e "Sem Revenda" — o valor enviado tem que ser exatamente esse, só o texto
+  // mostrado no dropdown é mais amigável.
+  populateSelect("negRepresentante", [{ value: "N/D", label: "Sem Representante" }, ...cfg.representantes], "Selecione o Representante");
   populateSelect("negResponsavel", cfg.responsaveis, "Selecione o Responsavel");
   populateSelect("negPci", cfg.pcis, "Selecione o PCI");
   if (cfg.revendas && cfg.revendas.length) {
-    populateSelect("negRevenda", cfg.revendas.map(r => r.nome), "Selecione a Revenda");
+    populateSelect("negRevenda", [{ value: "Sem Revenda", label: "Sem Revenda" }, ...cfg.revendas.map(r => r.nome)], "Selecione a Revenda");
   }
 }
 

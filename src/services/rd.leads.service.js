@@ -229,8 +229,12 @@ async function createLead(negociacao) {
     const { usernameToRd } = await getAliasMaps();
     const nomeusuario = usernameToRd[negociacao.usuario] || negociacao.usuario;
 
-    const responsavelId = RD_OWNERS[negociacao.responsavel];
-    const isBmaxInternal = responsavelId === RD_OWNERS["Revenda"] || representante === "N/D" || representante === nomeusuario;
+    const responsavelId = await resolverResponsavelId(negociacao.responsavel);
+    // Checagem pela string escolhida, não pelo ID resolvido: Billy é dono de
+    // RD_OWNERS.Revenda/Representante (rota histórica de auto-atribuição) mas
+    // também é um usuário real do RD, então comparar por ID colidiria sempre
+    // que alguém escolhesse "Billy" como responsável de verdade.
+    const isBmaxInternal = negociacao.responsavel === "Revenda" || representante === "N/D" || representante === nomeusuario;
     const pipeline = isBmaxInternal ? RD_PIPELINE_BMAX_INTERNO : RD_PIPELINE_INDUSTRIA;
     const stage = isBmaxInternal ? RD_STAGE_ASSUMIDO : RD_STAGE_LEAD;
 
@@ -255,6 +259,33 @@ async function createLead(negociacao) {
     };
 
     return await rdFetch("/deals", "POST", body);
+}
+
+// Lista de usuários ativos do RD Station — usada pra popular "Responsável"
+// na Nova Negociação sempre com quem realmente existe no RD hoje (achado
+// 2026-09-11: a lista era um array fixo em constants.js, faltando gente
+// como Billy e André que já eram usuários reais do RD havia tempo).
+let _rdUsersCache = { data: null, ts: 0 };
+const RD_USERS_CACHE_TTL = 60 * 60 * 1000;
+
+async function getRdUsuariosAtivos() {
+    if (_rdUsersCache.data && Date.now() - _rdUsersCache.ts < RD_USERS_CACHE_TTL) return _rdUsersCache.data;
+    const json = await rdFetch("/users");
+    const usuarios = (json.users || [])
+        .filter(u => u.active && !u.hidden)
+        .map(u => ({ nome: u.name, id: u.id || u._id }));
+    _rdUsersCache = { data: usuarios, ts: Date.now() };
+    return usuarios;
+}
+
+// "Revenda"/"Representante" continuam sendo pseudo-responsáveis fixos (rota
+// de auto-atribuição já existente, ver RD_OWNERS em constants.js) — qualquer
+// outro nome é resolvido contra a lista real de usuários do RD.
+async function resolverResponsavelId(nomeEscolhido) {
+    if (RD_OWNERS[nomeEscolhido]) return RD_OWNERS[nomeEscolhido];
+    const usuarios = await getRdUsuariosAtivos();
+    const usuario = usuarios.find(u => u.nome === nomeEscolhido);
+    return usuario ? usuario.id : RD_OWNER_DEFAULT;
 }
 
 function matchRevendaRD(nome) {
@@ -724,6 +755,7 @@ module.exports = {
     buildLeadsCards,
     buscarLead,
     buildConsultaLeadIndex,
+    getRdUsuariosAtivos,
     createLead,
     updateLead,
     getOrg,

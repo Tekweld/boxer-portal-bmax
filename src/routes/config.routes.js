@@ -4,6 +4,7 @@ const { REPRESENTANTES, RESPONSAVEIS, PCI_POR_CAMINHO } = require("../config/con
 const router = express.Router();
 
 const { sbSistemasAnon } = require("../config/supabaseSistemas");
+const { getRdUsuariosAtivos } = require("../services/rd.leads.service");
 
 const PCIS = [
     "PCI 1", "PCI 2", "PCI 3", "PCI 4", "PCI 5",
@@ -49,11 +50,29 @@ function invalidateConfigCache() {
     _repsCache = { data: null, ts: 0 };
 }
 
+// "Responsável" precisa sempre bater com quem existe de verdade no RD hoje
+// (achado 2026-09-11: a lista fixa em constants.js não tinha nem Billy nem
+// André, que já eram usuários ativos do RD há tempo). "Revenda"/"Representante"
+// continuam no fim da lista — são pseudo-responsáveis de auto-atribuição,
+// não usuários reais (ver RD_OWNERS/resolverResponsavelId).
+async function fetchResponsaveis() {
+    try {
+        const usuarios = await getRdUsuariosAtivos();
+        return [...usuarios.map(u => u.nome), "Revenda", "Representante"];
+    } catch {
+        return RESPONSAVEIS;
+    }
+}
+
 router.get("/", async (req, res) => {
-    const [revendas, repsBmax] = await Promise.all([fetchRevendasBmax(), fetchRepresentantesBmax()]);
+    const [revendas, repsBmax, responsaveis] = await Promise.all([
+        fetchRevendasBmax(),
+        fetchRepresentantesBmax(),
+        fetchResponsaveis()
+    ]);
     res.json({
         representantes: repsBmax,
-        responsaveis: RESPONSAVEIS,
+        responsaveis,
         pcis: PCIS,
         caminhos: CAMINHOS,
         revendas

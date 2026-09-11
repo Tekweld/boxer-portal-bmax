@@ -78,8 +78,9 @@ function populateSelect(selectId, items, placeholder) {
   }
   items.forEach(item => {
     const opt = document.createElement("option");
-    opt.value = item;
-    opt.textContent = item;
+    const isObj = item && typeof item === "object";
+    opt.value = isObj ? item.value : item;
+    opt.textContent = isObj ? item.label : item;
     sel.appendChild(opt);
   });
 }
