@@ -40,23 +40,50 @@ async function sbSistemas(path, method = 'GET', body = null) {
     return res.json().catch(() => ({}));
 }
 
-async function sbSistemasAuthInvite(email) {
+// Cria a conta do Motor (Supabase Auth) já com a MESMA senha do Portal, em vez de
+// convite por e-mail (que deixaria a pessoa com senha diferente em cada sistema até
+// ela mesma definir uma nova). Login único e-mail+senha nos dois sistemas desde o
+// cadastro (ver memória do projeto, 2026-09-11 - unificação de login Portal/Motor).
+async function sbSistemasAuthProvision(email, password) {
     const serviceKey = process.env.SUPABASE_SERVICE_KEY_SISTEMAS;
     if (!serviceKey) throw new Error("SUPABASE_SERVICE_KEY_SISTEMAS não configurada");
-    const res = await fetch(`${SB_SISTEMAS_URL}/auth/v1/invite`, {
+
+    const createRes = await fetch(`${SB_SISTEMAS_URL}/auth/v1/admin/users`, {
         method: "POST",
         headers: {
             apikey: serviceKey,
             Authorization: `Bearer ${serviceKey}`,
             "Content-Type": "application/json"
         },
-        body: JSON.stringify({ email })
+        body: JSON.stringify({ email, password, email_confirm: true })
     });
-    const json = await res.json().catch(() => ({}));
-    if (!res.ok && json?.error_code !== "email_exists") {
-        throw new Error(json?.msg || json?.message || `Supabase Auth ${res.status}`);
+    const createJson = await createRes.json().catch(() => ({}));
+    if (createRes.ok) return createJson;
+
+    // Conta já existia no Motor (ex.: recadastro) - sincroniza a senha em vez de falhar
+    if (createJson?.error_code === "email_exists") {
+        const listRes = await fetch(`${SB_SISTEMAS_URL}/auth/v1/admin/users?page=1&per_page=1000`, {
+            headers: { apikey: serviceKey, Authorization: `Bearer ${serviceKey}` }
+        });
+        const listJson = await listRes.json().catch(() => ({}));
+        const existing = (listJson.users || []).find(u => (u.email || "").toLowerCase() === email.toLowerCase());
+        if (existing) {
+            const updateRes = await fetch(`${SB_SISTEMAS_URL}/auth/v1/admin/users/${existing.id}`, {
+                method: "PUT",
+                headers: {
+                    apikey: serviceKey,
+                    Authorization: `Bearer ${serviceKey}`,
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({ password })
+            });
+            const updateJson = await updateRes.json().catch(() => ({}));
+            if (!updateRes.ok) throw new Error(updateJson?.msg || updateJson?.message || `Supabase Auth ${updateRes.status}`);
+            return updateJson;
+        }
     }
-    return json;
+
+    throw new Error(createJson?.msg || createJson?.message || `Supabase Auth ${createRes.status}`);
 }
 
 function clean(value) {
@@ -213,11 +240,11 @@ async function createUser(req, res) {
                 logger.error({ message: "Falha ao salvar representante em comercial_representantes_bmax", error: e.message });
             }
 
-            // Envia convite ao representante para acesso ao Motor (Supabase Auth)
+            // Cria acesso ao Motor (Supabase Auth) com a mesma senha do Portal
             try {
-                await sbSistemasAuthInvite(email);
+                await sbSistemasAuthProvision(email, finalPassword);
             } catch (e) {
-                logger.error({ message: "Falha ao enviar convite do Motor para representante", error: e.message });
+                logger.error({ message: "Falha ao criar acesso do Motor para representante", error: e.message });
             }
         }
 
@@ -238,11 +265,12 @@ async function createUser(req, res) {
                 logger.error({ message: "Falha ao salvar revenda em comercial_revendas_bmax", error: e.message });
             }
 
-            // Envia convite ao representante para acesso ao Motor (Supabase Auth)
+            // Cria acesso ao Motor (Supabase Auth) com a mesma senha do Portal - revenda
+            // hoje não acessa o Motor na prática, mas mantém consistência do cadastro
             try {
-                await sbSistemasAuthInvite(email);
+                await sbSistemasAuthProvision(email, finalPassword);
             } catch (e) {
-                logger.error({ message: "Falha ao enviar convite do Motor para revenda", error: e.message });
+                logger.error({ message: "Falha ao criar acesso do Motor para revenda", error: e.message });
             }
         }
 
@@ -257,11 +285,11 @@ async function createUser(req, res) {
                 logger.error({ message: "Falha ao salvar funcionário em comercial_funcionarios_bmax", error: e.message });
             }
 
-            // Envia convite ao funcionário para acesso ao Motor (Supabase Auth)
+            // Cria acesso ao Motor (Supabase Auth) com a mesma senha do Portal
             try {
-                await sbSistemasAuthInvite(email);
+                await sbSistemasAuthProvision(email, finalPassword);
             } catch (e) {
-                logger.error({ message: "Falha ao enviar convite do Motor para funcionário", error: e.message });
+                logger.error({ message: "Falha ao criar acesso do Motor para funcionário", error: e.message });
             }
         }
 
@@ -276,9 +304,9 @@ async function createUser(req, res) {
                 logger.error({ message: "Falha ao salvar admin em comercial_admin_bmax", error: e.message });
             }
 
-            // Envia convite ao admin para acesso ao Motor (Supabase Auth)
+            // Cria acesso ao Motor (Supabase Auth) com a mesma senha do Portal
             try {
-                await sbSistemasAuthInvite(email);
+                await sbSistemasAuthProvision(email, finalPassword);
             } catch (e) {
                 logger.error({ message: "Falha ao enviar convite do Motor para admin", error: e.message });
             }
