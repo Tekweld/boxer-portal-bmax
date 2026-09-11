@@ -11,6 +11,9 @@ async function create(req, res) {
         const data = req.body;
 
         data.user_id = req.user.id;
+        // Funil nunca é decidido pelo cliente pra representante/revenda — só o
+        // role real do token (não o que veio no body) importa aqui.
+        data.role = req.user.role;
 
         const negociacao = await createNegociacao(data);
         await AuditLog(req, {

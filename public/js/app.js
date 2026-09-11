@@ -27,6 +27,8 @@ function show(screen) {
   $("btnRecalcularComissoes").classList.toggle("hidden", !(session.role === "adm" && screen === "extrato"));
   $("blocoCamposRepresentante").classList.toggle("hidden", session.role !== "representante");
   $("blocoCaminhoVenda").classList.toggle("hidden", session.role !== "revenda");
+  const blocoAdmin = $("blocoCamposAdmin");
+  if (blocoAdmin) blocoAdmin.classList.toggle("hidden", session.role !== "adm");
 }
 
 function getScreenFromHash() {

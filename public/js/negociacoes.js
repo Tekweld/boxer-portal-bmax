@@ -84,6 +84,12 @@ $("btnSalvarNegociacao").addEventListener("click", async () => {
     novaNegociacao.responsavel = "Revenda";
   }
 
+  // Funil: representante/revenda sempre vão pro BMAX, sem escolha — só o admin
+  // decide (o backend também impõe isso server-side, não confia só nisso aqui).
+  if (session.role === "adm") {
+    novaNegociacao.funil = $("negFunil")?.value || "bmax";
+  }
+
   const btn = $("btnSalvarNegociacao");
   btnLoading(btn, true);
 
@@ -126,6 +132,7 @@ $("btnSalvarNegociacao").addEventListener("click", async () => {
   $("negPci").value = "";
   $("negEstado").value = "";
   $("negCaminho").value = "";
+  if ($("negFunil")) $("negFunil").value = "bmax";
 
   toast("Negociação Registrada!");
   } finally {

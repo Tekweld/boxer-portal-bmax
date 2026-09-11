@@ -224,19 +224,17 @@ async function createLead(negociacao) {
     }
 
     const pci = negociacao.pci || "PCI 12";
-    const representante = negociacao.representante || "N/D";
-
-    const { usernameToRd } = await getAliasMaps();
-    const nomeusuario = usernameToRd[negociacao.usuario] || negociacao.usuario;
 
     const responsavelId = await resolverResponsavelId(negociacao.responsavel);
-    // Checagem pela string escolhida, não pelo ID resolvido: Billy é dono de
-    // RD_OWNERS.Revenda/Representante (rota histórica de auto-atribuição) mas
-    // também é um usuário real do RD, então comparar por ID colidiria sempre
-    // que alguém escolhesse "Billy" como responsável de verdade.
-    const isBmaxInternal = negociacao.responsavel === "Revenda" || representante === "N/D" || representante === nomeusuario;
-    const pipeline = isBmaxInternal ? RD_PIPELINE_BMAX_INTERNO : RD_PIPELINE_INDUSTRIA;
-    const stage = isBmaxInternal ? RD_STAGE_ASSUMIDO : RD_STAGE_LEAD;
+
+    // Funil: pedido explícito do André (2026-09-11) — representante/revenda
+    // SEMPRE vão pro BMAX, independente de qualquer campo preenchido; só o
+    // admin decide (campo "Funil" no formulário, só visível pra ele). Decide
+    // pelo role real do token (setado no controller), nunca por algo vindo
+    // do body pra quem não é admin — não dá pra confiar no cliente aqui.
+    const quisIndustria = negociacao.role === "adm" && negociacao.funil === "industria";
+    const pipeline = quisIndustria ? RD_PIPELINE_INDUSTRIA : RD_PIPELINE_BMAX_INTERNO;
+    const stage = quisIndustria ? RD_STAGE_LEAD : RD_STAGE_ASSUMIDO;
 
     const body = {
         deal: {
