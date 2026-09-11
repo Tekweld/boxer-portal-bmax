@@ -137,7 +137,7 @@ app.get("/api/cron/sync-revenda-rep-rd", async (req, res) => {
         return res.status(401).json({ error: "unauthorized" });
     }
     try {
-        const { sbSistemasAnon } = require("./config/supabaseSistemas");
+        const { sbSistemasAnon, sbSistemasService } = require("./config/supabaseSistemas");
         const { syncRevendasToRD, renomearRevendaNoRD } = require("./services/rd.leads.service");
 
         async function getSnapshot(chave) {
@@ -145,8 +145,8 @@ app.get("/api/cron/sync-revenda-rep-rd", async (req, res) => {
             try { return JSON.parse(rows[0]?.valor || "{}"); } catch { return {}; }
         }
         async function saveSnapshot(chave, valor) {
-            await sbSistemasAnon(`/comercial_bmax_config?chave=eq.${chave}`, "PATCH", { valor: JSON.stringify(valor) })
-                .catch(() => sbSistemasAnon("/comercial_bmax_config", "POST", { chave, valor: JSON.stringify(valor) }));
+            await sbSistemasService(`/comercial_bmax_config?chave=eq.${chave}`, "PATCH", { valor: JSON.stringify(valor) })
+                .catch(() => sbSistemasService("/comercial_bmax_config", "POST", { chave, valor: JSON.stringify(valor) }));
         }
 
         const resultado = { revendas: [] };

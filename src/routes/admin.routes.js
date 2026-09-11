@@ -13,7 +13,7 @@ const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 
 
 const router = express.Router();
 
-const { SB_SISTEMAS_URL, sbSistemasAnon: sbSistemas } = require("../config/supabaseSistemas");
+const { SB_SISTEMAS_URL, sbSistemasAnon: sbSistemas, sbSistemasService } = require("../config/supabaseSistemas");
 const { sensitiveActionRateLimit } = require("../middlewares/rateLimit");
 const { logger } = require("../logger");
 
@@ -252,7 +252,7 @@ router.post("/revendas-bmax", authenticate, authorize(["adm"]), async (req, res)
     try {
         const { nome, cidade, estado, classe, rep, grupo } = req.body;
         if (!nome || !nome.trim()) return res.status(400).json({ error: "Nome é obrigatório" });
-        const row = await sbSistemas('/comercial_revendas_bmax', 'POST', {
+        const row = await sbSistemasService('/comercial_revendas_bmax', 'POST', {
             nome: nome.trim(), cidade: cidade || null, estado: estado || null,
             classe: classe || null, rep: rep || null, grupo: grupo || null, ativo: true
         });
@@ -282,7 +282,7 @@ router.patch("/revendas-bmax/:id", authenticate, authorize(["adm"]), async (req,
         updates.editado_em = new Date().toISOString();
         updates.editado_por = req.user.username || req.user.email || 'admin';
 
-        const row = await sbSistemas(`/comercial_revendas_bmax?id=eq.${id}`, 'PATCH', updates);
+        const row = await sbSistemasService(`/comercial_revendas_bmax?id=eq.${id}`, 'PATCH', updates);
         invalidateConfigCache();
         const needsSync = 'nome' in updates || 'ativo' in updates;
         // Ordem obrigatória: sincronizar o picklist do RD (que já inclui o nome novo,
@@ -547,7 +547,7 @@ router.patch("/cobertura/:ibge", authenticate, authorize(["adm"]), async (req, r
     try {
         const { ibge } = req.params;
         const { rep_bmax } = req.body;
-        const row = await sbSistemas(`/comercial_bmax_cobertura?ibge_codigo=eq.${ibge}`, 'PATCH', {
+        const row = await sbSistemasService(`/comercial_bmax_cobertura?ibge_codigo=eq.${ibge}`, 'PATCH', {
             rep_bmax: rep_bmax || null
         });
         res.json({ ok: true });
@@ -560,7 +560,7 @@ router.post("/cobertura", authenticate, authorize(["adm"]), async (req, res) => 
     try {
         const { ibge_codigo, cidade, estado, ddd, mesorregiao, rep_bmax } = req.body;
         if (!ibge_codigo || !cidade || !estado) return res.status(400).json({ error: "ibge_codigo, cidade e estado sao obrigatorios" });
-        const row = await sbSistemas('/comercial_bmax_cobertura', 'POST', {
+        const row = await sbSistemasService('/comercial_bmax_cobertura', 'POST', {
             ibge_codigo, cidade: cidade.trim(), estado: estado.trim().toUpperCase(),
             ddd: ddd ? parseInt(ddd) : null, mesorregiao: mesorregiao || null,
             rep_bmax: rep_bmax || null, ativo: true
@@ -619,7 +619,7 @@ router.post("/cobertura/upload", authenticate, authorize(["adm"]), upload.single
         let upserted = 0;
         for (let i = 0; i < batch.length; i += CHUNK) {
             const chunk = batch.slice(i, i + CHUNK);
-            await sbSistemas('/comercial_bmax_cobertura', 'POST', chunk, { Prefer: 'resolution=merge-duplicates,return=minimal' });
+            await sbSistemasService('/comercial_bmax_cobertura', 'POST', chunk, { Prefer: 'resolution=merge-duplicates,return=minimal' });
             upserted += chunk.length;
         }
         res.json({ ok: true, upserted, skipped });
@@ -661,7 +661,7 @@ router.post("/vendedores-bmax", authenticate, authorize(["adm"]), async (req, re
         const { nome, tipo, cor, ddds, fallback } = req.body;
         if (!nome || !nome.trim()) return res.status(400).json({ error: "Nome é obrigatório" });
         if (!["VI", "VT1", "VT2"].includes(tipo)) return res.status(400).json({ error: "Tipo inválido" });
-        const row = await sbSistemas('/comercial_bmax_vendedores', 'POST', {
+        const row = await sbSistemasService('/comercial_bmax_vendedores', 'POST', {
             nome: nome.trim(), tipo, cor: cor || '#60a5fa',
             ddds: Array.isArray(ddds) ? ddds : null,
             fallback: !!fallback, ativo: true
@@ -680,7 +680,7 @@ router.patch("/vendedores-bmax/:id", authenticate, authorize(["adm"]), async (re
             if (req.body[key] !== undefined) updates[key] = req.body[key];
         }
         if (Object.keys(updates).length === 0) return res.status(400).json({ error: "Nenhum campo para atualizar" });
-        const row = await sbSistemas(`/comercial_bmax_vendedores?id=eq.${id}`, 'PATCH', updates);
+        const row = await sbSistemasService(`/comercial_bmax_vendedores?id=eq.${id}`, 'PATCH', updates);
         res.json(row[0] || row);
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -689,7 +689,7 @@ router.patch("/vendedores-bmax/:id", authenticate, authorize(["adm"]), async (re
 
 router.delete("/vendedores-bmax/:id", authenticate, authorize(["adm"]), async (req, res) => {
     try {
-        await sbSistemas(`/comercial_bmax_vendedores?id=eq.${req.params.id}`, 'DELETE');
+        await sbSistemasService(`/comercial_bmax_vendedores?id=eq.${req.params.id}`, 'DELETE');
         res.json({ ok: true });
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -717,7 +717,7 @@ router.put("/rep-bmax-list", authenticate, authorize(["adm"]), async (req, res) 
     try {
         const lista = req.body.lista;
         if (!Array.isArray(lista)) return res.status(400).json({ error: "lista deve ser um array" });
-        await sbSistemas('/comercial_bmax_config', 'POST',
+        await sbSistemasService('/comercial_bmax_config', 'POST',
             { chave: 'representantes_bmax', valor: JSON.stringify(lista) },
             { Prefer: 'resolution=merge-duplicates,return=minimal' });
         res.json({ ok: true, total: lista.length });
@@ -752,7 +752,7 @@ router.put("/comissao-config", authenticate, authorize(["adm"]), async (req, res
         const entries = Object.entries(req.body).filter(([k]) => COMISSAO_KEYS.includes(k));
         if (!entries.length) return res.status(400).json({ error: "Nenhum parâmetro válido enviado" });
         for (const [chave, valor] of entries) {
-            await sbSistemas('/comercial_bmax_config', 'POST',
+            await sbSistemasService('/comercial_bmax_config', 'POST',
                 { chave, valor: String(valor) },
                 { Prefer: 'resolution=merge-duplicates,return=minimal' });
         }
