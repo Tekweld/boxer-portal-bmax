@@ -248,17 +248,73 @@ router.get("/revendas-bmax", authenticate, authorize(["adm"]), async (req, res) 
     }
 });
 
+// Geocodifica um CEP (lat/lng) para o BMax Motor calcular distância até o lead —
+// sem isso a revenda nunca aparece como "dentro do raio", mesmo cadastrada certo.
+// Camada 1: BrasilAPI (tem coordenadas para a maioria dos CEPs). Camada 2 (fallback):
+// Nominatim por cidade/estado — mais impreciso (centro da cidade), mas sempre resolve
+// algo. Mesmo espírito do que o Motor fazia no formulário antigo dele (client-side),
+// só que mais enxuto — sem as camadas extras (endereço livre, centróide IBGE, CEP do
+// centro) que existiam lá.
+async function geocodeCep(cep) {
+    const clean = String(cep || "").replace(/\D/g, "");
+    if (clean.length !== 8) return { lat: null, lng: null };
+    try {
+        const r = await fetch(`https://brasilapi.com.br/api/cep/v2/${clean}`, { signal: AbortSignal.timeout(8000) });
+        if (r.ok) {
+            const d = await r.json();
+            const coords = d.location?.coordinates;
+            if (coords?.latitude && coords?.longitude) {
+                return { lat: parseFloat(coords.latitude), lng: parseFloat(coords.longitude), cidade: d.city, estado: d.state };
+            }
+            if (d.city && d.state) {
+                const nom = await nominatimGeocode({ city: d.city, state: d.state });
+                if (nom) return { ...nom, cidade: d.city, estado: d.state };
+            }
+        }
+    } catch (e) {
+        logger.error({ message: "Erro ao geocodificar CEP via BrasilAPI", cep: clean, error: e.message });
+    }
+    return { lat: null, lng: null };
+}
+
+async function nominatimGeocode(params) {
+    try {
+        const qs = new URLSearchParams({ ...params, country: "Brazil", format: "json", limit: "1", countrycodes: "br" });
+        const r = await fetch(`https://nominatim.openstreetmap.org/search?${qs}`, {
+            headers: { "User-Agent": "BoxerPortalBMax/1.0 (boxersoldas.com.br)" },
+            signal: AbortSignal.timeout(8000)
+        });
+        if (!r.ok) return null;
+        const d = await r.json();
+        if (!d.length) return null;
+        return { lat: parseFloat(d[0].lat), lng: parseFloat(d[0].lon) };
+    } catch {
+        return null;
+    }
+}
+
 router.post("/revendas-bmax", authenticate, authorize(["adm"]), async (req, res) => {
     try {
-        const { nome, cidade, estado, classe, rep, grupo } = req.body;
+        const { nome, cidade, estado, classe, rep, grupo, cep, telefone, email, cnpj } = req.body;
         if (!nome || !nome.trim()) return res.status(400).json({ error: "Nome é obrigatório" });
+
+        let lat = null, lng = null, cidadeFinal = cidade || null, estadoFinal = estado || null;
+        if (cep) {
+            const geo = await geocodeCep(cep);
+            lat = geo.lat; lng = geo.lng;
+            cidadeFinal = cidadeFinal || geo.cidade || null;
+            estadoFinal = estadoFinal || geo.estado || null;
+        }
+
         const row = await sbSistemasService('/comercial_revendas_bmax', 'POST', {
-            nome: nome.trim(), cidade: cidade || null, estado: estado || null,
-            classe: classe || null, rep: rep || null, grupo: grupo || null, ativo: true
+            nome: nome.trim(), cidade: cidadeFinal, estado: estadoFinal,
+            classe: classe || null, rep: rep || null, grupo: grupo || null, ativo: true,
+            cep: cep || null, telefone: telefone || null, email: email || null, cnpj: cnpj || null,
+            lat, lng
         });
         invalidateConfigCache();
         const sync = await syncRevendasAfterChange();
-        res.json({ revenda: row[0] || row, sync });
+        res.json({ revenda: row[0] || row, sync, geocoded: lat !== null });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
@@ -277,6 +333,14 @@ router.patch("/revendas-bmax/:id", authenticate, authorize(["adm"]), async (req,
         if ('nome' in updates) {
             const atual = await sbSistemas(`/comercial_revendas_bmax?id=eq.${id}&select=nome`);
             nomeAntigo = atual[0]?.nome || null;
+        }
+
+        // Recalcula lat/lng sempre que o CEP muda — sem isso o Motor nunca acha essa
+        // revenda dentro do raio, mesmo com o cadastro correto (achado 2026-09-11).
+        if ('cep' in updates && updates.cep) {
+            const geo = await geocodeCep(updates.cep);
+            updates.lat = geo.lat;
+            updates.lng = geo.lng;
         }
 
         updates.editado_em = new Date().toISOString();
