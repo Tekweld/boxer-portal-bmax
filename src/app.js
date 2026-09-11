@@ -68,6 +68,21 @@ app.get("/api/health", (req, res) => {
     res.json({ status: "ok", service: "BMAX API" });
 });
 
+// Consulta de Lead (tela do BMax Motor) — aberta, sem JWT do Portal, porque
+// quem chama é o Motor (site estático, só tem a chave anon do Supabase, não
+// tem token do RD). Protegida só por CORS (mesmo modelo que o Motor já usa
+// hoje pra tudo). Sem dado sensível de conta/senha, só negociações do RD.
+app.get("/api/motor/consulta-lead", async (req, res) => {
+    try {
+        const { buscarLead } = require("./services/rd.leads.service");
+        const resultado = await buscarLead(req.query.q);
+        res.json(resultado);
+    } catch (err) {
+        logger.error({ message: "Erro na consulta de lead", error: err.message, stack: err.stack });
+        res.status(500).json({ error: "Falha ao consultar RD Station" });
+    }
+});
+
 app.get("/api/cron/expirar-cashback", async (req, res) => {
     const secret = req.headers["authorization"];
     if (secret !== `Bearer ${process.env.CRON_SECRET}`) {

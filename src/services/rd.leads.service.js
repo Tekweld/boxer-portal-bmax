@@ -548,6 +548,131 @@ async function mapDealToCard(deal, role, creditosMap) {
     };
 }
 
+// ─── Consulta de Lead (tela "Consulta de Lead" do BMax Motor) ──
+// Deixa qualquer vendedor/SDR checar, por CNPJ/email/telefone/nome, se um
+// cliente já existe em negociação em QUALQUER funil do RD — e sinaliza bem
+// claro quando o resultado está no funil BMAX (cliente veio de uma revenda,
+// a venda é dela, não da Boxer). O `q=` da API do RD não filtra de verdade
+// (testado ao vivo) — por isso, igual a getLeadByCnpj, buscamos tudo e
+// filtramos no client.
+
+let _pipelinesCache = { data: null, ts: 0 };
+const PIPELINES_CACHE_TTL = 60 * 60 * 1000;
+
+async function getAllPipelines() {
+    if (_pipelinesCache.data && Date.now() - _pipelinesCache.ts < PIPELINES_CACHE_TTL) return _pipelinesCache.data;
+    const json = await rdFetch("/deal_pipelines");
+    const pipelines = (Array.isArray(json) ? json : []).map(p => ({ id: p._id || p.id, nome: p.name }));
+    _pipelinesCache = { data: pipelines, ts: Date.now() };
+    return pipelines;
+}
+
+let _allDealsCache = { data: null, ts: 0 };
+const ALL_DEALS_CACHE_TTL = 10 * 60 * 1000;
+
+async function fetchAllDealsAllPipelines() {
+    if (_allDealsCache.data && Date.now() - _allDealsCache.ts < ALL_DEALS_CACHE_TTL) return _allDealsCache.data;
+
+    const pipelines = await getAllPipelines();
+    let allDeals = [];
+    for (const p of pipelines) {
+        let page = 1;
+        while (page <= RD_MAX_PAGES) {
+            const json = await rdFetch(`/deals?deal_pipeline_id=${p.id}&page=${page}&limit=200`);
+            const deals = json.deals || [];
+            if (deals.length === 0) break;
+            for (const d of deals) { d._pipelineId = p.id; d._pipelineNome = p.nome; }
+            allDeals = allDeals.concat(deals);
+            if (!json.has_more) break;
+            page++;
+        }
+    }
+    _allDealsCache = { data: allDeals, ts: Date.now() };
+    return allDeals;
+}
+
+function soDigitos(s) {
+    return (s || "").toString().replace(/\D/g, "");
+}
+
+function detectarTipoBusca(termoBruto) {
+    const termo = (termoBruto || "").trim();
+    const digitos = soDigitos(termo);
+    if (termo.includes("@")) return "email";
+    if (digitos.length === 14) return "cnpj";
+    if (digitos.length >= 8 && digitos.length <= 11) return "telefone";
+    return "nome";
+}
+
+function dealParaResultado(deal) {
+    const stage = deal.deal_stage || {};
+    const contatos = (deal.contacts || []).map(c => ({
+        nome: c.name || "",
+        emails: (c.emails || []).map(e => e.email).filter(Boolean),
+        telefones: (c.phones || []).map(p => p.phone).filter(Boolean)
+    }));
+    return {
+        id: deal.id || deal._id,
+        nome: deal.name || "",
+        organizacao: deal.organization?.name || "",
+        cnpj: getCustomField(deal, "CNPJ") || "",
+        cidade: getCustomField(deal, "CIDADE") || "",
+        estado: getCustomField(deal, "ESTADO") || "",
+        funil: deal._pipelineNome || "",
+        funilId: deal._pipelineId || "",
+        estagio: stage.name || "",
+        responsavel: deal.user?.name || "",
+        representante: getCustomField(deal, "REPRESENTANTE") || "",
+        revenda: getCustomField(deal, "REVENDA/LOJA") || "",
+        valor: deal.amount_total || 0,
+        criadoEm: deal.created_at || null,
+        contatos,
+        emFunilBmax: deal._pipelineId === RD_PIPELINE_BMAX_INTERNO
+    };
+}
+
+async function buscarLead(termoBruto) {
+    const termo = (termoBruto || "").trim();
+    if (!termo) return { termo, tipoDetectado: null, total: 0, resultados: [] };
+
+    const tipo = detectarTipoBusca(termo);
+    const digitos = soDigitos(termo);
+    const termoLower = termo.toLowerCase();
+
+    const deals = await fetchAllDealsAllPipelines();
+
+    const encontrados = deals.filter(deal => {
+        if (tipo === "cnpj") {
+            return soDigitos(getCustomField(deal, "CNPJ")) === digitos;
+        }
+        if (tipo === "email") {
+            return (deal.contacts || []).some(c =>
+                (c.emails || []).some(e => (e.email || "").toLowerCase() === termoLower)
+            );
+        }
+        if (tipo === "telefone") {
+            const alvo = digitos.slice(-8);
+            return (deal.contacts || []).some(c =>
+                (c.phones || []).some(p => soDigitos(p.phone).slice(-8) === alvo)
+            );
+        }
+        // nome — negociação, organização ou contato
+        const nomes = [
+            deal.name,
+            deal.organization?.name,
+            ...(deal.contacts || []).map(c => c.name)
+        ].filter(Boolean).map(n => n.toLowerCase());
+        return nomes.some(n => n.includes(termoLower));
+    });
+
+    return {
+        termo,
+        tipoDetectado: tipo,
+        total: encontrados.length,
+        resultados: encontrados.map(dealParaResultado)
+    };
+}
+
 // Monta os cards de leads exatamente como o dashboard (GET /api/leads) monta —
 // usada tanto pelo dashboard quanto pela exportação, para que os dois nunca
 // possam divergir (cashback, PCI, etc. sempre calculados da mesma forma).
@@ -564,6 +689,7 @@ async function buildLeadsCards(role, identifier, grupo) {
 module.exports = {
     getLeads,
     buildLeadsCards,
+    buscarLead,
     createLead,
     updateLead,
     getOrg,
