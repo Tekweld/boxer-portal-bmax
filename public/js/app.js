@@ -25,10 +25,8 @@ function show(screen) {
   $("btnGestao").classList.toggle("hidden", !(session.role === "adm" && screen !== "login"));
   $("btnSolicitarSaque").classList.toggle("hidden", !(session.role === "revenda" && screen === "extrato"));
   $("btnRecalcularComissoes").classList.toggle("hidden", !(session.role === "adm" && screen === "extrato"));
-  $("blocoCamposRepresentante").classList.toggle("hidden", session.role !== "representante");
+  $("blocoCamposRepresentante").classList.toggle("hidden", !(session.role === "representante" || session.role === "adm"));
   $("blocoCaminhoVenda").classList.toggle("hidden", session.role !== "revenda");
-  const blocoAdmin = $("blocoCamposAdmin");
-  if (blocoAdmin) blocoAdmin.classList.toggle("hidden", session.role !== "adm");
 }
 
 function getScreenFromHash() {

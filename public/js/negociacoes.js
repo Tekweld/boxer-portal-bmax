@@ -71,23 +71,20 @@ $("btnSalvarNegociacao").addEventListener("click", async () => {
     novaNegociacao.revenda = $("negRevenda").value;
   }
 
-  if (session.role === "representante") {
+  if (session.role === "representante" || session.role === "adm") {
     if (!$("negRepresentante").value) return toast("Selecione um Representante.", "warn");
     if (!$("negResponsavel").value) return toast("Selecione um Responsável.", "warn");
     if (!$("negPci").value) return toast("Selecione um PCI.", "warn");
     novaNegociacao.representante = $("negRepresentante").value;
     novaNegociacao.responsavel = $("negResponsavel").value;
     novaNegociacao.pci = $("negPci").value;
+    // Funil: representante e admin escolhem (revenda sempre vai pro BMAX, sem
+    // escolha — o backend também impõe isso server-side, não confia só nisso aqui).
+    novaNegociacao.funil = $("negFunil")?.value || "bmax";
   } else {
-    // Revenda/adm não escolhem representante/responsável/PCI (campos ficam ocultos) —
+    // Revenda não escolhe representante/responsável/PCI (campos ficam ocultos) —
     // sem isso, RD_OWNERS[undefined] deixava o deal sem owner e o RD Station rejeitava a criação.
     novaNegociacao.responsavel = "Revenda";
-  }
-
-  // Funil: representante/revenda sempre vão pro BMAX, sem escolha — só o admin
-  // decide (o backend também impõe isso server-side, não confia só nisso aqui).
-  if (session.role === "adm") {
-    novaNegociacao.funil = $("negFunil")?.value || "bmax";
   }
 
   const btn = $("btnSalvarNegociacao");

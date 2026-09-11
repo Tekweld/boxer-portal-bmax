@@ -227,12 +227,13 @@ async function createLead(negociacao) {
 
     const responsavelId = await resolverResponsavelId(negociacao.responsavel);
 
-    // Funil: pedido explícito do André (2026-09-11) — representante/revenda
-    // SEMPRE vão pro BMAX, independente de qualquer campo preenchido; só o
-    // admin decide (campo "Funil" no formulário, só visível pra ele). Decide
-    // pelo role real do token (setado no controller), nunca por algo vindo
-    // do body pra quem não é admin — não dá pra confiar no cliente aqui.
-    const quisIndustria = negociacao.role === "adm" && negociacao.funil === "industria";
+    // Funil: pedido do André (2026-09-11, revisado) — revenda SEMPRE vai pro
+    // BMAX, sem escolha; representante e admin podem escolher (campo "Funil"
+    // no formulário, ambos os roles também conduzem venda pela Indústria às
+    // vezes). Decide pelo role real do token (setado no controller), nunca
+    // por algo vindo do body pra quem não pode escolher.
+    const podeEscolherFunil = negociacao.role === "adm" || negociacao.role === "representante";
+    const quisIndustria = podeEscolherFunil && negociacao.funil === "industria";
     const pipeline = quisIndustria ? RD_PIPELINE_INDUSTRIA : RD_PIPELINE_BMAX_INTERNO;
     const stage = quisIndustria ? RD_STAGE_LEAD : RD_STAGE_ASSUMIDO;
 
