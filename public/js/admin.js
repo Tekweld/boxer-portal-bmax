@@ -204,7 +204,12 @@ function renderAdminUsers() {
 
     for (const u of filtered) {
         let detalhes = "";
-        if (u.role === "revenda") detalhes = `${esc(u.revenda || "?")} — ${esc(u.cidade || "")}/${esc(u.estado || "")} — CNPJ: ${esc(u.cnpj || "")}`;
+        if (u.role === "revenda") {
+            detalhes = `${esc(u.revenda || "?")} — ${esc(u.cidade || "")}/${esc(u.estado || "")} — CNPJ: ${esc(u.cnpj || "")}`;
+            detalhes += u.revendaCadastroVinculada
+                ? ` · Cadastro: <strong>${esc(u.revendaCadastroVinculada.nome)}</strong>`
+                : ` · <span style="color:#e30613">sem cadastro vinculado</span>`;
+        }
         else if (u.role === "representante") {
             const partes = [esc(u.email || "sem e-mail")];
             if (u.telefone) partes.push(esc(u.telefone));
@@ -224,6 +229,7 @@ function renderAdminUsers() {
             else acoes += ` <button class="btn btn-sm btn-danger" onclick="excluirRepresentanteCanonico('${esc(u.username)}')">Excluir</button>`;
         } else if (u.role === "revenda") {
             acoes = `<button class="btn btn-sm" onclick="openFiliaisModal(${u.id},'${esc(u.revenda || u.username)}')">Filiais</button>
+                <button class="btn btn-sm" onclick="abrirVincularRevendaModal(${u.id},'${esc(u.username)}')">${u.revendaCadastroVinculada ? "Trocar Cadastro" : "Vincular Cadastro"}</button>
                 <button class="btn btn-sm" onclick="openResetSenhaModal(${u.id},'${esc(u.username)}')">Senha</button>
                 <button class="btn btn-sm btn-danger" onclick="deleteUser(${u.id},'${esc(u.username)}')">Excluir</button>`;
         } else {
@@ -242,6 +248,47 @@ function renderAdminUsers() {
     }
     html += "</tbody></table>";
     wrap.innerHTML = html;
+}
+
+// Mão inversa de vincularUsuarioRevenda: parte do usuário (aba Usuários) em
+// vez do cadastro (aba Revendas), pra fechar o mesmo buraco dos dois lados
+// (André, 23/09/2026) — mesma coluna user_id em comercial_revendas_bmax.
+function abrirVincularRevendaModal(userId, username) {
+    const modal = $("adminModal");
+    const content = $("adminModalContent");
+    const disponiveis = ADMIN_REV_BMAX.filter(r => !r.user_id);
+    content.innerHTML = `
+        <h3>Vincular Cadastro de Revenda</h3>
+        <p style="color:var(--muted);font-size:13px;margin-bottom:12px">Login: <strong>${esc(username)}</strong></p>
+        <div class="form-row"><label>Cadastro de Revenda</label>
+            <select id="modalVincularRevendaSelect">
+                <option value="">${disponiveis.length ? "Selecione um cadastro sem vínculo" : "Nenhum cadastro disponível"}</option>
+                ${disponiveis.map(r => `<option value="${esc(r.id)}">${esc(r.nome)}${r.cidade ? ` — ${esc(r.cidade)}/${esc(r.estado || "")}` : ""}</option>`).join("")}
+            </select>
+        </div>
+        <div class="form-actions">
+            <button class="btn" onclick="closeAdminModal()">Cancelar</button>
+            <button class="btn primary" onclick="confirmarVincularRevenda(${userId})">Vincular</button>
+        </div>`;
+    modal.classList.add("show");
+}
+
+async function confirmarVincularRevenda(userId) {
+    const revendaId = $("modalVincularRevendaSelect")?.value;
+    if (!revendaId) { toast("Selecione um cadastro", "warn"); return; }
+    try {
+        const token = localStorage.getItem("token");
+        const res = await adminFetch(`${API_URL}/admin/revendas-bmax/${revendaId}/vincular-usuario`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+            body: JSON.stringify({ user_id: userId })
+        });
+        if (!res.ok) { const e = await res.json(); throw new Error(e.error); }
+        toast("Vinculado");
+        closeAdminModal();
+        await Promise.all([loadAdminUsers(), loadRevendasBmax()]);
+        renderAdminUsers();
+    } catch (e) { toast(e.message || "Erro ao vincular", "error"); }
 }
 
 async function excluirRepresentanteCanonico(nome) {
@@ -838,17 +885,46 @@ async function confirmarReatribuirRep() {
     toast(`${ok} revenda(s) atualizada(s)${falhas ? `, ${falhas} falharam` : ""}`, falhas ? "warn" : "ok");
 }
 
-function openRevBmaxModal(rev) {
+async function openRevBmaxModal(rev) {
     const isEdit = !!rev;
     const modal = $("adminModal");
     const content = $("adminModalContent");
+
+    let usuariosDisponiveis = [];
+    if (isEdit) {
+        try {
+            const token = localStorage.getItem("token");
+            const res = await adminFetch(`${API_URL}/admin/revendas-bmax/usuarios-disponiveis`, { headers: { Authorization: `Bearer ${token}` } });
+            usuariosDisponiveis = res.ok ? await res.json() : [];
+        } catch { usuariosDisponiveis = []; }
+    }
+
     content.innerHTML = `
         <h3>${isEdit ? "Editar" : "Nova"} Revenda BMax</h3>
         <div class="form-row"><label>Nome</label><input type="text" id="modalRevNome" value="${esc(rev?.nome || "")}"></div>
+        <div class="form-row"><label>Nome no RD CRM (se diferente do Nome acima)</label>
+            <input type="text" id="modalRevNomeRd" value="${esc(rev?.nome_rd || "")}" placeholder="Deixe em branco se for igual ao Nome">
+            <p style="color:var(--muted);font-size:12px;margin-top:4px">Precisa bater EXATAMENTE com a opção "REVENDA/LOJA" cadastrada no RD, senão os leads dessa revenda não aparecem certo no Portal.</p>
+        </div>
         <div class="form-row" style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
             <div><label>Email</label><input type="email" id="modalRevEmail" value="${esc(rev?.email || "")}" placeholder="email@empresa.com"></div>
             <div><label>Telefone</label><input type="text" id="modalRevTelefone" value="${esc(rev?.telefone || "")}" placeholder="(00) 00000-0000"></div>
         </div>
+        ${isEdit ? `
+        <div class="form-row" style="background:var(--surface2);border-radius:8px;padding:10px 12px">
+            <label>Usuário Vinculado (login do Portal)</label>
+            ${rev.usuarioVinculado
+                ? `<p style="margin:4px 0"><strong>${esc(rev.usuarioVinculado)}</strong>
+                    <button type="button" class="btn btn-sm btn-danger" style="margin-left:8px" onclick="desvincularUsuarioRevenda('${rev.id}')">Desvincular</button></p>`
+                : `<div style="display:flex;gap:8px;align-items:center;margin-top:4px">
+                    <select id="modalRevVincularUsuario" style="flex:1">
+                        <option value="">${usuariosDisponiveis.length ? "Selecione um login sem vínculo" : "Nenhum login de revenda disponível"}</option>
+                        ${usuariosDisponiveis.map(u => `<option value="${u.id}">${esc(u.username)}${u.nomeCadastroLogin ? ` — ${esc(u.nomeCadastroLogin)}` : ""}</option>`).join("")}
+                    </select>
+                    <button type="button" class="btn btn-sm primary" onclick="vincularUsuarioRevenda('${rev.id}')">Vincular</button>
+                </div>
+                <p style="color:var(--muted);font-size:12px;margin-top:4px">Sem vínculo, email/telefone não puxam do login automaticamente — preencha à mão ou vincule.</p>`}
+        </div>` : ""}
         <div class="form-row" style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
             <div><label>CNPJ</label><input type="text" id="modalRevCnpj" value="${esc(rev?.cnpj || "")}" placeholder="00.000.000/0000-00"></div>
             <div><label>CEP</label><input type="text" id="modalRevCep" value="${esc(rev?.cep || "")}" placeholder="00000-000"></div>
@@ -891,6 +967,7 @@ async function salvarRevBmax(id) {
     if (!nome) { toast("Nome é obrigatório", "error"); return; }
     const body = {
         nome,
+        nome_rd: $("modalRevNomeRd").value.trim() || null,
         email: $("modalRevEmail").value.trim() || null,
         telefone: $("modalRevTelefone").value.trim() || null,
         cnpj: $("modalRevCnpj").value.trim() || null,
@@ -914,6 +991,41 @@ async function salvarRevBmax(id) {
         const syncMsg = data.sync?.synced ? ` (${data.sync.synced} opções sincronizadas no RD)` : "";
         toast((id ? "Revenda atualizada" : "Revenda criada") + syncMsg);
     } catch (e) { toast(e.message || "Erro ao salvar", "error"); }
+}
+
+async function vincularUsuarioRevenda(revendaId) {
+    const sel = $("modalRevVincularUsuario");
+    const userId = sel?.value;
+    if (!userId) { toast("Selecione um login", "warn"); return; }
+    try {
+        const token = localStorage.getItem("token");
+        const res = await adminFetch(`${API_URL}/admin/revendas-bmax/${revendaId}/vincular-usuario`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+            body: JSON.stringify({ user_id: Number(userId) })
+        });
+        if (!res.ok) { const e = await res.json(); throw new Error(e.error); }
+        toast("Usuário vinculado");
+        await loadRevendasBmax();
+        renderRevendasBmax();
+        closeAdminModal();
+    } catch (e) { toast(e.message || "Erro ao vincular", "error"); }
+}
+
+async function desvincularUsuarioRevenda(revendaId) {
+    if (!confirm("Desvincular o usuário desta revenda?")) return;
+    try {
+        const token = localStorage.getItem("token");
+        const res = await adminFetch(`${API_URL}/admin/revendas-bmax/${revendaId}/desvincular-usuario`, {
+            method: "PATCH",
+            headers: { Authorization: `Bearer ${token}` }
+        });
+        if (!res.ok) { const e = await res.json(); throw new Error(e.error); }
+        toast("Usuário desvinculado");
+        await loadRevendasBmax();
+        renderRevendasBmax();
+        closeAdminModal();
+    } catch (e) { toast(e.message || "Erro ao desvincular", "error"); }
 }
 
 async function toggleRevBmax(id, ativo) {

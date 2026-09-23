@@ -2,7 +2,7 @@ const express = require("express");
 const { authenticate, authorize } = require("../middlewares/auth");
 const { sequelize } = require("../database");
 const { QueryTypes } = require("sequelize");
-const { getLeads, getCustomField, syncRevendasToRD, syncRepresentantesToRD, renomearRepresentanteNoRD, renomearRevendaNoRD } = require("../services/rd.leads.service");
+const { getLeads, getCustomField, syncRevendasToRD, syncRepresentantesToRD, renomearRepresentanteNoRD, renomearRevendaNoRD, reatribuirRepresentanteDaRevendaNoRD } = require("../services/rd.leads.service");
 const { User, Revenda, Representante } = require("../database");
 const bcrypt = require("bcryptjs");
 const crypto = require("crypto");
@@ -32,13 +32,14 @@ function erroGestao(res, err, contexto, detalhes = {}) {
 }
 
 async function fetchAllRevendasAtivas() {
-    return await sbSistemas('/comercial_revendas_bmax?ativo=eq.true&select=nome&order=nome');
+    return await sbSistemas('/comercial_revendas_bmax?ativo=eq.true&select=nome,nome_rd&order=nome');
 }
 
 async function syncRevendasAfterChange() {
     try {
         const revendas = await fetchAllRevendasAtivas();
-        const nomes = revendas.map(r => r.nome);
+        // Usa nome_rd (nome real no picklist do RD) quando setado — ver comentário em matchRevendaRD.
+        const nomes = revendas.map(r => (r.nome_rd && r.nome_rd.trim()) || r.nome);
         return await syncRevendasToRD(nomes);
     } catch (err) {
         logger.error({ message: "Erro sync revendas → RD", error: err.message });
@@ -176,6 +177,10 @@ router.get("/users", authenticate, authorize(["adm"]), async (req, res) => {
                     entry.estado = rev.estado;
                     entry.grupo = rev.grupo;
                 }
+                // Cadastro canônico (comercial_revendas_bmax) vinculado a este login —
+                // pode ser diferente da Revenda acima (login), ver rota vincular-usuario.
+                const cadastroVinculado = await sbSistemas(`/comercial_revendas_bmax?user_id=eq.${u.id}&select=id,nome`);
+                entry.revendaCadastroVinculada = cadastroVinculado?.[0] || null;
             } else if (u.role === "representante") {
                 const rep = await Representante.findOne({ where: { user_id: u.id } });
                 const canon = canonRepsMap[u.username] || canonRepsByEmail[u.username.toLowerCase()];
@@ -294,8 +299,85 @@ router.patch("/users/:id/reset-password", authenticate, authorize(["adm"]), asyn
 
 router.get("/revendas-bmax", authenticate, authorize(["adm"]), async (req, res) => {
     try {
-        const rows = await sbSistemas('/comercial_revendas_bmax?select=id,nome,cidade,estado,classe,ativo,rep,grupo,telefone,email,cnpj,cep&order=nome');
-        res.json(rows);
+        const rows = await sbSistemas('/comercial_revendas_bmax?select=id,nome,cidade,estado,classe,ativo,rep,grupo,telefone,email,cnpj,cep,user_id,nome_rd&order=nome');
+
+        // Achado 23/09/2026: o cadastro da revenda (aqui) e o login dela (tabela
+        // Revenda do Postgres, criado em createUser) sempre foram duas fontes
+        // independentes — sem vínculo, campos como email/telefone ficavam em
+        // branco quando o cadastro nasceu só pela aba Gestão (sem login), e não
+        // tinha como um admin corrigir isso na tela sem editar o registro errado.
+        // `user_id` guarda o id do login vinculado; aqui resolve o e-mail dele pra
+        // mostrar na lista/modal, sem duplicar o dado.
+        const userIds = rows.filter(r => r.user_id).map(r => r.user_id);
+        let usuariosPorId = {};
+        if (userIds.length) {
+            const users = await User.findAll({ where: { id: userIds }, attributes: ["id", "username"] });
+            usuariosPorId = Object.fromEntries(users.map(u => [u.id, u.username]));
+        }
+        const comVinculo = rows.map(r => ({ ...r, usuarioVinculado: r.user_id ? (usuariosPorId[r.user_id] || null) : null }));
+
+        res.json(comVinculo);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Lista logins role=revenda que ainda não estão vinculados a nenhum cadastro
+// em comercial_revendas_bmax — alimenta o dropdown "Vincular Usuário".
+router.get("/revendas-bmax/usuarios-disponiveis", authenticate, authorize(["adm"]), async (req, res) => {
+    try {
+        const vinculados = await sbSistemas('/comercial_revendas_bmax?user_id=not.is.null&select=user_id');
+        const idsVinculados = new Set((vinculados || []).map(v => v.user_id));
+
+        const usersRevenda = await User.findAll({ where: { role: "revenda" }, attributes: ["id", "username"], order: [["username", "ASC"]] });
+        const disponiveis = [];
+        for (const u of usersRevenda) {
+            if (idsVinculados.has(u.id)) continue;
+            const rev = await Revenda.findOne({ where: { user_id: u.id } });
+            disponiveis.push({ id: u.id, username: u.username, nomeCadastroLogin: rev?.name || null, email: rev?.email || null, telefone: rev?.telefone || null });
+        }
+        res.json(disponiveis);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+router.patch("/revendas-bmax/:id/vincular-usuario", authenticate, authorize(["adm"]), async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { user_id } = req.body;
+        if (!user_id) return res.status(400).json({ error: "user_id é obrigatório" });
+
+        const user = await User.findByPk(user_id);
+        if (!user || user.role !== "revenda") return res.status(400).json({ error: "Usuário inválido — precisa ser um login de revenda" });
+
+        const jaVinculado = await sbSistemas(`/comercial_revendas_bmax?user_id=eq.${user_id}&select=id,nome`);
+        if ((jaVinculado || []).some(r => String(r.id) !== String(id))) {
+            return res.status(400).json({ error: `Esse login já está vinculado à revenda "${jaVinculado[0].nome}"` });
+        }
+
+        const atual = await sbSistemas(`/comercial_revendas_bmax?id=eq.${id}&select=email,telefone`);
+        const rev = await Revenda.findOne({ where: { user_id } });
+        // Só preenche o que está vazio — nunca sobrescreve um dado já cadastrado
+        // manualmente em Gestão, mesmo que o login tenha outro valor.
+        const updates = { user_id };
+        if (!atual[0]?.email && rev?.email) updates.email = rev.email;
+        if (!atual[0]?.telefone && rev?.telefone) updates.telefone = rev.telefone;
+
+        const row = await sbSistemasService(`/comercial_revendas_bmax?id=eq.${id}`, 'PATCH', updates);
+        invalidateConfigCache();
+        res.json({ ok: true, revenda: row[0] || row });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+router.patch("/revendas-bmax/:id/desvincular-usuario", authenticate, authorize(["adm"]), async (req, res) => {
+    try {
+        const { id } = req.params;
+        const row = await sbSistemasService(`/comercial_revendas_bmax?id=eq.${id}`, 'PATCH', { user_id: null });
+        invalidateConfigCache();
+        res.json({ ok: true, revenda: row[0] || row });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
@@ -377,15 +459,19 @@ router.patch("/revendas-bmax/:id", authenticate, authorize(["adm"]), async (req,
     try {
         const { id } = req.params;
         const updates = {};
-        for (const key of ['nome', 'cidade', 'estado', 'classe', 'rep', 'grupo', 'ativo', 'telefone', 'email', 'cnpj', 'cep']) {
+        for (const key of ['nome', 'nome_rd', 'cidade', 'estado', 'classe', 'rep', 'grupo', 'ativo', 'telefone', 'email', 'cnpj', 'cep']) {
             if (req.body[key] !== undefined) updates[key] = req.body[key];
         }
         if (Object.keys(updates).length === 0) return res.status(400).json({ error: "Nenhum campo para atualizar" });
 
         let nomeAntigo = null;
-        if ('nome' in updates) {
-            const atual = await sbSistemas(`/comercial_revendas_bmax?id=eq.${id}&select=nome`);
+        let repAntigo = null;
+        let nomeRdAntigo = null;
+        if ('nome' in updates || 'rep' in updates || 'nome_rd' in updates) {
+            const atual = await sbSistemas(`/comercial_revendas_bmax?id=eq.${id}&select=nome,rep,nome_rd`);
             nomeAntigo = atual[0]?.nome || null;
+            repAntigo = atual[0]?.rep || null;
+            nomeRdAntigo = atual[0]?.nome_rd || null;
         }
 
         // Recalcula lat/lng sempre que o CEP muda — sem isso o Motor nunca acha essa
@@ -408,18 +494,37 @@ router.patch("/revendas-bmax/:id", authenticate, authorize(["adm"]), async (req,
         // lista de opções (mesmo bug corrigido em renomearRepresentanteNoRD).
         const sync = needsSync ? await syncRevendasAfterChange() : null;
 
+        // Nome que os deals dessa revenda carregam DE VERDADE no RD hoje: nome_rd antigo,
+        // senão o nome de cadastro antigo (ver comentário em matchRevendaRD).
+        const nomeRdAntesDoPatch = nomeRdAntigo || nomeAntigo;
+        const nomeRdDepoisDoPatch = ('nome_rd' in updates ? updates.nome_rd : nomeRdAntigo) || updates.nome || nomeAntigo;
+
         let renomeRD = null;
-        const houveRename = nomeAntigo && updates.nome && nomeAntigo !== updates.nome;
-        if (houveRename) {
+        const houveRenameRd = nomeRdAntesDoPatch && nomeRdDepoisDoPatch && nomeRdAntesDoPatch !== nomeRdDepoisDoPatch;
+        if (houveRenameRd) {
             try {
-                renomeRD = await renomearRevendaNoRD(nomeAntigo, updates.nome);
+                renomeRD = await renomearRevendaNoRD(nomeRdAntesDoPatch, nomeRdDepoisDoPatch);
             } catch (e) {
                 logger.error({ message: "Erro ao renomear revenda no RD", error: e.message });
                 renomeRD = { error: e.message };
             }
         }
 
-        res.json({ revenda: row[0] || row, sync, renomeRD });
+        let reatribuicaoRD = null;
+        const houveTrocaDeRep = 'rep' in updates && (updates.rep || null) !== (repAntigo || null);
+        if (houveTrocaDeRep) {
+            // Nome atual da revenda no RD é sempre o pós-rename — o filtro por
+            // REVENDA/LOJA precisa bater com o nome vigente nos deals agora.
+            const nomeVigenteNoRD = nomeRdDepoisDoPatch || row[0]?.nome;
+            try {
+                reatribuicaoRD = await reatribuirRepresentanteDaRevendaNoRD(nomeVigenteNoRD, updates.rep);
+            } catch (e) {
+                logger.error({ message: "Erro ao reatribuir representante da revenda no RD", error: e.message });
+                reatribuicaoRD = { error: e.message };
+            }
+        }
+
+        res.json({ revenda: row[0] || row, sync, renomeRD, reatribuicaoRD });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }

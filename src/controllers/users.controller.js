@@ -265,10 +265,23 @@ async function createUser(req, res) {
                 const cnpjDigits = (cnpj || '').replace(/\D/g, '');
                 let existente = null;
                 if (cnpjDigits) {
-                    const candidatos = await sbSistemas(`/comercial_revendas_bmax?select=id,cnpj&or=(cnpj.eq.${cnpjDigits},cnpj.eq.${cnpj})`);
+                    const candidatos = await sbSistemas(`/comercial_revendas_bmax?select=id,cnpj,user_id&or=(cnpj.eq.${cnpjDigits},cnpj.eq.${cnpj})`);
                     existente = (candidatos || []).find(r => (r.cnpj || '').replace(/\D/g, '') === cnpjDigits) || null;
                 }
+                // Se o cadastro achado já está vinculado a OUTRO login, não rouba o vínculo
+                // em silêncio — mantém o user_id que já estava lá (caso raro: já existia
+                // login pra esse CNPJ e alguém está criando um segundo).
+                if (existente && existente.user_id && existente.user_id !== user.id) {
+                    logger.error({ message: "Cadastro de revenda já vinculado a outro login — user_id não sobrescrito", revendaId: existente.id, userIdExistente: existente.user_id, userIdNovo: user.id, nome });
+                }
+                const podeVincular = !existente || !existente.user_id || existente.user_id === user.id;
 
+                // Achado 23/09/2026: faltava gravar user_id aqui — a revenda nascia sem
+                // vínculo com o login que acabou de criar, obrigando o admin a "Vincular"
+                // na mão em Gestão depois (a própria lacuna que a funcionalidade de vínculo
+                // foi feita pra fechar). Sem isso TODA revenda nova continuaria nascendo
+                // desvinculada, e o campo email/telefone em branco (achado do caso ATUAL
+                // EQUIPAMENTO) ia voltar a acontecer pra cada cadastro novo.
                 if (existente) {
                     await sbSistemas(`/comercial_revendas_bmax?id=eq.${existente.id}`, 'PATCH', {
                         nome: name,
@@ -279,7 +292,8 @@ async function createUser(req, res) {
                         cep: cep || null,
                         cidade: cidade || null,
                         estado: estado || null,
-                        ativo: true
+                        ativo: true,
+                        ...(podeVincular ? { user_id: user.id } : {})
                     });
                     logger.error({ message: "Cadastro de revenda pré-existente reaproveitado (não duplicado)", revendaId: existente.id, nome });
                 } else {
@@ -292,7 +306,8 @@ async function createUser(req, res) {
                         cep: cep || null,
                         cidade: cidade || null,
                         estado: estado || null,
-                        ativo: true
+                        ativo: true,
+                        user_id: user.id
                     });
                 }
             } catch (e) {

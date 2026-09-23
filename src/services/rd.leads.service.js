@@ -264,7 +264,7 @@ async function createLead(negociacao) {
                 { custom_field_id: RD_CUSTOM_FIELDS.CNPJ, value: formattedCnpj },
                 { custom_field_id: RD_CUSTOM_FIELDS.CIDADE, value: negociacao.cidade },
                 { custom_field_id: RD_CUSTOM_FIELDS.ESTADO, value: negociacao.estado || "" },
-                { custom_field_id: RD_CUSTOM_FIELDS.REVENDA_LOJA, value: matchRevendaRD(negociacao.revenda) },
+                { custom_field_id: RD_CUSTOM_FIELDS.REVENDA_LOJA, value: await matchRevendaRD(negociacao.revenda) },
                 { custom_field_id: RD_CUSTOM_FIELDS.REPRESENTANTE, value: negociacao.representante },
                 { custom_field_id: RD_CUSTOM_FIELDS.MAQUINA, value: negociacao.maquinainteresse },
                 { custom_field_id: RD_CUSTOM_FIELDS.NOTAS, value: "Lead BMAX" },
@@ -303,9 +303,26 @@ async function resolverResponsavelId(nomeEscolhido) {
     return usuario ? usuario.id : RD_OWNER_DEFAULT;
 }
 
-function matchRevendaRD(nome) {
+// Achado 23/09/2026 (caso AlugaaSolda): o nome de cadastro (comercial_revendas_bmax.nome,
+// legal/completo, às vezes com código interno — ex "25932, A Alugaasolda...") pode ser
+// diferente do valor real cadastrado no picklist REVENDA/LOJA do RD (ex "AlugaASoldas",
+// nome curto/informal) — não tem garantia nenhuma de que sejam a mesma string. Sem isso,
+// negociações novas criadas pra essa revenda gravavam o nome de cadastro no RD, que não
+// batia com o nome usado no resto do histórico da revenda — o lead ficava "orfão" pra
+// quem filtra por REVENDA/LOJA. `nome_rd` é o campo pra guardar o nome real do RD quando
+// diverge; aqui resolve com fallback pro nome de cadastro quando `nome_rd` não foi setado.
+async function matchRevendaRD(nome) {
     if (!nome) return "Sem Revenda";
-    return nome.trim() || "Sem Revenda";
+    const limpo = nome.trim();
+    if (!limpo) return "Sem Revenda";
+    try {
+        const rows = await sbSistemasAnon(`/comercial_revendas_bmax?nome=eq.${encodeURIComponent(limpo)}&select=nome_rd`);
+        const nomeRd = rows?.[0]?.nome_rd;
+        if (nomeRd && nomeRd.trim()) return nomeRd.trim();
+    } catch (e) {
+        logger.error({ message: "Erro ao resolver nome_rd da revenda", nome: limpo, error: e.message });
+    }
+    return limpo;
 }
 
 function normalizeCnpj(raw) {
@@ -426,6 +443,53 @@ async function renomearRevendaNoRD(nomeAntigo, nomeNovo, { dryRun = false } = {}
     return { total, updated, failed };
 }
 
+// Achado 23/09/2026 (caso AlugaaSolda): trocar o campo "Rep BMax" de uma
+// revenda em Gestão só reescrevia comercial_revendas_bmax (Supabase) — quem
+// decide QUEM VÊ um lead na tela é o campo REPRESENTANTE gravado em CADA deal
+// do RD, e esse PATCH nunca tocava nele. Resultado: Gestão mostrava o
+// representante novo, mas o representante antigo continuava vendo (e o novo
+// não via) os leads dessa revenda, porque os deals no RD nunca foram
+// atualizados. `renomearRepresentanteNoRD` não serve aqui — ela troca um nome
+// em TODOS os deals que tiverem esse nome antigo (uso: renomear pessoa),
+// enquanto aqui o filtro tem que ser por REVENDA/LOJA, sem olhar pro
+// representante atual do deal (a revenda pode ter deals com representante
+// vazio ou de terceiros por engano).
+async function reatribuirRepresentanteDaRevendaNoRD(revendaNome, novoRep, { dryRun = false } = {}) {
+    const pipelines = [RD_PIPELINE_INDUSTRIA, RD_PIPELINE_BMAX_INTERNO, RD_PIPELINE_REVENDAS];
+    let total = 0, updated = 0, failed = 0;
+    const dealIds = [];
+
+    for (const pipelineId of pipelines) {
+        let page = 1;
+        while (page <= RD_MAX_PAGES) {
+            const json = await rdFetch(`/deals?deal_pipeline_id=${pipelineId}&page=${page}&limit=200`);
+            const deals = json.deals || [];
+            if (deals.length === 0) break;
+
+            for (const d of deals) {
+                if (getCustomField(d, "REVENDA/LOJA") !== revendaNome) continue;
+                total++;
+                const dealId = d._id || d.id;
+                if (dryRun) { dealIds.push(dealId); continue; }
+                try {
+                    await updateLead(dealId, { data: { custom_fields: { representante: novoRep || "N/D" } } });
+                    updated++;
+                } catch (e) {
+                    failed++;
+                    logger.error({ message: "Erro ao reatribuir representante da revenda no deal", dealId, revendaNome, error: e.message });
+                }
+            }
+
+            if (!json.has_more) break;
+            page++;
+        }
+    }
+
+    if (dryRun) return { total, dealIds, dryRun: true };
+    _leadsCache = { data: null, ts: 0 };
+    return { total, updated, failed };
+}
+
 async function getDealById(id) {
     return await rdFetch(`/deals/${id}`);
 }
@@ -478,32 +542,51 @@ async function getRDCustomFieldId(label) {
     return field ? (field._id || field.id) : null;
 }
 
+async function getRDCustomFieldById(fieldId) {
+    return await rdFetch(`/custom_fields/${fieldId}`);
+}
+
+// Achado 23/09/2026: essas duas funções escreviam `{custom_field: {options: [...]}}`,
+// mas o campo real que o RD devolve (e espera de volta) chama-se `opts`, não `options`
+// — a API aceitava o PUT (200 OK) mas descartava a chave desconhecida em silêncio, então
+// o "sync" nunca alterava nada de verdade no RD (confirmado: `updated_at` do campo não
+// mudava). Isso pode ter deixado nomes de representante/revenda cadastrados há semanas
+// sem nunca terem entrado de fato no picklist do RD — qualquer reatribuição ou rename
+// pra esse nome falhava com 422 "não está incluído na lista", às vezes sem ninguém notar
+// porque o front só mostra um toast genérico. Corrigido pra usar `opts`, e agora faz
+// UNIÃO com as opções que já existem no RD (em vez de substituir a lista inteira) —
+// evita derrubar da lista um valor antigo que algum deal já use e que não esteja mais
+// na tabela ativa do Supabase (não quebra o funcionamento existente).
 async function syncRevendasToRD(revendaNomes) {
     const fieldId = await getRDCustomFieldId("REVENDA/LOJA");
     if (!fieldId) throw new Error("Campo REVENDA/LOJA não encontrado no RD Station");
 
-    const opts = [...revendaNomes.filter(n => n && n.trim()), "Sem Revenda"];
-    const unique = [...new Set(opts)];
+    const campoAtual = await getRDCustomFieldById(fieldId);
+    const existentes = campoAtual.opts || [];
+    const novos = [...revendaNomes.filter(n => n && n.trim()), "Sem Revenda"];
+    const unique = [...new Set([...existentes, ...novos])];
 
     await rdFetch(`/custom_fields/${fieldId}`, "PUT", {
-        custom_field: { options: unique }
+        custom_field: { opts: unique }
     });
 
-    return { synced: unique.length, fieldId };
+    return { synced: unique.length, adicionados: unique.length - existentes.length, fieldId };
 }
 
 async function syncRepresentantesToRD(repNomes) {
     const fieldId = await getRDCustomFieldId("REPRESENTANTE");
     if (!fieldId) throw new Error("Campo REPRESENTANTE não encontrado no RD Station");
 
-    const opts = [...repNomes.filter(n => n && n.trim()), "N/D"];
-    const unique = [...new Set(opts)];
+    const campoAtual = await getRDCustomFieldById(fieldId);
+    const existentes = campoAtual.opts || [];
+    const novos = [...repNomes.filter(n => n && n.trim()), "N/D"];
+    const unique = [...new Set([...existentes, ...novos])];
 
     await rdFetch(`/custom_fields/${fieldId}`, "PUT", {
-        custom_field: { options: unique }
+        custom_field: { opts: unique }
     });
 
-    return { synced: unique.length, fieldId };
+    return { synced: unique.length, adicionados: unique.length - existentes.length, fieldId };
 }
 
 // ─── ORGANIZATIONS ───────────────────────────────────────────
@@ -871,5 +954,6 @@ module.exports = {
     syncRepresentantesToRD,
     getAliasMaps,
     renomearRepresentanteNoRD,
-    renomearRevendaNoRD
+    renomearRevendaNoRD,
+    reatribuirRepresentanteDaRevendaNoRD
 };
