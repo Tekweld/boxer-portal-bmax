@@ -474,17 +474,6 @@ function openCriarUsuarioModal() {
             </div>
         </div>
 
-        <div id="modalCamposAdmin" style="display:none">
-            <div class="form-row">
-                <label>Classe de Preço (Admin só pode definir)</label>
-                <select id="modalNovoClasse">
-                    <option value="">Nenhuma</option>
-                    <option value="standard">Standard</option>
-                    <option value="premium">Premium</option>
-                </select>
-            </div>
-        </div>
-
         <div class="form-actions">
             <button class="btn" onclick="closeAdminModal()">Cancelar</button>
             <button class="btn primary" onclick="criarUsuario()">Criar</button>
@@ -504,9 +493,7 @@ function openCriarUsuarioModal() {
 function toggleModalCampos() {
     const tipo = $("modalNovoTipo").value;
     const revFields = $("modalCamposRevenda");
-    const adminFields = $("modalCamposAdmin");
     if (revFields) revFields.style.display = tipo === "revenda" ? "block" : "none";
-    if (adminFields) adminFields.style.display = tipo === "adm" ? "block" : "none";
 }
 
 async function criarUsuario() {
@@ -538,11 +525,6 @@ async function criarUsuario() {
             toast("Preencha cidade e estado", "error"); return;
         }
     }
-
-    if (role === "adm") {
-        payload.classe = $("modalNovoClasse")?.value || "";
-    }
-
 
     try {
         const token = localStorage.getItem("token");
