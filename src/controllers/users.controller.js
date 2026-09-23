@@ -90,6 +90,29 @@ function clean(value) {
     return (value ?? "").toString().trim();
 }
 
+// Mesmo achado do caso LUMAQ (22/09/2026), agora fechado pros outros 3 papeis:
+// representante/funcionario/adm faziam POST cego em cada tabela canonica, sem
+// checar se ja existia um cadastro pra aquele e-mail (importado antes, criado
+// direto em Gestao, etc.) - resultado seria a mesma duplicata que a revenda
+// tinha, so que sem CNPJ pra usar como chave. E-mail e a chave estavel aqui
+// (obrigatorio nos 3 papeis, unico por pessoa/login). Acha por e-mail e
+// REAPROVEITA (reativa + atualiza) em vez de duplicar; sem match, cria novo.
+async function upsertCadastroCanonico(tabela, emailBusca, dadosNovos) {
+    const emailLimpo = (emailBusca || "").trim().toLowerCase();
+    let existente = null;
+    if (emailLimpo) {
+        const candidatos = await sbSistemas(`/${tabela}?select=id,email&email=not.is.null`);
+        existente = (candidatos || []).find(r => (r.email || "").trim().toLowerCase() === emailLimpo) || null;
+    }
+    if (existente) {
+        await sbSistemas(`/${tabela}?id=eq.${existente.id}`, 'PATCH', dadosNovos);
+        logger.error({ message: `Cadastro pré-existente reaproveitado em ${tabela} (não duplicado)`, id: existente.id, email: emailLimpo });
+        return { id: existente.id, reaproveitado: true };
+    }
+    await sbSistemas(`/${tabela}`, 'POST', dadosNovos);
+    return { reaproveitado: false };
+}
+
 function onlyDigits(value) {
     return clean(value).replace(/\D/g, "");
 }
@@ -234,7 +257,7 @@ async function createUser(req, res) {
         // Salva na tabela canônica apropriada no Supabase
         if (role === "representante") {
             try {
-                await sbSistemas('/comercial_representantes_bmax', 'POST', {
+                await upsertCadastroCanonico('comercial_representantes_bmax', email, {
                     nome: name,
                     email: email || null,
                     telefone: telefone || null,
@@ -325,7 +348,7 @@ async function createUser(req, res) {
 
         if (role === "funcionario") {
             try {
-                await sbSistemas('/comercial_funcionarios_bmax', 'POST', {
+                await upsertCadastroCanonico('comercial_funcionarios_bmax', email, {
                     nome: name,
                     email: email || null,
                     ativo: true
@@ -344,7 +367,7 @@ async function createUser(req, res) {
 
         if (role === "adm") {
             try {
-                await sbSistemas('/comercial_admin_bmax', 'POST', {
+                await upsertCadastroCanonico('comercial_admin_bmax', email, {
                     nome: name,
                     email: email || null,
                     ativo: true
