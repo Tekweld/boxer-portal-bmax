@@ -220,12 +220,16 @@ async function getLeads(username, role) {
                 `SELECT revenda_rd FROM bmax_grupos WHERE grupo = :grupo`,
                 { replacements: { grupo }, type: QueryTypes.SELECT }
             );
-            grupoRevendas = new Set(rows.map(r => r.revenda_rd));
+            grupoRevendas = new Set(rows.map(r => String(r.revenda_rd || "").trim()));
         }
+        // Comparação tolerante a espaço nas pontas: o RD guarda valores como
+        // "31490 Alphabras SJBV " (espaço no fim) e a comparação exata deixava o lead
+        // invisível pra revenda dona dele (achado 09/10/2026).
+        const usernameTrim = String(username || "").trim();
         allDeals = allDeals.filter(d => {
-            const revenda = getCustomField(d, "REVENDA/LOJA");
+            const revenda = String(getCustomField(d, "REVENDA/LOJA") || "").trim();
             if (grupoRevendas) return grupoRevendas.has(revenda);
-            return revenda === username;
+            return revenda === usernameTrim;
         });
     } else if (role === "representante") {
         const { usernameToRd, rdToUsername, loginToNomes } = await getAliasMaps();

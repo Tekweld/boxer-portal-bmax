@@ -29,8 +29,12 @@ async function sbFetch(path) {
 async function fetchRevendasBmax() {
     if (_revendasCache.data && Date.now() - _revendasCache.ts < CACHE_TTL) return _revendasCache.data;
     try {
-        const rows = await sbFetch('/comercial_revendas_bmax?ativo=eq.true&select=id,nome,cidade,estado,classe&order=nome');
-        _revendasCache = { data: rows || [], ts: Date.now() };
+        const rows = await sbFetch('/comercial_revendas_bmax?ativo=eq.true&select=id,nome,nome_rd,cidade,estado,classe&order=nome');
+        // O valor enviado ao RD (REVENDA/LOJA) tem que ser o NOME NO RD (nome_rd), que é o
+        // que o login da revenda enxerga — não o nome longo importado do ZEN. Achado
+        // 09/10/2026: lead criado pelo menu da Nova Negociação nascia com o nome longo e
+        // ficava invisível pra própria revenda.
+        _revendasCache = { data: (rows || []).map(r => ({ ...r, nome: (r.nome_rd && r.nome_rd.trim()) || r.nome })), ts: Date.now() };
         return _revendasCache.data;
     } catch { return []; }
 }
@@ -38,8 +42,10 @@ async function fetchRevendasBmax() {
 async function fetchRepresentantesBmax() {
     if (_repsCache.data && Date.now() - _repsCache.ts < CACHE_TTL) return _repsCache.data;
     try {
-        const rows = await sbFetch('/comercial_representantes_bmax?ativo=eq.true&select=nome&order=nome');
-        const nomes = (rows || []).map(r => r.nome);
+        const rows = await sbFetch('/comercial_representantes_bmax?ativo=eq.true&select=nome,rd_alias&order=nome');
+        // Mesmo princípio: o menu manda ao RD o nome que o RD usa (alias), senão o deal nasce
+        // com uma 2ª grafia do mesmo representante (caso Caio).
+        const nomes = (rows || []).map(r => (r.rd_alias && r.rd_alias.trim()) || r.nome);
         _repsCache = { data: nomes, ts: Date.now() };
         return nomes;
     } catch { return REPRESENTANTES; }
