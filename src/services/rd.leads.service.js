@@ -431,7 +431,7 @@ async function varrerEAtualizarDealsNoRD(pipelines, matchFn, buildUpdatePayload,
                 const dealId = d._id || d.id;
                 if (dryRun) { dealIds.push(dealId); continue; }
                 try {
-                    await updateLead(dealId, { data: { custom_fields: buildUpdatePayload() } });
+                    await updateLead(dealId, { data: { custom_fields: buildUpdatePayload(d) } });
                     updated++;
                 } catch (e) {
                     failed++;
@@ -1102,6 +1102,7 @@ module.exports = {
     getAliasMaps,
     renomearRepresentanteNoRD,
     renomearRevendaNoRD,
+    varrerEAtualizarDealsNoRD,
     reatribuirRepresentanteDaRevendaNoRD,
     getOpcoesRevendaRD,
     getOpcoesRepresentanteRD
