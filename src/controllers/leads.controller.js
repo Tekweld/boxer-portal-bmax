@@ -8,6 +8,27 @@ const {
     RD_STAGE_PERDIDO
 } = require("../config/constants");
 
+// Registra (sem nunca logar o nome/telefone em si — só o fato do acesso e
+// quais leads) toda vez que a resposta inclui contato de cliente (PCI12A).
+// Dado pessoal sensível; isso dá rastreabilidade (accountability, LGPD
+// Art. 37/46) de quem viu contato de cliente e quando, visível só pro admin
+// via Audit Log. Roda tanto em cache hit quanto em resposta fresca, já que
+// o dado é o mesmo em ambos os casos.
+async function auditarAcessoContato(req, cards) {
+    const leadsComContato = cards.filter(c => c.contatoNome || c.contatoTelefone);
+    if (!leadsComContato.length) return;
+
+    try {
+        await AuditLog(req, {
+            action: "VIEW_CONTATO_CLIENTE",
+            entityType: "Lead",
+            metadata: { dealIds: leadsComContato.map(c => c.id) }
+        });
+    } catch (e) {
+        logger.error({ message: "Falha ao registrar acesso a contato de cliente", error: e.message });
+    }
+}
+
 async function listLeads(req, res) {
     try {
         const userIdentifier =
@@ -19,7 +40,10 @@ async function listLeads(req, res) {
 
         try {
             const cached = await getCachedLeads(cacheKey);
-            if (cached) return res.json(cached);
+            if (cached) {
+                await auditarAcessoContato(req, cached);
+                return res.json(cached);
+            }
         } catch (_) {}
 
         const cards = await buildLeadsCards(req.user.role, userIdentifier, req.user.grupo);
@@ -27,6 +51,8 @@ async function listLeads(req, res) {
         try {
             await setCachedLeads(cacheKey, cards);
         } catch (_) {}
+
+        await auditarAcessoContato(req, cards);
 
         return res.json(cards);
 

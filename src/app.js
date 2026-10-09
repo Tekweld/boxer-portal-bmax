@@ -74,14 +74,34 @@ app.get("/api/health", (req, res) => {
     res.json({ status: "ok", service: "BMAX API" });
 });
 
-// Consulta de Lead (tela do BMax Motor) — aberta, sem JWT do Portal, porque
-// quem chama é o Motor (site estático, só tem a chave anon do Supabase, não
-// tem token do RD). Protegida só por CORS (mesmo modelo que o Motor já usa
-// hoje pra tudo). Sem dado sensível de conta/senha, só negociações do RD.
-// Só lê o índice pré-computado pelo cron abaixo — nunca varre o RD na hora
-// do clique (varrer os 5 funis ao vivo excede o timeout do Vercel).
+// Consulta de Lead (tela do BMax Motor) — sem JWT do Portal, porque quem
+// chama é o Motor (site estático, só tem a chave anon do Supabase, não tem
+// token do RD). Expõe nome/e-mail/telefone de contato de clientes — dado
+// pessoal — então não pode depender só de CORS (CORS não protege contra
+// chamada direta, só restringe o que um navegador honra). Exige que quem
+// chamar mande a própria sessão Supabase Auth do Motor (mesmo projeto
+// boxer-sistemas onde o Portal cria a conta do Motor — ver
+// sbSistemasAuthInvite em users.controller.js); validamos contra
+// /auth/v1/user antes de responder, então só usuário logado de fato no
+// Motor acessa. Só lê o índice pré-computado pelo cron abaixo — nunca varre
+// o RD na hora do clique (varrer os 5 funis ao vivo excede o timeout do
+// Vercel).
 app.get("/api/motor/consulta-lead", async (req, res) => {
     try {
+        const token = (req.headers["authorization"] || "").replace(/^Bearer\s+/i, "");
+        if (!token) {
+            return res.status(401).json({ error: "unauthorized" });
+        }
+
+        const { SB_SISTEMAS_URL } = require("./config/supabaseSistemas");
+        const anonKey = process.env.SUPABASE_ANON_KEY_SISTEMAS;
+        const authRes = await fetch(`${SB_SISTEMAS_URL}/auth/v1/user`, {
+            headers: { apikey: anonKey, Authorization: `Bearer ${token}` }
+        });
+        if (!authRes.ok) {
+            return res.status(401).json({ error: "unauthorized" });
+        }
+
         const { buscarLead } = require("./services/rd.leads.service");
         const resultado = await buscarLead(req.query.q);
         res.json(resultado);
