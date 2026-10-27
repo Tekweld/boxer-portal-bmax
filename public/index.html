@@ -6,7 +6,7 @@
   <meta name="robots" content="noindex, nofollow">
   <title>Portal BMAX</title>
   <link rel="icon" type="image/png" href="img/bmax-logo/bmax-icone.png">
-  <link rel="stylesheet" href="css/style.css?v=22">
+  <link rel="stylesheet" href="css/style.css?v=23">
 </head>
 
 <body>
@@ -17,11 +17,69 @@
 
     <div class="top-actions">
       <div class="pill" id="whoami"><span class="dot"></span> Desconectado</div>
+      <button class="btn hidden" id="btnRegras" type="button" aria-haspopup="dialog" title="Cashback por PCI e regras do programa">
+        <svg class="ico-info" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+        <span>Regras e cashback</span>
+      </button>
       <button class="btn" id="btnGoLogin">Login</button>
       <button class="btn hidden" id="btnGestao" style="border-color:#25bbee;color:#25bbee">Gestao</button>
       <button class="btn primary hidden" id="btnLogout">Sair</button>
     </div>
   </header>
+
+  <!-- REGRAS E CASHBACK (ícone ⓘ da barra do topo) -->
+  <div class="modal-overlay" id="regrasOverlay" role="dialog" aria-modal="true" aria-labelledby="regrasTitulo">
+    <div class="modal regras-modal">
+      <div class="regras-head">
+        <h3 id="regrasTitulo">Cashback e regras do programa</h3>
+        <button class="btn btn-sm" id="btnRegrasFechar" type="button" aria-label="Fechar">Fechar</button>
+      </div>
+
+      <h4 class="regras-sec">Quanto a revenda ganha de cashback</h4>
+      <p class="regras-sub">O BMAX diferencia lead originado pela revenda e lead originado pela Boxer.</p>
+      <div class="regras-cols">
+        <div class="regras-card">
+          <b>Lead originado pela revenda</b>
+          <span class="regras-leg">Você identificou a oportunidade</span>
+          <table class="regras-tab">
+            <tr><td>Robô &middot; PCI 13</td><td>1,5% a 4,0%</td></tr>
+            <tr><td>Laser &middot; PCI 14</td><td>1,7% a 4,0%</td></tr>
+            <tr><td>Máquina &middot; PCI 15</td><td>3,0% a 5,0%</td></tr>
+          </table>
+        </div>
+        <div class="regras-card">
+          <b>Lead originado pela Boxer</b>
+          <span class="regras-leg">A Boxer trouxe o lead, sua revenda está no raio</span>
+          <table class="regras-tab">
+            <tr><td>Laser c/ revenda &middot; PCI 6</td><td>1,5%</td></tr>
+            <tr><td>Máquina c/ revenda &middot; PCI 9 / 12B</td><td>2,0%</td></tr>
+          </table>
+        </div>
+      </div>
+      <p class="regras-nota">Saldo válido por 6 meses. Uso: desconto em pedidos ou bonificação em produtos. O cashback só é gerado depois do pedido faturado.</p>
+
+      <h4 class="regras-sec">Regras essenciais</h4>
+      <div class="regras-regras">
+        <div><strong>60 dias</strong><span>de exclusividade para leads originados pela revenda</span></div>
+        <div><strong>48h úteis</strong><span>para a revenda decidir no PCI 12 (sábado e domingo não contam)</span></div>
+        <div><strong>30 dias</strong><span>para comunicar vendido ou perdido no Portal</span></div>
+        <div><strong>Faturamento</strong><span>cashback só depois do pedido faturado</span></div>
+      </div>
+
+      <h4 class="regras-sec">PCI 12: a decisão é da revenda</h4>
+      <p class="regras-sub"><b>Eu assumo a venda</b>: a revenda atende o cliente. <b>Boxer vende, eu ganho comissão</b>: a Boxer conduz o atendimento e a revenda participa do resultado. Sem decisão no prazo, a Boxer assume o atendimento.</p>
+
+      <h4 class="regras-sec">O que a revenda precisa fazer</h4>
+      <ol class="regras-passos">
+        <li><b>Acessar o Portal</b> e acompanhar leads, status e cashback.</li>
+        <li><b>Responder quando acionada</b>, especialmente no PCI 12.</li>
+        <li><b>Enviar oportunidades</b> identificadas na região.</li>
+        <li><b>Informar o resultado</b>: vendido ou perdido, no prazo.</li>
+        <li><b>Usar o cashback</b> em desconto ou bonificação nos pedidos Boxer.</li>
+      </ol>
+      <p class="regras-nota"><b>A ação mais valiosa é enviar leads:</b> cada oportunidade identificada pode virar cashback para a loja.</p>
+    </div>
+  </div>
 
   <!-- LOGIN -->
   <main class="wrap" id="screenLogin">
@@ -571,6 +629,6 @@
   <script src="js/cashback.js?v=21"></script>
   <script src="js/admin.js?v=35"></script>
   <script src="js/audit.js?v=17"></script>
-  <script src="js/app.js?v=24"></script>
+  <script src="js/app.js?v=25"></script>
 </body>
 </html>

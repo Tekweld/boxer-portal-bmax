@@ -27,6 +27,7 @@ function show(screen) {
   });
   $("btnGoLogin").classList.toggle("hidden", screen !== "login");
   $("btnLogout").classList.toggle("hidden", screen === "login");
+  $("btnRegras").classList.toggle("hidden", screen === "login");
   $("btnExport").classList.toggle("hidden", !(session.role === "adm" && screen === "dash"));
   $("btnGestao").classList.toggle("hidden", !(session.role === "adm" && screen !== "login"));
   $("btnSolicitarSaque").classList.toggle("hidden", !(session.role === "revenda" && screen === "extrato"));
@@ -223,6 +224,19 @@ async function init() {
 // Events
 $("btnLogin").addEventListener("click", login);
 $("btnLogout").addEventListener("click", logout);
+
+// Regras e cashback (modal informativo, igual para todos os perfis)
+function setRegrasAberto(aberto) {
+  $("regrasOverlay").classList.toggle("show", aberto);
+  if (aberto) $("btnRegrasFechar").focus(); else $("btnRegras").focus();
+}
+$("btnRegras").addEventListener("click", () => setRegrasAberto(true));
+$("btnRegrasFechar").addEventListener("click", () => setRegrasAberto(false));
+$("regrasOverlay").addEventListener("click", e => { if (e.target === $("regrasOverlay")) setRegrasAberto(false); });
+document.addEventListener("keydown", e => {
+  if (e.key === "Escape" && $("regrasOverlay").classList.contains("show")) setRegrasAberto(false);
+});
+
 $("btnGoLogin").addEventListener("click", () => {
   const token = localStorage.getItem("token");
   if (token) {

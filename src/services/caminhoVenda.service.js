@@ -134,7 +134,7 @@ async function notificarRevendaAssumiu(dealId, result) {
         }
 
         const orgId = result.organization?._id || result.organization?.id || null;
-        const contato = await getContatoPrincipal(orgId, dealId);
+        const contato = await getContatoPrincipal(orgId, dealId, result);
 
         await sendEmail(
             destinatarios,

@@ -526,15 +526,44 @@ async function getDealById(id) {
 // nem na listagem em lote nem no fetch individual) — precisa dessa chamada
 // extra. Usado SOMENTE quando o caminho já foi resolvido pra PCI12A (revenda
 // atende) — ver mapDealToCard() e a regra de privacidade lá.
-async function getContatoPrincipal(organizationId, dealId) {
+// Achado 27/10/2026 (card "Departamento Compras"): deal SEM organização vinculada guarda o
+// contato direto em `deal.contacts` — por isso o parâmetro opcional `deal`: tenta o contato
+// do próprio card primeiro e só então cai na organização.
+function formatarTelefoneContato(raw) {
+    const d = String(raw || "").replace(/\D/g, "");
+    const n = d.length > 11 && d.startsWith("55") ? d.slice(2) : d;
+    if (n.length === 11) return `(${n.slice(0, 2)}) ${n.slice(2, 7)}-${n.slice(7)}`;
+    if (n.length === 10) return `(${n.slice(0, 2)}) ${n.slice(2, 6)}-${n.slice(6)}`;
+    return raw || null;
+}
+
+function contatoDeLista(contatos, dealId) {
+    const lista = Array.isArray(contatos) ? contatos : [];
+    const contato = lista.find(c => Array.isArray(c.deal_ids) && c.deal_ids.includes(dealId)) || lista[0];
+    if (!contato) return null;
+    const telefone = formatarTelefoneContato(contato.phones?.[0]?.phone);
+    if (!contato.name && !telefone) return null;
+    return { nome: contato.name || null, telefone };
+}
+
+async function getContatoPrincipal(organizationId, dealId, deal = null) {
+    try {
+        // GET /deals/{id} e a resposta do PUT NAO trazem `contacts` (só a listagem traz);
+        // GET /deals/{id}/contacts traz sempre — testado ao vivo em 27/10/2026.
+        let contatosCard = deal && Array.isArray(deal.contacts) ? deal.contacts : null;
+        if (!contatosCard && dealId) {
+            const r = await rdFetch(`/deals/${dealId}/contacts`);
+            contatosCard = r && Array.isArray(r.contacts) ? r.contacts : [];
+        }
+        const doCard = contatoDeLista(contatosCard, dealId);
+        if (doCard) return doCard;
+    } catch (e) {
+        logger.error({ message: "Erro ao buscar contato do card", dealId, error: e.message });
+    }
     if (!organizationId) return null;
     try {
         const org = await rdFetch(`/organizations/${organizationId}`);
-        const contatos = Array.isArray(org.contacts) ? org.contacts : [];
-        const contato = contatos.find(c => Array.isArray(c.deal_ids) && c.deal_ids.includes(dealId)) || contatos[0];
-        if (!contato) return null;
-        const telefone = contato.phones?.[0]?.phone || null;
-        return { nome: contato.name || null, telefone };
+        return contatoDeLista(org.contacts, dealId);
     } catch (e) {
         logger.error({ message: "Erro ao buscar contato da organização", organizationId, dealId, error: e.message });
         return null;
@@ -796,7 +825,7 @@ async function mapDealToCard(deal, role, creditosMap) {
     let contatoTelefone = null;
     if (pci === "PCI12A") {
         const orgId = org._id || org.id || null;
-        const contato = await getContatoPrincipal(orgId, dealId);
+        const contato = await getContatoPrincipal(orgId, dealId, deal);
         if (contato) {
             contatoNome = contato.nome;
             contatoTelefone = contato.telefone;
