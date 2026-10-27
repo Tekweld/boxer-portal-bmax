@@ -1146,3 +1146,12 @@ input::placeholder{color:#9aa1b0; font-weight:500}
   .regras-regras{grid-template-columns:1fr 1fr}
   #btnRegras span{display:none}
 }
+
+/* ── Esqueci minha senha (tela de login) ── */
+.forgot-line{margin:10px 0 0;font-size:13px}
+.forgot-line a{color:var(--accent);text-decoration:underline;cursor:pointer}
+.forgot-box{margin-top:10px;padding:12px;border:1px solid var(--line);border-radius:10px;background:var(--surface2)}
+.forgot-box.hidden{display:none}
+.forgot-box p{margin:0 0 8px;font-size:13px;color:var(--muted);line-height:1.45}
+.forgot-row{display:flex;gap:8px;flex-wrap:wrap}
+.forgot-row input{flex:1 1 220px;min-width:0}

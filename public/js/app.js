@@ -225,6 +225,41 @@ async function init() {
 $("btnLogin").addEventListener("click", login);
 $("btnLogout").addEventListener("click", logout);
 
+// Esqueci minha senha: avisa os administradores (POST /auth/forgot-password); resposta sempre genérica
+$("linkEsqueciSenha").addEventListener("click", e => {
+  e.preventDefault();
+  const box = $("boxEsqueciSenha");
+  box.classList.toggle("hidden");
+  if (!box.classList.contains("hidden")) {
+    $("forgotUser").value = $("user").value || "";
+    $("forgotUser").focus();
+  }
+});
+$("btnEnviarEsqueci").addEventListener("click", async () => {
+  const email = $("forgotUser").value.trim();
+  if (!email) { toast("Informe seu usuario ou e-mail", "warn"); return; }
+  const btn = $("btnEnviarEsqueci");
+  btn.disabled = true;
+  try {
+    const res = await fetch(`${API_URL}/auth/forgot-password`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email })
+    });
+    const data = await res.json().catch(() => ({}));
+    if (res.ok) {
+      toast(data.message || "Solicitacao recebida. Um administrador entrara em contato.", "success");
+      $("boxEsqueciSenha").classList.add("hidden");
+    } else {
+      toast(data.error || "Nao foi possivel enviar a solicitacao", "error");
+    }
+  } catch (_) {
+    toast("API indisponivel", "error");
+  } finally {
+    btn.disabled = false;
+  }
+});
+
 // Regras e cashback (modal informativo, igual para todos os perfis)
 function setRegrasAberto(aberto) {
   $("regrasOverlay").classList.toggle("show", aberto);

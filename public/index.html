@@ -6,7 +6,7 @@
   <meta name="robots" content="noindex, nofollow">
   <title>Portal BMAX</title>
   <link rel="icon" type="image/png" href="img/bmax-logo/bmax-icone.png">
-  <link rel="stylesheet" href="css/style.css?v=23">
+  <link rel="stylesheet" href="css/style.css?v=24">
 </head>
 
 <body>
@@ -116,6 +116,14 @@
               <span id="btnLoginText">Entrar</span>
               <span id="btnLoginSpinner" class="spinner hidden"></span>
             </button>
+          </div>
+        </div>
+        <p class="forgot-line"><a href="#" id="linkEsqueciSenha">Esqueci minha senha</a></p>
+        <div class="forgot-box hidden" id="boxEsqueciSenha">
+          <p>Informe seu usuário ou e-mail. Um administrador será avisado e entrará em contato com a nova senha.</p>
+          <div class="forgot-row">
+            <input id="forgotUser" placeholder="seu usuario ou e-mail" autocomplete="username" />
+            <button class="btn primary" id="btnEnviarEsqueci" type="button">Enviar solicitação</button>
           </div>
         </div>
       </div>
@@ -629,6 +637,6 @@
   <script src="js/cashback.js?v=21"></script>
   <script src="js/admin.js?v=35"></script>
   <script src="js/audit.js?v=17"></script>
-  <script src="js/app.js?v=25"></script>
+  <script src="js/app.js?v=26"></script>
 </body>
 </html>
