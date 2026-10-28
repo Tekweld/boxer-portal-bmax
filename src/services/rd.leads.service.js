@@ -338,6 +338,22 @@ async function resolverResponsavelId(nomeEscolhido) {
     return usuario ? usuario.id : RD_OWNER_DEFAULT;
 }
 
+// Representante da revenda no NOME que o RD usa (28/10/2026, caso MAQSOLDAS): a revenda não escolhe o
+// representante na Nova Negociação (campo oculto) e o Portal nunca o preenchia — o card nascia com
+// REPRESENTANTE vazio e o representante não via o lead. Busca `rep` no cadastro ATIVO (nome_rd, senão nome)
+// e converte para o nome do RD pelo alias (ex.: cadastro "Victor VLM" -> RD "Victor Lantyer").
+async function resolverRepresentanteDaRevenda(nomeRevenda, cadastros = null) {
+    const alvo = String(nomeRevenda || "").trim().toLowerCase();
+    if (!alvo || alvo === "sem revenda") return "";
+    const rows = cadastros || await sbSistemasService('/comercial_revendas_bmax?ativo=eq.true&select=nome,nome_rd,rep');
+    const norm = s => String(s || "").trim().toLowerCase();
+    const row = rows.find(r => norm(r.nome_rd || r.nome) === alvo) || rows.find(r => norm(r.nome) === alvo);
+    const rep = row && String(row.rep || "").trim();
+    if (!rep) return "";
+    const { usernameToRd } = await getAliasMaps();
+    return usernameToRd[rep] || rep;
+}
+
 // Achado 23/09/2026 (caso AlugaaSolda): o nome de cadastro (comercial_revendas_bmax.nome,
 // legal/completo, às vezes com código interno — ex "25932, A Alugaasolda...") pode ser
 // diferente do valor real cadastrado no picklist REVENDA/LOJA do RD (ex "AlugaASoldas",
@@ -1146,6 +1162,7 @@ module.exports = {
     syncRevendasToRD,
     syncRepresentantesToRD,
     getAliasMaps,
+    resolverRepresentanteDaRevenda,
     renomearRepresentanteNoRD,
     renomearRevendaNoRD,
     varrerEAtualizarDealsNoRD,

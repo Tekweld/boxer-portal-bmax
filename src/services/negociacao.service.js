@@ -1,5 +1,5 @@
 const db = require("../database");
-const { createLead, createTask, createNote, getLeadByCnpj, limparCacheVarreduraFunis } = require("./rd.leads.service");
+const { createLead, createTask, createNote, getLeadByCnpj, limparCacheVarreduraFunis, resolverRepresentanteDaRevenda } = require("./rd.leads.service");
 const { validarParaAnexar, anexarENotificarRD } = require("./orcamento.service");
 const { sendEmail } = require("./email.service");
 const { getRepresentativeEmailByName, getRevendaEmailByName } = require("./user.service");
@@ -34,6 +34,12 @@ async function createNegociacao(data) {
     // no servidor, não só na tela, para não dar pra pular chamando a API direto.
     if (!orcamentos.length) {
         throw new Error("Anexe pelo menos 1 orçamento (PDF, imagem, Word ou Excel) para registrar a negociação.");
+    }
+
+    // Revenda não escolhe representante: preenche pelo cadastro da revenda (nome do RD) — antes o card nascia vazio
+    if (!String(data.representante || "").trim()) {
+        try { data.representante = await resolverRepresentanteDaRevenda(data.revenda); }
+        catch (e) { logger.warn({ message: "Não foi possível resolver o representante da revenda", revenda: data.revenda, error: e.message }); }
     }
 
     const leadResponse = await createLead(data);
