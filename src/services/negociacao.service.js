@@ -54,6 +54,27 @@ async function createNegociacao(data) {
         }
     }
 
+    // Representante/Admin (André, 28/10/2026): o campo "Funil" foi substituído pelas MESMAS duas perguntas da revenda
+    // (caminho + quem atende) e o card segue os mesmos caminhos. Exceção: PCI 12/12a/12b é lead enviado PELA Boxer à
+    // revenda — segue o fluxo próprio do PCI12 (nasce no funil Indústria Interno e a revenda decide depois).
+    let fluxoEncaminhar = data.role === "revenda";
+    if (data.role === "adm" || data.role === "representante") {
+        const pciLimpo = String(data.pci || "").replace(/\s/g, "").toUpperCase();
+        if (/^PCI12/.test(pciLimpo)) {
+            data.funil = "industria";
+        } else {
+            if (!["Máquinas", "Laser", "Robo"].includes(data.segmento)) throw new Error("Selecione o produto do lead (Máquinas, Laser ou Robô).");
+            const esperado = { "PCI13": "Robo", "PCI14": "Laser", "PCI15": "Máquinas" }[pciLimpo];
+            if (esperado && esperado !== data.segmento) throw new Error(`O PCI ${pciLimpo.slice(3)} é de ${esperado === "Robo" ? "Robô" : esperado}: o produto selecionado não confere.`);
+            if (!["BOX>REV", "BOX+REV>IND"].includes(data.caminho)) throw new Error("Selecione o Caminho de Venda.");
+            if (data.caminho === "BOX>REV") data.atendimento = "revenda";
+            if (!["revenda", "boxer"].includes(data.atendimento)) throw new Error("Informe quem atenderá o cliente: a revenda ou um vendedor da Boxer.");
+            data.funil = "bmax"; // nasce no BMAX; se a Boxer atende, é movido para Negociação (Indústria) pelo encaminhamento
+            if (data.atendimento === "revenda") data.responsavel = "Revenda"; // não aparece para vendedor Boxer
+            fluxoEncaminhar = true;
+        }
+    }
+
     // Revenda não escolhe representante: preenche pelo cadastro da revenda (nome do RD) — antes o card nascia vazio
     if (!String(data.representante || "").trim()) {
         try { data.representante = await resolverRepresentanteDaRevenda(data.revenda); }
@@ -103,9 +124,11 @@ async function createNegociacao(data) {
         }
     }
 
-    if (data.role === "revenda") {
+    if (fluxoEncaminhar) {
         try {
-            await encaminharLeadDaRevenda(leadId, { caminho: data.caminho, atendimento: data.atendimento, cidade: data.cidade, estado: data.estado, pci: data.pci });
+            // representante/admin já escolheram o Responsável: usa o dono que o card recebeu na criação
+            const donoEscolhidoId = data.role === "revenda" ? null : (leadResponse.user && (leadResponse.user._id || leadResponse.user.id)) || null;
+            await encaminharLeadDaRevenda(leadId, { caminho: data.caminho, atendimento: data.atendimento, cidade: data.cidade, estado: data.estado, pci: data.pci, responsavelId: data.atendimento === "boxer" ? donoEscolhidoId : null });
         } catch (error) {
             logger.error({ message: "Falha ao encaminhar lead da revenda na criação da negociação", dealId: leadId, error: error.message });
         }

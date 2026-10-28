@@ -121,12 +121,47 @@ $("negArquivos")?.addEventListener("change", (ev) => {
   renderNegArquivos();
 });
 
-// "Quem atende o cliente?" só aparece quando a Boxer vende (a revenda que vende já atende sozinha)
-$("negCaminho").addEventListener("change", () => {
+const pciEhDoze = v => /^PCI12/.test(String(v || "").replace(/\s/g, "").toUpperCase());
+const PRODUTO_DO_PCI = { PCI13: "Robo", PCI14: "Laser", PCI15: "Máquinas" };
+
+// Mostra/esconde as perguntas de roteamento (produto + caminho + quem atende) conforme o perfil:
+//  - revenda: sempre; representante/admin: quando o PCI escolhido NÃO é 12/12a/12b (esses seguem o fluxo do PCI12);
+//  - "Quem atende?" só aparece quando a Boxer vende (a revenda que vende já atende sozinha);
+//  - Responsável (representante/admin) só é pedido quando um vendedor Boxer atende ou no fluxo PCI12.
+function atualizarRoteamentoNeg() {
+  const bloco = $("blocoRoteamento");
+  if (!bloco) return;
+  const ehRevenda = session.role === "revenda";
+  const ehRepAdm = session.role === "representante" || session.role === "adm";
+  const pci = $("negPci").value;
+  const mostra = ehRevenda || (ehRepAdm && !!pci && !pciEhDoze(pci));
+  bloco.classList.toggle("hidden", !mostra);
+
+  // textos na voz de quem usa: revenda fala em "eu"; representante/admin, em "a revenda"
+  const txt = ehRevenda
+    ? ["Eu assumo a venda (revenda atende)", "Boxer vende, eu ganho comissao", "Eu atendo o cliente (o lead não vai para vendedor Boxer)", "Um vendedor Boxer atende o cliente"]
+    : ["Revenda vende (a revenda atende)", "Boxer vende e a revenda ganha comissão", "A revenda atende o cliente (o lead não vai para vendedor Boxer)", "Um vendedor Boxer atende o cliente"];
+  const optsCam = $("negCaminho").options, optsAt = $("negAtendimento").options;
+  optsCam[1].textContent = txt[0]; optsCam[2].textContent = txt[1];
+  optsAt[1].textContent = txt[2]; optsAt[2].textContent = txt[3];
+
+  // produto acompanha o PCI 13/14/15 (representante/admin) e fica travado
+  const prodPci = PRODUTO_DO_PCI[String(pci || "").replace(/\s/g, "").toUpperCase()];
+  if (ehRepAdm && prodPci) { $("negSegmento").value = prodPci; $("negSegmento").disabled = true; }
+  else $("negSegmento").disabled = false;
+
   const boxerVende = $("negCaminho").value === "BOX+REV>IND";
-  $("campoAtendimento").classList.toggle("hidden", !boxerVende);
+  $("campoAtendimento").classList.toggle("hidden", !(mostra && boxerVende));
   if (!boxerVende) $("negAtendimento").value = "";
-});
+
+  if (ehRepAdm) {
+    const revendaAtende = mostra && (($("negCaminho").value === "BOX>REV") || ($("negCaminho").value === "BOX+REV>IND" && $("negAtendimento").value === "revenda"));
+    $("campoResponsavel").classList.toggle("hidden", revendaAtende);
+  }
+}
+$("negCaminho").addEventListener("change", atualizarRoteamentoNeg);
+$("negAtendimento").addEventListener("change", atualizarRoteamentoNeg);
+$("negPci").addEventListener("change", atualizarRoteamentoNeg);
 
 $("btnSalvarNegociacao").addEventListener("click", async () => {
   hideNegFormError();
@@ -166,14 +201,29 @@ $("btnSalvarNegociacao").addEventListener("click", async () => {
 
   if (session.role === "representante" || session.role === "adm") {
     if (!$("negRepresentante").value) return toast("Selecione um Representante.", "warn");
-    if (!$("negResponsavel").value) return toast("Selecione um Responsável.", "warn");
     if (!$("negPci").value) return toast("Selecione um PCI.", "warn");
     novaNegociacao.representante = $("negRepresentante").value;
-    novaNegociacao.responsavel = $("negResponsavel").value;
     novaNegociacao.pci = $("negPci").value;
-    // Funil: representante e admin escolhem (revenda sempre vai pro BMAX, sem
-    // escolha — o backend também impõe isso server-side, não confia só nisso aqui).
-    novaNegociacao.funil = $("negFunil")?.value || "bmax";
+    // O campo "Funil" foi substituído pelas mesmas perguntas da revenda (produto, caminho e quem atende) — o servidor
+    // decide o funil. PCI 12/12a/12b (lead enviado pela Boxer à revenda) não faz as perguntas: segue o fluxo do PCI12.
+    if (pciEhDoze($("negPci").value)) {
+      if (!$("negResponsavel").value) return toast("Selecione um Responsável.", "warn");
+      novaNegociacao.responsavel = $("negResponsavel").value;
+    } else {
+      if (!$("negSegmento").value) return toast("Selecione o produto do lead (Máquinas, Laser ou Robô).", "warn");
+      if (!$("negCaminho").value) return toast("Selecione o Caminho de Venda.", "warn");
+      if ($("negCaminho").value === "BOX+REV>IND" && !$("negAtendimento").value) return toast("Informe quem atende o cliente.", "warn");
+      novaNegociacao.segmento = $("negSegmento").value;
+      novaNegociacao.caminho = $("negCaminho").value;
+      novaNegociacao.atendimento = $("negCaminho").value === "BOX>REV" ? "revenda" : $("negAtendimento").value;
+      // Responsável só importa quando um vendedor Boxer atende; se a revenda atende o card não vai para a Boxer
+      if (novaNegociacao.atendimento === "boxer") {
+        if (!$("negResponsavel").value) return toast("Selecione o Responsável (vendedor Boxer que atende).", "warn");
+        novaNegociacao.responsavel = $("negResponsavel").value;
+      } else {
+        novaNegociacao.responsavel = "Revenda";
+      }
+    }
   } else {
     // Revenda não escolhe representante/responsável/PCI (campos ficam ocultos) —
     // sem isso, RD_OWNERS[undefined] deixava o deal sem owner e o RD Station rejeitava a criação.
@@ -223,8 +273,7 @@ $("btnSalvarNegociacao").addEventListener("click", async () => {
   $("negCaminho").value = "";
   $("negSegmento").value = "";
   $("negAtendimento").value = "";
-  $("campoAtendimento").classList.add("hidden");
-  if ($("negFunil")) $("negFunil").value = "bmax";
+  atualizarRoteamentoNeg();
 
   toast("Negociação Registrada!");
   } finally {

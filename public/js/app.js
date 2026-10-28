@@ -35,6 +35,7 @@ function show(screen) {
   $("btnAuditoriaComissoes").classList.toggle("hidden", !(session.role === "adm" && screen === "extrato"));
   $("blocoCamposRepresentante").classList.toggle("hidden", !(session.role === "representante" || session.role === "adm"));
   $("blocoCaminhoVenda").classList.toggle("hidden", session.role !== "revenda");
+  if (typeof atualizarRoteamentoNeg === "function") atualizarRoteamentoNeg();
 }
 
 function getScreenFromHash() {

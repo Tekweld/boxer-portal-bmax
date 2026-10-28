@@ -299,7 +299,9 @@ async function aplicarCaminhoVenda(dealId, caminho, cidade, estado, opts = {}) {
 //   caminho:      BOX>REV (revenda vende) | BOX+REV>IND (Boxer vende e paga comissão à revenda)
 //   atendimento:  "revenda" -> o card NÃO vai para vendedor da Boxer (fica no funil BMAX, dono "Revenda");
 //                 "boxer"   -> vai para Negociação (Indústria) com o vendedor responsável da região.
-async function encaminharLeadDaRevenda(dealId, { caminho, atendimento, cidade, estado, pci }) {
+// `responsavelId`: quando já vem escolhido (representante/admin escolhem o Responsável no formulário), usa esse vendedor
+// em vez de procurar pela cidade na planilha.
+async function encaminharLeadDaRevenda(dealId, { caminho, atendimento, cidade, estado, pci, responsavelId: responsavelEscolhidoId = null }) {
     const descCaminho = caminho === "BOX+REV>IND" ? "Boxer vende e a revenda ganha comissao" : "Revenda vende";
     if (atendimento === "revenda") {
         await createTask({
@@ -312,8 +314,12 @@ async function encaminharLeadDaRevenda(dealId, { caminho, atendimento, cidade, e
         return { atendimento };
     }
 
-    const responsavel = await lerPlanilhaResponsavel(cidade, estado);
-    const responsavelId = responsavel ? RD_OWNERS[responsavel] : null;
+    let responsavel = null;
+    let responsavelId = responsavelEscolhidoId;
+    if (!responsavelId) {
+        responsavel = await lerPlanilhaResponsavel(cidade, estado);
+        responsavelId = responsavel ? RD_OWNERS[responsavel] : null;
+    }
     if (!responsavelId) throw erroValidacao(`Responsável não encontrado para a cidade "${cidade}" e estado "${estado}"`);
     await updateLead(dealId, { data: { owner_id: `${responsavelId}`, stage_id: RD_STAGE_NEGOCIACAO } });
     await createTask({
