@@ -68,6 +68,12 @@ router.get("/revendas-rd", authenticate, authorize(["adm"]), async (req, res) =>
         const revendaField = allFields.find(f => f.id === RD_CUSTOM_FIELDS.REVENDA_LOJA);
         const optsRD = (revendaField?.opts || []).map(o => o.trim()).filter(o => o && o !== "Sem Revenda");
 
+        // ?simples=1: só os nomes da lista do RD (modal Editar Revenda) — pula a varredura de TODOS os
+        // leads e os grupos, que era o que deixava o Editar lento (28/10/2026).
+        if (req.query.simples === "1") {
+            return res.json({ revendas: optsRD.sort().map(nome => ({ nome })), alertas: [] });
+        }
+
         const allDeals = await getLeads("admin", "adm");
         const usedSet = new Set();
         const invalidSet = new Set();
@@ -574,10 +580,29 @@ router.post("/revendas-bmax/geocodificar-pendentes", authenticate, authorize(["a
     }
 });
 
+// Nome no RD = chave única que liga RD, Portal e Motor (André, 28/10/2026): nunca duas revendas ATIVAS com o mesmo.
+async function nomeRdEmUso(nomeRd, ignorarId) {
+    const alvo = String(nomeRd || "").trim().toLowerCase();
+    const rows = await sbSistemas('/comercial_revendas_bmax?ativo=eq.true&select=id,nome,nome_rd');
+    return (rows || []).find(r => String(r.id) !== String(ignorarId || "") && String(r.nome_rd || r.nome || "").trim().toLowerCase() === alvo) || null;
+}
+
 router.post("/revendas-bmax", authenticate, authorize(["adm"]), async (req, res) => {
     try {
         const { nome, cidade, estado, classe, rep, grupo, cep, telefone, email, cnpj } = req.body;
         if (!nome || !nome.trim()) return res.status(400).json({ error: "Nome é obrigatório" });
+
+        // nome no RD sempre preenchido (padrão = nome) e único entre as ativas
+        const nomeRdFinal = String(req.body.nome_rd || nome).trim();
+        const duplicada = await nomeRdEmUso(nomeRdFinal);
+        if (duplicada) return res.status(400).json({ error: `Já existe uma revenda ativa chamada "${nomeRdFinal}". O nome no RD é único: edite a existente ou escolha outro nome.` });
+
+        // login junto: valida TUDO antes de gravar o cadastro (não deixa cadastro pela metade)
+        const criarLogin = req.body.criar_login === true;
+        if (criarLogin) {
+            const v = await require("../services/revendaLogin.service").validarNovoLogin({ email, cnpj, cep, cidade, estado });
+            if (v.erro) return res.status(400).json({ error: v.erro });
+        }
 
         let lat = null, lng = null, cidadeFinal = cidade || null, estadoFinal = estado || null;
         if (cep) {
@@ -588,14 +613,23 @@ router.post("/revendas-bmax", authenticate, authorize(["adm"]), async (req, res)
         }
 
         const row = await sbSistemasService('/comercial_revendas_bmax', 'POST', {
-            nome: nome.trim(), cidade: cidadeFinal, estado: estadoFinal,
+            nome: nome.trim(), nome_rd: nomeRdFinal, cidade: cidadeFinal, estado: estadoFinal,
             classe: classe || null, rep: rep || null, grupo: grupo || null, ativo: true,
             cep: cep || null, telefone: telefone || null, email: email || null, cnpj: cnpj || null,
             lat, lng
         });
         invalidateConfigCache();
         const sync = await syncRevendasAfterChange();
-        res.json({ revenda: row[0] || row, sync, geocoded: lat !== null });
+
+        let login = null;
+        if (criarLogin) {
+            const novo = Array.isArray(row) ? row[0] : row;
+            login = await require("../services/revendaLogin.service").criarLoginDeRevenda({
+                nomeRd: nomeRdFinal, email, telefone, cnpj, cep, cidade: cidadeFinal, estado: estadoFinal, grupo,
+                cadastroId: novo && novo.id, enviarCredenciais: req.body.enviar_credenciais === true
+            });
+        }
+        res.json({ revenda: row[0] || row, sync, geocoded: lat !== null, login });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
@@ -609,6 +643,18 @@ router.patch("/revendas-bmax/:id", authenticate, authorize(["adm"]), async (req,
             if (req.body[key] !== undefined) updates[key] = req.body[key];
         }
         if (Object.keys(updates).length === 0) return res.status(400).json({ error: "Nenhum campo para atualizar" });
+
+        // nome no RD único entre as revendas ativas (só confere quando o nome/ativação muda)
+        if ('nome' in updates || 'nome_rd' in updates || updates.ativo === true) {
+            const atualNome = await sbSistemas(`/comercial_revendas_bmax?id=eq.${id}&select=nome,nome_rd,ativo`);
+            const a = atualNome[0] || {};
+            const ficaAtiva = 'ativo' in updates ? updates.ativo !== false : a.ativo !== false;
+            const nomeRdNovo = String(('nome_rd' in updates ? updates.nome_rd : a.nome_rd) || ('nome' in updates ? updates.nome : a.nome) || "").trim();
+            if (ficaAtiva && nomeRdNovo) {
+                const dup = await nomeRdEmUso(nomeRdNovo, id);
+                if (dup) return res.status(400).json({ error: `Já existe outra revenda ativa chamada "${nomeRdNovo}". O nome no RD é único (liga RD, Portal e Motor): ajuste o nome ou desative a outra.` });
+            }
+        }
 
         let nomeAntigo = null;
         let repAntigo = null;

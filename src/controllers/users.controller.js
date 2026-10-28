@@ -618,6 +618,7 @@ async function deleteFilial(req, res) {
 }
 
 module.exports = {
+    sbSistemasAuthProvision,
     createUser,
     listUsers,
     updateRevenda,

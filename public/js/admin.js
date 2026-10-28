@@ -1051,7 +1051,7 @@ async function openRevBmaxModal(rev) {
     const [usuariosDisponiveis, usuariosVinculados, dadosRD] = await Promise.all([
         isEdit ? comTeto(getJson(`${API_URL}/admin/revendas-bmax/usuarios-disponiveis`, []), []) : [],
         isEdit ? comTeto(getJson(`${API_URL}/admin/revendas-bmax/${rev.id}/usuarios-vinculados`, []), []) : [],
-        comTeto(getJson(`${API_URL}/admin/revendas-rd`, { revendas: [] }), { revendas: [] })
+        comTeto(getJson(`${API_URL}/admin/revendas-rd?simples=1`, { revendas: [] }), { revendas: [] })
     ]);
     const opcoesRD = ((dadosRD && dadosRD.revendas) || []).map(r => r.nome);
     OPCOES_REVENDA_RD_ATUAL = opcoesRD;
@@ -1120,6 +1120,12 @@ async function openRevBmaxModal(rev) {
                 ? `<p style="color:#e30613;font-size:12px">Valor atual "${esc(rev.rep)}" não corresponde a nenhum representante cadastrado — selecione o correto.</p>`
                 : ""}
         </div>
+        ${!isEdit ? `
+        <div class="form-row" style="background:var(--surface2);border-radius:8px;padding:10px 12px">
+            <label style="text-transform:none;letter-spacing:0;display:flex;gap:8px;align-items:flex-start"><input type="checkbox" id="modalRevCriarLogin" checked style="width:auto;margin-top:3px">
+                <span><strong>Criar também o login de acesso</strong> — usuário = e-mail; senha inicial = parte do e-mail antes do @. Exige e-mail, CNPJ, CEP, cidade e estado. Já cria o acesso ao Motor e o nome no RD.</span></label>
+            <label style="text-transform:none;letter-spacing:0;display:flex;gap:8px;align-items:center;margin-top:6px"><input type="checkbox" id="modalRevEnviarCred" style="width:auto"> Enviar as credenciais por e-mail à revenda</label>
+        </div>` : ""}
         <div class="form-actions">
             <button class="btn" onclick="closeAdminModal()">Cancelar</button>
             <button class="btn primary" onclick="salvarRevBmax('${rev?.id || ""}')">${isEdit ? "Salvar" : "Criar"}</button>
@@ -1176,6 +1182,14 @@ async function salvarRevBmax(id) {
         grupo: $("modalRevGrupo").value.trim() || null,
         rep: $("modalRevRep").value.trim() || null
     };
+    if (!id) {
+        body.criar_login = !!$("modalRevCriarLogin")?.checked;
+        body.enviar_credenciais = !!$("modalRevEnviarCred")?.checked;
+        if (body.criar_login && (!body.email || !body.cnpj || !body.cep || !body.cidade || !body.estado)) {
+            toast("Para criar o login informe e-mail, CNPJ, CEP, cidade e estado (ou desmarque 'Criar também o login').", "warn");
+            return;
+        }
+    }
     try {
         const token = localStorage.getItem("token");
         const method = id ? "PATCH" : "POST";
@@ -1187,7 +1201,7 @@ async function salvarRevBmax(id) {
         await loadRevendasBmax();
         renderRevendasBmax();
         const syncMsg = data.sync?.synced ? ` (${data.sync.synced} opções sincronizadas no RD)` : "";
-        toast((id ? "Revenda atualizada" : "Revenda criada") + syncMsg);
+        toast(id ? "Revenda atualizada" + syncMsg : (data.login ? `Revenda e login criados (usuário ${data.login.username}, senha inicial ${data.login.senhaInicial})` + syncMsg : "Revenda criada (sem login)" + syncMsg));
         if (data.continuacoesPendentes?.length) {
             toast("Revenda tem muitos leads — atualizando negociações antigas no RD em segundo plano...", "warn");
             continuarVarredurasRD(data.continuacoesPendentes);
