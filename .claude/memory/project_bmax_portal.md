@@ -6,7 +6,7 @@ metadata:
   type: project
   atualizado: 02/10/2026
   originSessionId: 87fa48d5-0558-4034-9609-8fbcde3f3b32
-  modified: 2026-10-02T20:48:38.161Z
+  modified: 2026-10-28T21:02:16.962Z
 ---
 
 ## Portal BMax — Estado (24/08/2026)
@@ -276,3 +276,6 @@ Sessão iniciada por reclamação real: leads PCI12 atribuídos a revenda não a
 **Why:** André quer autonomia total — codificar, commitar, deploy automático sem dependência de TurboCloud.
 
 **How to apply:** Push em main = deploy Vercel automático. RD Station via V1 token simples.
+
+### Sessão 27–28/10/2026 — Nova Negociação por produto/atendimento, nome único, travas de duplicidade
+Resumo (detalhes em DOCUMENTACAO_TECNICA.md seções 11–14 do Portal e em [[project-bmax-pendencias]]): Nova Negociação com PCI 13/14/15 pelo produto e perguntas Caminho + Quem atende (também para representante/admin, sem campo Funil); representante preenchido pelo cadastro; travas de CNPJ inválido/nome+cidade e aviso de filial; cadastro de revenda + login juntos com nome único; robô de 48h e alerta admin para revenda sem login; contato do cliente PCI12A sem organização; "Esqueci minha senha"; botão "Regras e cashback"; GitHub com escrita (push = deploy). Arquitetura-alvo: [[project-bmax-modelo-revenda-grupo]].

@@ -4,7 +4,7 @@ description: "Regras de negócio e armadilhas técnicas Portal BMax: PCI 12a/12b
 metadata:
   type: feedback
   originSessionId: 87fa48d5-0558-4034-9609-8fbcde3f3b32
-  modified: 2026-10-15T15:11:37.457Z
+  modified: 2026-10-28T21:02:10.911Z
 ---
 
 ## PCI 12a vs 12b — significado correto (planilha BMAX CRITERIOS V2)
@@ -262,4 +262,15 @@ Visibilidade de leads sempre dependeu só do nome gravado no login (`Revendas.na
 - Orçamento da Nova Negociação (14-15/10/2026, decisão do André): OBRIGATÓRIO (1 a 3 arquivos) para todos os perfis, validado no servidor (`createNegociacao`) e na tela. Nota do card usa `<a href>` HTML (RD não linka URL pura nem markdown). Teste ponta a ponta com EmpresaTeste3/4 OK; erro "não é possível abrir o arquivo" nos testes veio de PDFs falsos de 26 bytes (usar PDF válido, ex. PyMuPDF `fitz`, para testar). Até 3 arquivos no Storage do Supabase (bucket privado `bmax-orcamentos`, boxer-sistemas) + UMA nota no card com link fixo `/api/orcamento/<token>` (SEM login, nunca expira, revogável). NÃO criar campo novo no RD, só a nota. Falha da nota → cron sync-revenda-rep-rd reenvia. Código: `src/services/orcamento.service.js`; DDL+bucket: `scripts/create-orcamentos.js` (rodar uma vez em produção, com confirmação).
 - Robôs sync-revenda-rep-rd (detecta PCI12, troca dono p/ André, e-mail) e pci12-followup (24h/48h) rodam 07h/10h/14h/17h Brasília (10/13/17/20 UTC).
 - detectado_em/assumido_em são timestamp sem fuso gravados em UTC; Vercel lê certo, script local em UTC-3 lê +3h (não é bug; usar TZ=UTC em diagnóstico).
-- Logs da Vercel (vercel logs) guardam só as últimas rodadas — não dá para investigar histórico de dias.
+- Logs da Vercel (vercel logs) guardam só as últimas rodadas (~1h) — não dá para investigar histórico de dias; o nível "error" do CLI costuma ser ruído (aviso DEP0169 com status 200). Para saber se um robô rodou, olhar o efeito no banco (bmax_pci12_tracking etc.).
+
+## Regras e lições de 27-28/10/2026 (Portal BMax)
+- PCI do lead da REVENDA é sempre o da regra do projeto pelo produto: Máquinas=PCI 15, Laser=PCI 14, Robô=PCI 13 (`PCI_POR_SEGMENTO`); 12a/12b é SÓ para lead enviado PELA Boxer à revenda. Perguntas na Nova Negociação (revenda, representante e admin; o campo "Funil" foi removido): Produto + Caminho (BOX>REV revenda vende | BOX+REV>IND Boxer vende e paga comissão) + "Quem atende o cliente?" (revenda → card fica no funil BMAX com dono "Revenda" e NÃO vai p/ vendedor Boxer; Boxer → Negociação/Indústria com vendedor da região ou o Responsável escolhido). PCI 12/12a/12b não faz as perguntas (nasce em Indústria Interno, fluxo PCI12). O funil é decidido só no servidor.
+- Trava na criação (todos os perfis): CNPJ com dígito verificador inválido é recusado; nome igual (sem espaço/pontuação) NA MESMA CIDADE em lead ativo é recusado; CNPJ repetido continua bloqueado (André quer manter). Unidade da mesma empresa (raiz de CNPJ) na mesma cidade NÃO bloqueia: nota ATENCAO no card + aviso (Portal e Motor).
+- Nome da revenda no RD é a chave única (RD, Portal, Motor): POST/PATCH em Gestão recusam duplicado entre ativas. Lead cuja REVENDA/LOJA não tem login que o veja = invisível à revenda (caso Heitor/Suprimig): o robô de 48h NÃO conta prazo nesses cards e o admin recebe alerta/e-mail ("Revenda sem login").
+- Cadastro de revenda cria o login junto (senha inicial = parte do e-mail antes do @, usuário = e-mail minúsculo, acesso ao Motor, sem e-mail de credenciais a menos que marcado). `Revendas.cnpj` é UNIQUE no Postgres = 1 login por CNPJ até o modelo de revenda com código único.
+- REPRESENTANTE do card da revenda é preenchido pelo cadastro (alias do RD). No RD o Victor tem 2 nomes ("Victor Lantyer" e "Victor VLM") — consolidar.
+- Cards em etapa perdido/excluído não aparecem no Portal. Fechar duplicado = mover de etapa (a API não marca a etiqueta "Perdida").
+- RD v1: 422 se faltar campo obrigatório da etapa (ex.: ESTADO vazio impede qualquer edição); GET /deals/:id NÃO traz `contacts` (usar /deals/:id/contacts); não apaga deals.
+- Auditoria: `AuditLogs` (quem/quando/ação/metadata) + `Negociacoes` (CNPJ como digitado) + tarefas/notas do RD explicam quem criou cada card; edição direta no RD não deixa rastro na API.
+- Ferramental: o PowerShell deste ambiente quebra com comandos longos com aspas/crase/&/barra-mais (chegou a tentar "apagar" um caminho por engano) — criar scripts com a ferramenta Write em scripts/_x.js, rodar e apagar pelo caminho exato; Git Bash às vezes dá erro cygwin (usar PowerShell); dotenv com quiet:true não imprime a linha "injected env" (não usar Skip 1 às cegas); Supabase às vezes responde 521/522 (tentar de novo). `git push origin main` publica sozinho (Portal na Vercel, Motor no Cloudflare Pages via Actions); push recusado por não ser fast-forward: `git pull --rebase origin main` e enviar de novo.

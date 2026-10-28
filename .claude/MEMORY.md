@@ -16,10 +16,11 @@
 - [BMax audit logging & rate limiting](project_bmax_audit_ratelimit.md) — Full audit trail (who/when/IP/changes), rate limits (login 10/15min, users 20/15min, filiais 20/15min), CEP duplicate validation per revenda.
 - [BMax Comissões — Auditoria](project_bmax_comissoes_auditoria.md) — 14/09: auditoria comissões, Segmento/Origem por PCI, dedup reps (email não nome), fix upsert on_conflict, export Excel data/colunas, banner erro CNPJ.
 - [BMax PCI12 — troca de responsável](project_bmax_pci12_owner_switch.md) — 14/09 seletor+48h; 17/09 CORRIGIDO: PCI12A nunca muda de funil (card sumia do painel) + 5 bugs de email/segmento achados na auditoria.
-- [Portal BMax — lógica e regras](feedback_portal_bmax_logica.md) — PCI12 (48h→12b, 60d 12a→Prazo Vencido), escopo consumíveis, vínculo rep/RD, nomes de revenda/grupos, sem migration tooling, 504 em varredura (cópia da memória pessoal, 14/10/2026).
+- [Portal BMax — lógica e regras](feedback_portal_bmax_logica.md) — PCI12 (48h→12b, 60d 12a→Prazo Vencido), escopo consumíveis, vínculo rep/RD, nomes de revenda/grupos, sem migration tooling, 504 em varredura; 28/10: PCI 13/14/15 pelo produto + "quem atende", nome único da revenda, travas CNPJ/nome+cidade, lições de ferramental (cópia da memória pessoal, 28/10/2026).
 - [Portal BMax — visão geral](project_bmax_portal.md) — Vercel+Supabase+RD V1, nomes unificados, vários logins por revenda.
 - [BMax Motor PCI](project_bmax_motor.md) — 16 PCIs, Diamante operacional, Motor somente-leitura em cadastro (RLS), só o Portal escreve.
 - [BMax RD campos V1](project_bmax_api_fields.md) — custom fields do deal; "REPRESENTANTE " tem espaço no fim.
 - [BMax documentos](project_bmax_docs.md) — BMAX CRITERIOS.xlsx (aba REVENDA) é a fonte mestra de classe/rep/e-mail.
 - [BMax WhatsApp](project_bmax_whatsapp.md) — avisos só-aviso via Twilio, sem botão; textos aprovados 14/10/2026; PENDÊNCIAS do André (número, Twilio, modelos, celulares).
-- [BMax PENDÊNCIAS](project_bmax_pendencias.md) — o que o André deve fazer/devolver (planilha de nomes de revenda, WhatsApp, limpeza de cards de teste) e o que já foi entregue em 14-15/10/2026; lembrar a cada sessão.
+- [BMax PENDÊNCIAS](project_bmax_pendencias.md) — o que está aberto (André × Claude) e o que foi entregue em 14-28/10/2026: planilha v2 do agrupamento de revendas, nome único do rep Victor, Carthoms/Mecalor, WhatsApp, cashback automático por NF do ZEN, revenda com código único, workflow diário do Motor; lembrar a cada sessão.
+- [BMax modelo revenda/grupo](project_bmax_modelo_revenda_grupo.md) — arquitetura-alvo (27-28/10): código único de revenda juntando lojas/CNPJs, login e representante ligados por código, RD mostra só o nome da revenda; o que já foi feito e o que falta (destrava os 4 logins extras).

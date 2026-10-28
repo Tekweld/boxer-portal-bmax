@@ -6,7 +6,7 @@ metadata:
   type: project
   atualizado: 08/09/2026
   originSessionId: 87fa48d5-0558-4034-9609-8fbcde3f3b32
-  modified: 2026-09-21T18:18:20.679Z
+  modified: 2026-10-28T21:02:14.240Z
 ---
 
 ## CORREÇÃO IMPORTANTE (21/09/2026) — Motor virou somente-leitura em cadastro
@@ -173,3 +173,6 @@ Todos os 16 PCIs conferidos — modelos comerciais, comissões, representante. S
 - ~~MSAL token~~ — renovado 29/07/2026 para bmax-motor E bav-boxer (expira ~26/09/2026)
 - ~~ZEN sync workflow~~ — fix msal dependency (commit `4ed2624`). Jobs 1,2,4,5,6 OK. Job 3 falha (ver pendência #5)
 - ~~Auth~~ — reset senha e criação de usuário já implementados no código (não era pendência real)
+
+## Consulta de Lead — avisos de CNPJ e filiais (28/10/2026)
+A consulta por CNPJ (`GET /api/motor/consulta-lead` no Portal) passou a devolver `cnpjInvalido`, `unidades` (outros leads ATIVOS da mesma empresa = mesma raiz de CNPJ, CNPJ diferente, com cidade/funil/etapa/responsável e `mesmaCidade`) e `cidadeConsultada` (BrasilAPI, 3 s, pode vir nula). O Motor (`index.html`, `consultaAvisosCnpjHtml()`) mostra aviso de CNPJ inválido e destaca unidade na mesma cidade ("alinhe o atendimento"); filial em outra cidade é só informação. A Nova Negociação do Portal aplica as mesmas regras. Deploy do Motor = push em main (Actions "Deploy on Push" → Cloudflare Pages). Outra pessoa (AyrtonBoxerSoldas) também mexe na Consulta de Lead — fazer `git pull --rebase` antes de enviar. PENDENTE: workflow "Atualizar BMax (diário)" falhou em 28/10 17:02Z (run 40731844205, etapa "Sincronizar Excel → Supabase").
