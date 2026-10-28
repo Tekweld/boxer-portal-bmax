@@ -284,6 +284,7 @@ $("btnGoLogin").addEventListener("click", () => {
 $("btnNovaNegociacao").addEventListener("click", () => { hideNegFormError(); show("negociacoes"); });
 const ALERT_LABELS = {
   semRevenda: "Sem revenda",
+  revendaSemLogin: "Revenda sem login",
   semPci: "Sem PCI",
   semOportunidade: "Sem Op. de Venda",
   semRepresentante: "Sem Rep.",

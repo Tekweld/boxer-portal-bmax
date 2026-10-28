@@ -1076,6 +1076,14 @@ async function buildLeadsCards(role, identifier, grupo) {
 
     const cards = await Promise.all(leads.map(lead => mapDealToCard(lead, role, creditosMap)));
     for (const c of cards) c.prazo48hExpirou = prazoExpirado.has(c.id);
+
+    // Admin: marca lead cuja revenda está escrita no RD mas nenhum login do Portal enxerga (alerta na tela)
+    if (role === "adm") {
+        try {
+            const { revendaSemLogin } = require("./revendaVinculo.service");
+            for (const c of cards) c.revendaSemLogin = await revendaSemLogin(c.revenda);
+        } catch (e) { logger.error({ message: "Falha ao marcar leads sem login de revenda", error: e.message }); }
+    }
     return cards;
 }
 

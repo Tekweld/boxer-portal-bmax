@@ -176,6 +176,10 @@
         <span class="alert-icon">⚠</span>
         <span><strong id="qtdSemClasse">0</strong> Sem Classe Preço</span>
       </div>
+      <div id="alertaRevendaSemLogin" class="alert-bar alert-danger hidden" onclick="toggleAlertFilter('revendaSemLogin')" title="A revenda escrita no RD não corresponde a nenhum login do Portal: ela não vê o lead e o prazo de 48h não conta. Corrija o nome no card.">
+        <span class="alert-icon">⚠</span>
+        <span><strong id="qtdRevendaSemLogin">0</strong> Revenda sem login</span>
+      </div>
       <div id="alertaRepInvalido" class="alert-bar alert-danger hidden" onclick="toggleAlertFilter('repInvalido')">
         <span class="alert-icon">⚠</span>
         <span><strong id="qtdRepInvalido">0</strong> Nome Rep. Invalido</span>
@@ -631,12 +635,12 @@
   <div class="toast-container" id="toastContainer"></div>
   <script src="js/session-isolation.js?v=1"></script>
   <script src="js/utils.js?v=16"></script>
-  <script src="js/leads.js?v=23"></script>
+  <script src="js/leads.js?v=24"></script>
   <script src="js/negociacoes.js?v=19"></script>
   <script src="js/cadastro.js?v=16"></script>
   <script src="js/cashback.js?v=21"></script>
   <script src="js/admin.js?v=35"></script>
   <script src="js/audit.js?v=17"></script>
-  <script src="js/app.js?v=26"></script>
+  <script src="js/app.js?v=27"></script>
 </body>
 </html>

@@ -376,6 +376,36 @@ app.get("/api/cron/sync-revenda-rep-rd", async (req, res) => {
             logger.error({ message: "Erro na varredura de leads PCI12 pendentes (reconciliação)", error: e.message });
         }
 
+        // Leads em aberto cuja REVENDA/LOJA está escrita no RD mas nenhum login do Portal enxerga (caso
+        // Heitor/Suprimig, 28/10/2026): a revenda não vê o lead. Avisa o admin 1x por lead (snapshot) para corrigir
+        // o nome no card; o painel do admin também mostra o alerta "Revenda sem login".
+        try {
+            const { getLeads, getCustomField } = require("./services/rd.leads.service");
+            const { revendaSemLogin } = require("./services/revendaVinculo.service");
+            const { sendEmail } = require("./services/email.service");
+            const todos = await getLeads("admin", "adm");
+            const jaAvisadosSL = await getSnapshot("leads_sem_login_avisados");
+            const semLogin = [];
+            for (const d of todos) {
+                if (d.win === true || d.win === false) continue;
+                const rev = String(getCustomField(d, "REVENDA/LOJA") || "").trim();
+                if (await revendaSemLogin(rev)) semLogin.push({ id: d.id || d._id, nome: d.name || "?????", revenda: rev, pci: getCustomField(d, "PERFIL PCI") || "" });
+            }
+            const novos = semLogin.filter(x => !jaAvisadosSL[x.id]);
+            if (novos.length) {
+                await sendEmail(process.env.EMAIL_FALLBACK || "andre.coelho@boxersoldas.com.br",
+                    `BMAX - ${novos.length} lead(s) com revenda sem login no Portal (corrigir o nome no RD)`,
+                    `<p>Os leads abaixo estão no RD com um nome de revenda que <strong>nenhum login do Portal enxerga</strong>. A revenda não vê o lead e o prazo de 48h (PCI 12) não é contado enquanto isso:</p>
+                     <ul>${novos.map(x => `<li><a href="https://crm.rdstation.com/app/deals/${x.id}">${x.nome}</a> — REVENDA/LOJA: <strong>${x.revenda}</strong> ${x.pci ? "(" + x.pci + ")" : ""}</li>`).join("")}</ul>
+                     <p>Corrija o campo REVENDA/LOJA no card para o nome da revenda cadastrada. No Portal (admin) há o alerta "Revenda sem login" listando todos.</p>`);
+            }
+            await saveSnapshot("leads_sem_login_avisados", Object.fromEntries(semLogin.map(x => [x.id, true])));
+            resultado.leadsSemLogin = semLogin.length;
+            resultado.leadsSemLoginAvisados = novos.length;
+        } catch (e) {
+            logger.error({ message: "Erro ao varrer leads com revenda sem login", error: e.message });
+        }
+
         // Notas de orçamento que não chegaram ao card na hora (RD instável): reenvia (André, 14/10/2026).
         try {
             const { createNote } = require("./services/rd.leads.service");
@@ -445,6 +475,20 @@ app.get("/api/cron/pci12-followup", async (req, res) => {
                 // só encerra o rastreamento aqui.
                 await marcarResolvido(dealId);
                 resultado.resolvidosDetectados++;
+                continue;
+            }
+
+            // Trava (caso Heitor/Suprimig, 28/10/2026): se nenhum login do Portal enxerga a REVENDA/LOJA do card, a revenda
+            // não tem como responder — o prazo NÃO conta (relógio zerado a cada rodada) e o admin é avisado (sync-revenda-rep-rd).
+            const revendaDoCard = getCustomField(deal, "REVENDA/LOJA") || "";
+            if (await require("./services/revendaVinculo.service").revendaSemLogin(revendaDoCard)) {
+                resultado.semVinculo = resultado.semVinculo || [];
+                resultado.semVinculo.push({ dealId, nome: deal.name, revenda: revendaDoCard });
+                if (!dryRun) {
+                    await require("./database").sequelize.query(
+                        `UPDATE bmax_pci12_tracking SET detectado_em = now(), email_24h_enviado_em = NULL WHERE deal_id = :dealId`,
+                        { replacements: { dealId }, type: require("sequelize").QueryTypes.UPDATE });
+                }
                 continue;
             }
 
