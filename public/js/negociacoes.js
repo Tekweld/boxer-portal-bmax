@@ -265,9 +265,13 @@ $("btnSalvarNegociacao").addEventListener("click", async () => {
     return;
   }
 
-  await res.json();
+  const criada = await res.json();
   hideNegFormError();
   loadNegociacoes();
+  // Aviso de outra unidade da mesma empresa na mesma cidade: o cadastro foi salvo, mas é preciso alinhar o atendimento
+  if (criada && Array.isArray(criada.avisos) && criada.avisos.length) {
+    setTimeout(() => toast("Atenção: " + criada.avisos[0], "warn", 12000), 400);
+  }
 
   $("negCnpj").value = "";
   $("negCep").value = "";

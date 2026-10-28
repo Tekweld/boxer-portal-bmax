@@ -422,6 +422,38 @@ async function getLeadDuplicadoPorNome(nome, cidade) {
     return deals.find(d => dealBloqueiaDuplicata(d) && chaveNome(d.name) === k && chaveNome(getCustomField(d, 'CIDADE')) === c) || null;
 }
 
+// Outras UNIDADES da mesma empresa (mesma raiz de CNPJ = 8 primeiros dígitos, CNPJ diferente) com lead ATIVO.
+// Indústria com filiais pelo Brasil não é problema (atendimentos diferentes); filial NA MESMA CIDADE exige alinhar
+// o atendimento — por isso `mesmaCidade` (André, 28/10/2026). Regra única: Portal (Nova Negociação) e Motor (Consulta).
+async function analisarUnidadesDaEmpresa({ cnpj, cidade, deals = null }) {
+    const d14 = String(cnpj || "").replace(/\D/g, "");
+    if (d14.length !== 14) return [];
+    const raiz = d14.slice(0, 8), c = chaveNome(cidade);
+    const todos = deals || await fetchAllDealsAllPipelines();
+    return todos
+        .filter(d => dealBloqueiaDuplicata(d))
+        .filter(d => { const x = String(getCustomField(d, "CNPJ") || "").replace(/\D/g, ""); return x.length === 14 && x.slice(0, 8) === raiz && x !== d14; })
+        .map(d => ({
+            id: d.id || d._id, nome: d.name || "", cnpj: getCustomField(d, "CNPJ") || "",
+            cidade: getCustomField(d, "CIDADE") || "", estado: getCustomField(d, "ESTADO") || "",
+            funil: d._pipelineNome || "", estagio: (d.deal_stage && d.deal_stage.name) || "", responsavel: (d.user && d.user.name) || "",
+            mesmaCidade: !!c && chaveNome(getCustomField(d, "CIDADE")) === c
+        }));
+}
+
+// Cidade/UF do CNPJ consultado (BrasilAPI, pública) — o Motor só recebe o CNPJ e precisa dela para saber se uma
+// unidade é "na mesma cidade". Falha/lentidão = sem comparação de cidade (nunca derruba a consulta).
+async function cidadeDoCnpj(cnpj14) {
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), 3000);
+    try {
+        const r = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cnpj14}`, { signal: ctrl.signal });
+        if (!r.ok) return null;
+        const j = await r.json();
+        return j && j.municipio ? { cidade: j.municipio, uf: j.uf || "" } : null;
+    } catch (_) { return null; } finally { clearTimeout(t); }
+}
+
 async function getLeadByCnpj(cnpj) {
     const cnpjClean = normalizeCnpj(cnpj);
     if (!cnpjClean) return null;
@@ -1053,10 +1085,17 @@ async function buscarLead(termoBruto) {
         const encontrados = deals
             .filter(d => soDigitos(getCustomField(d, "CNPJ")) === digitos)
             .map(d => ({ ...dealParaResultado(d), bloqueiaNovaNegociacao: dealBloqueiaDuplicata(d) }));
+        // mesma regra da Nova Negociação do Portal: CNPJ inválido e outras unidades da mesma empresa (filiais)
+        const valido = cnpjValido(digitos);
+        const cidadeConsultada = valido ? await cidadeDoCnpj(digitos) : null;
+        const unidades = valido ? await analisarUnidadesDaEmpresa({ cnpj: digitos, cidade: cidadeConsultada && cidadeConsultada.cidade, deals }) : [];
         return {
             termo, tipoDetectado: tipo, total: encontrados.length, resultados: encontrados,
             indiceDisponivel: true,
-            bloqueiaNovaNegociacao: encontrados.some(r => r.bloqueiaNovaNegociacao)
+            bloqueiaNovaNegociacao: encontrados.some(r => r.bloqueiaNovaNegociacao),
+            cnpjInvalido: !valido,
+            cidadeConsultada,
+            unidades
         };
     }
 
@@ -1189,6 +1228,7 @@ module.exports = {
     resolverRepresentanteDaRevenda,
     cnpjValido,
     getLeadDuplicadoPorNome,
+    analisarUnidadesDaEmpresa,
     renomearRepresentanteNoRD,
     renomearRevendaNoRD,
     varrerEAtualizarDealsNoRD,

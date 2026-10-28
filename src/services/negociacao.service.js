@@ -1,5 +1,5 @@
 const db = require("../database");
-const { createLead, createTask, createNote, getLeadByCnpj, limparCacheVarreduraFunis, resolverRepresentanteDaRevenda, cnpjValido, getLeadDuplicadoPorNome, getCustomField } = require("./rd.leads.service");
+const { createLead, createTask, createNote, getLeadByCnpj, limparCacheVarreduraFunis, resolverRepresentanteDaRevenda, cnpjValido, getLeadDuplicadoPorNome, analisarUnidadesDaEmpresa, getCustomField } = require("./rd.leads.service");
 const { validarParaAnexar, anexarENotificarRD } = require("./orcamento.service");
 const { sendEmail } = require("./email.service");
 const { getRepresentativeEmailByName, getRevendaEmailByName } = require("./user.service");
@@ -38,6 +38,12 @@ async function createNegociacao(data) {
     if (duplicadoPorNome) {
         throw new Error(`Já existe um Lead ativo com este nome nesta cidade no RD Station ("${duplicadoPorNome.name}", CNPJ ${getCustomField(duplicadoPorNome, "CNPJ") || "não informado"}). Se for o mesmo cliente, use o CNPJ correto; se for outra empresa, ajuste o nome.`);
     }
+    // Outra UNIDADE da mesma empresa (mesma raiz de CNPJ) com lead ativo NA MESMA CIDADE: não bloqueia (filiais são legítimas),
+    // mas sinaliza no card e avisa quem cadastrou, para alinhar o atendimento (André, 28/10/2026).
+    let unidadesMesmaCidade = [];
+    try { unidadesMesmaCidade = (await analisarUnidadesDaEmpresa({ cnpj: cnpjToSearch, cidade: data.cidade })).filter(u => u.mesmaCidade); }
+    catch (e) { logger.warn({ message: "Falha ao checar unidades da mesma empresa", error: e.message }); }
+
     // Orçamentos anexados (até 3): valida ANTES de criar o card, pra um arquivo ruim não deixar lead pela metade.
     const orcamentos = await validarParaAnexar({ id: data.user_id }, data.orcamentos);
     // Orçamento é OBRIGATÓRIO (André, 15/10/2026) para qualquer perfil que registre negociação — imposto aqui
@@ -124,6 +130,16 @@ async function createNegociacao(data) {
 
     await createTask(taskData);
 
+    const avisos = [];
+    if (unidadesMesmaCidade.length) {
+        const sa = s => String(s || "").normalize("NFD").replace(/[̀-ͯ]/g, ""); // nota do RD corrompe acento
+        const lista = unidadesMesmaCidade.map(u => `${sa(u.nome)} (CNPJ ${u.cnpj}, ${sa(u.funil)}, ${sa(u.estagio)}, resp. ${sa(u.responsavel)})`).join("; ");
+        avisos.push(`A mesma empresa já tem negociação ativa nesta cidade: ${unidadesMesmaCidade.map(u => u.nome).join("; ")}. Alinhe o atendimento com a Boxer antes de contatar o cliente.`);
+        try {
+            await createNote(leadId, `ATENCAO: a mesma empresa (raiz do CNPJ) ja tem lead ativo na MESMA CIDADE: ${lista}. Alinhar o atendimento antes de contatar o cliente.`);
+        } catch (e) { logger.error({ message: "Falha ao registrar nota de unidade na mesma cidade", dealId: leadId, error: e.message }); }
+    }
+
     // Link(s) do orçamento na nota do card. Se o RD falhar, o arquivo já está vinculado e o cron
     // sync-revenda-rep-rd reenvia a nota — a negociação NÃO falha por causa disso.
     if (orcamentos.length) {
@@ -197,7 +213,9 @@ async function createNegociacao(data) {
         logger.error({ message: "Falha ao enviar e-mail de notificação", error: error.message });
     }
 
-    return novaNegociacao;
+    const resposta = novaNegociacao.get({ plain: true });
+    resposta.avisos = avisos;
+    return resposta;
 }
 
 async function listNegociacoes(user) {
