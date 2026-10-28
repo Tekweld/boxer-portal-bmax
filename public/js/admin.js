@@ -900,7 +900,7 @@ function renderRevendasBmax() {
             <td>${esc(r.rep || "—")}</td>
             <td>${badge}</td>
             <td style="white-space:nowrap">
-                <button class="btn btn-sm" onclick='openRevBmaxModal(${JSON.stringify(r)})'>Editar</button>
+                <button class="btn btn-sm" onclick="editarRevBmax('${esc(r.id)}')">Editar</button>
                 <button class="btn btn-sm ${r.ativo ? "btn-danger" : "primary"}" onclick="toggleRevBmax('${r.id}',${!r.ativo})">${r.ativo ? "Desativar" : "Ativar"}</button>
             </td>
         </tr>`;
@@ -1028,35 +1028,32 @@ function valorNomeRdSelecionado(idSelect, idInputNovo) {
     return select.value;
 }
 
+// Botão Editar da lista: busca a revenda pelo id (antes o objeto inteiro ia serializado dentro do onclick,
+// e um apóstrofo em qualquer campo — ex.: "Luitex Sbo" — quebrava o atributo e o botão não fazia nada).
+function editarRevBmax(id) {
+    const rev = ADMIN_REV_BMAX.find(r => String(r.id) === String(id));
+    if (!rev) return toast("Revenda não encontrada — recarregue a lista", "error");
+    return openRevBmaxModal(rev);
+}
+
 async function openRevBmaxModal(rev) {
     const isEdit = !!rev;
     const modal = $("adminModal");
     const content = $("adminModalContent");
 
-    let usuariosDisponiveis = [];
-    let usuariosVinculados = [];
-    let opcoesRD = [];
-    if (isEdit) {
-        try {
-            const token = localStorage.getItem("token");
-            const res = await adminFetch(`${API_URL}/admin/revendas-bmax/usuarios-disponiveis`, { headers: { Authorization: `Bearer ${token}` } });
-            usuariosDisponiveis = res.ok ? await res.json() : [];
-        } catch { usuariosDisponiveis = []; }
-        try {
-            const token = localStorage.getItem("token");
-            const res = await adminFetch(`${API_URL}/admin/revendas-bmax/${rev.id}/usuarios-vinculados`, { headers: { Authorization: `Bearer ${token}` } });
-            usuariosVinculados = res.ok ? await res.json() : [];
-        } catch { usuariosVinculados = []; }
-    }
-    // Lista AO VIVO do picklist REVENDA/LOJA do RD — busca de novo toda vez que o
-    // modal abre (não usar cache velho aqui: é exatamente pra pegar rename feito
-    // direto no RD por outra via). Alimenta o datalist do campo "Nome no RD CRM".
-    try {
-        const token = localStorage.getItem("token");
-        const res = await adminFetch(`${API_URL}/admin/revendas-rd`, { headers: { Authorization: `Bearer ${token}` } });
-        const data = res.ok ? await res.json() : { revendas: [] };
-        opcoesRD = (data.revendas || []).map(r => r.nome);
-    } catch { opcoesRD = []; }
+    // As 3 consultas (logins disponíveis, logins vinculados e lista AO VIVO do picklist REVENDA/LOJA do RD)
+    // rodam em PARALELO e com teto de 8s cada: antes eram sequenciais e sem teto, então com o Supabase/RD
+    // lento o botão Editar parecia "não fazer nada" (28/10/2026). Falha ou demora = lista vazia, o modal abre.
+    // A lista do RD é buscada de novo a cada abertura (pega rename feito direto no RD) e alimenta o "Nome no RD CRM".
+    const comTeto = (p, padrao) => Promise.race([p.catch(() => padrao), new Promise(r => setTimeout(() => r(padrao), 8000))]);
+    const token = localStorage.getItem("token");
+    const getJson = async (url, padrao) => { const res = await adminFetch(url, { headers: { Authorization: `Bearer ${token}` } }); return res.ok ? await res.json() : padrao; };
+    const [usuariosDisponiveis, usuariosVinculados, dadosRD] = await Promise.all([
+        isEdit ? comTeto(getJson(`${API_URL}/admin/revendas-bmax/usuarios-disponiveis`, []), []) : [],
+        isEdit ? comTeto(getJson(`${API_URL}/admin/revendas-bmax/${rev.id}/usuarios-vinculados`, []), []) : [],
+        comTeto(getJson(`${API_URL}/admin/revendas-rd`, { revendas: [] }), { revendas: [] })
+    ]);
+    const opcoesRD = ((dadosRD && dadosRD.revendas) || []).map(r => r.nome);
     OPCOES_REVENDA_RD_ATUAL = opcoesRD;
 
     content.innerHTML = `
