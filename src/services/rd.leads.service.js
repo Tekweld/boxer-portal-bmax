@@ -400,6 +400,28 @@ function dealBloqueiaDuplicata(d) {
     return !(id === RD_STAGE_VENDA_EFETIVADA || id === RD_STAGE_EXCLUIDO || id === RD_STAGE_PERDIDO);
 }
 
+// CNPJ com dígito verificador correto (14 dígitos). Caso CARTHOMS (13-14/10/2026): o mesmo cliente foi cadastrado duas
+// vezes porque um CNPJ foi digitado com dois números trocados (04.580.216 em vez de 04.280.516) — o bloqueio de
+// duplicidade compara texto exato, então o erro de digitação "furava" a trava. CNPJ inválido agora é recusado.
+function cnpjValido(raw) {
+    const d = String(raw || "").replace(/\D/g, "");
+    if (d.length !== 14 || /^(\d)\1+$/.test(d)) return false;
+    const dv = (base, pesos) => { const s = base.split("").reduce((a, n, i) => a + Number(n) * pesos[i], 0); const r = s % 11; return r < 2 ? 0 : 11 - r; };
+    const d1 = dv(d.slice(0, 12), [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2]);
+    const d2 = dv(d.slice(0, 12) + d1, [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2]);
+    return d.endsWith(`${d1}${d2}`);
+}
+
+const chaveNome = s => String(s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9]/g, "");
+
+// Mesmo cliente com CNPJ diferente (digitação): nome igual (ignorando espaço/pontuação) NA MESMA CIDADE num lead ativo.
+async function getLeadDuplicadoPorNome(nome, cidade) {
+    const k = chaveNome(nome), c = chaveNome(cidade);
+    if (k.length < 8 || !c) return null;
+    const deals = await fetchAllDealsAllPipelines();
+    return deals.find(d => dealBloqueiaDuplicata(d) && chaveNome(d.name) === k && chaveNome(getCustomField(d, 'CIDADE')) === c) || null;
+}
+
 async function getLeadByCnpj(cnpj) {
     const cnpjClean = normalizeCnpj(cnpj);
     if (!cnpjClean) return null;
@@ -1165,6 +1187,8 @@ module.exports = {
     syncRepresentantesToRD,
     getAliasMaps,
     resolverRepresentanteDaRevenda,
+    cnpjValido,
+    getLeadDuplicadoPorNome,
     renomearRepresentanteNoRD,
     renomearRevendaNoRD,
     varrerEAtualizarDealsNoRD,

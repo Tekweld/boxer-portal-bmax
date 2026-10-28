@@ -121,6 +121,16 @@ $("negArquivos")?.addEventListener("change", (ev) => {
   renderNegArquivos();
 });
 
+// CNPJ com dígito verificador correto (mesma regra do servidor) — evita cadastrar o mesmo cliente duas vezes por erro de digitação
+function cnpjValidoNeg(raw) {
+  const d = String(raw || "").replace(/\D/g, "");
+  if (d.length !== 14 || /^(\d)\1+$/.test(d)) return false;
+  const dv = (base, pesos) => { const s = base.split("").reduce((a, n, i) => a + Number(n) * pesos[i], 0); const r = s % 11; return r < 2 ? 0 : 11 - r; };
+  const d1 = dv(d.slice(0, 12), [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2]);
+  const d2 = dv(d.slice(0, 12) + d1, [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2]);
+  return d.endsWith(`${d1}${d2}`);
+}
+
 const pciEhDoze = v => /^PCI12/.test(String(v || "").replace(/\s/g, "").toUpperCase());
 const PRODUTO_DO_PCI = { PCI13: "Robo", PCI14: "Laser", PCI15: "Máquinas" };
 
@@ -181,6 +191,7 @@ $("btnSalvarNegociacao").addEventListener("click", async () => {
 
   if (!novaNegociacao.nome.trim()) return toast("Informe o Nome do Cliente.", "warn");
   if (!novaNegociacao.cnpj.trim()) return toast("Informe o CNPJ.", "warn");
+  if (!cnpjValidoNeg(novaNegociacao.cnpj)) return toast("CNPJ inválido: confira os números (o dígito verificador não confere).", "warn");
   if (!novaNegociacao.cidade.trim()) return toast("Informe a Cidade.", "warn");
 
   if (session.role === "revenda") {

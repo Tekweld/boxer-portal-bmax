@@ -1,5 +1,5 @@
 const db = require("../database");
-const { createLead, createTask, createNote, getLeadByCnpj, limparCacheVarreduraFunis, resolverRepresentanteDaRevenda } = require("./rd.leads.service");
+const { createLead, createTask, createNote, getLeadByCnpj, limparCacheVarreduraFunis, resolverRepresentanteDaRevenda, cnpjValido, getLeadDuplicadoPorNome, getCustomField } = require("./rd.leads.service");
 const { validarParaAnexar, anexarENotificarRD } = require("./orcamento.service");
 const { sendEmail } = require("./email.service");
 const { getRepresentativeEmailByName, getRevendaEmailByName } = require("./user.service");
@@ -23,10 +23,20 @@ async function createNegociacao(data) {
 
     const cnpjToSearch = (data.cnpj || '').trim();
 
+    // CNPJ digitado errado cria cliente duplicado (a trava de duplicidade compara texto exato)
+    if (!cnpjValido(cnpjToSearch)) {
+        throw new Error(`CNPJ inválido ("${cnpjToSearch}"): o dígito verificador não confere. Confira os 14 números — um CNPJ errado pode cadastrar o mesmo cliente duas vezes.`);
+    }
+
     const existingLead = await getLeadByCnpj(cnpjToSearch);
     if (existingLead) {
         const existName = existingLead.name || cnpjToSearch;
         throw new Error(`Já existe um Lead ativo com o CNPJ "${cnpjToSearch}" no RD Station (${existName}).`);
+    }
+    // mesmo nome na mesma cidade com outro CNPJ = quase certamente o mesmo cliente
+    const duplicadoPorNome = await getLeadDuplicadoPorNome(data.nome, data.cidade);
+    if (duplicadoPorNome) {
+        throw new Error(`Já existe um Lead ativo com este nome nesta cidade no RD Station ("${duplicadoPorNome.name}", CNPJ ${getCustomField(duplicadoPorNome, "CNPJ") || "não informado"}). Se for o mesmo cliente, use o CNPJ correto; se for outra empresa, ajuste o nome.`);
     }
     // Orçamentos anexados (até 3): valida ANTES de criar o card, pra um arquivo ruim não deixar lead pela metade.
     const orcamentos = await validarParaAnexar({ id: data.user_id }, data.orcamentos);
