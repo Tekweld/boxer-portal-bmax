@@ -303,7 +303,9 @@ async function createLead(negociacao) {
                 { custom_field_id: RD_CUSTOM_FIELDS.REPRESENTANTE, value: negociacao.representante },
                 { custom_field_id: RD_CUSTOM_FIELDS.MAQUINA, value: negociacao.maquinainteresse },
                 { custom_field_id: RD_CUSTOM_FIELDS.NOTAS, value: "Lead BMAX" },
-                { custom_field_id: RD_CUSTOM_FIELDS.PERFIL_PCI, value: pci }
+                { custom_field_id: RD_CUSTOM_FIELDS.PERFIL_PCI, value: pci },
+                // Segmento (Máquinas/Laser/Robo) escolhido na Nova Negociação da revenda — define o PCI 13/14/15
+                ...(negociacao.segmento ? [{ custom_field_id: RD_CUSTOM_FIELDS.SEGMENTO_PRODUTO, value: negociacao.segmento }] : [])
             ]
         }
     };

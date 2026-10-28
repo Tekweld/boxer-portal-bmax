@@ -121,6 +121,13 @@ $("negArquivos")?.addEventListener("change", (ev) => {
   renderNegArquivos();
 });
 
+// "Quem atende o cliente?" só aparece quando a Boxer vende (a revenda que vende já atende sozinha)
+$("negCaminho").addEventListener("change", () => {
+  const boxerVende = $("negCaminho").value === "BOX+REV>IND";
+  $("campoAtendimento").classList.toggle("hidden", !boxerVende);
+  if (!boxerVende) $("negAtendimento").value = "";
+});
+
 $("btnSalvarNegociacao").addEventListener("click", async () => {
   hideNegFormError();
   if (negArquivos.some(a => a.uploading)) return toast("Aguarde o envio dos arquivos terminar.", "warn");
@@ -145,9 +152,14 @@ $("btnSalvarNegociacao").addEventListener("click", async () => {
     novaNegociacao.revenda = session.name;
 
     if (!$("negEstado").value.trim()) return toast("Informe o Estado.", "warn");
+    if (!$("negSegmento").value) return toast("Selecione o produto do lead (Máquinas, Laser ou Robô).", "warn");
     if (!$("negCaminho").value) return toast("Selecione o Caminho de Venda.", "warn");
+    // "Quem atende o cliente?" só vale quando a Boxer vende; se a revenda vende, ela mesma atende
+    if ($("negCaminho").value === "BOX+REV>IND" && !$("negAtendimento").value) return toast("Informe quem atende o cliente.", "warn");
     novaNegociacao.estado = $("negEstado").value.trim();
+    novaNegociacao.segmento = $("negSegmento").value;
     novaNegociacao.caminho = $("negCaminho").value;
+    novaNegociacao.atendimento = $("negCaminho").value === "BOX>REV" ? "revenda" : $("negAtendimento").value;
   } else {
     novaNegociacao.revenda = $("negRevenda").value;
   }
@@ -209,6 +221,9 @@ $("btnSalvarNegociacao").addEventListener("click", async () => {
   $("negPci").value = "";
   $("negEstado").value = "";
   $("negCaminho").value = "";
+  $("negSegmento").value = "";
+  $("negAtendimento").value = "";
+  $("campoAtendimento").classList.add("hidden");
   if ($("negFunil")) $("negFunil").value = "bmax";
 
   toast("Negociação Registrada!");

@@ -294,4 +294,36 @@ async function aplicarCaminhoVenda(dealId, caminho, cidade, estado, opts = {}) {
     return { novoPci, responsavel, result };
 }
 
-module.exports = { aplicarCaminhoVenda };
+// Lead TRAZIDO PELA REVENDA na Nova Negociação (André, 28/10/2026). O PCI já nasce correto (13/14/15 pelo produto)
+// e NUNCA muda aqui — as duas perguntas só decidem PARA ONDE o card vai:
+//   caminho:      BOX>REV (revenda vende) | BOX+REV>IND (Boxer vende e paga comissão à revenda)
+//   atendimento:  "revenda" -> o card NÃO vai para vendedor da Boxer (fica no funil BMAX, dono "Revenda");
+//                 "boxer"   -> vai para Negociação (Indústria) com o vendedor responsável da região.
+async function encaminharLeadDaRevenda(dealId, { caminho, atendimento, cidade, estado, pci }) {
+    const descCaminho = caminho === "BOX+REV>IND" ? "Boxer vende e a revenda ganha comissao" : "Revenda vende";
+    if (atendimento === "revenda") {
+        await createTask({
+            deal_id: dealId,
+            name: "Revenda conduz o atendimento",
+            notes: `Lead trazido pela revenda (${pci}). A REVENDA atende o cliente - vendedor Boxer nao deve contatar o cliente. Caminho: ${descCaminho}.`,
+            owner_id: RD_OWNERS["Revenda"],
+            type: "task"
+        });
+        return { atendimento };
+    }
+
+    const responsavel = await lerPlanilhaResponsavel(cidade, estado);
+    const responsavelId = responsavel ? RD_OWNERS[responsavel] : null;
+    if (!responsavelId) throw erroValidacao(`Responsável não encontrado para a cidade "${cidade}" e estado "${estado}"`);
+    await updateLead(dealId, { data: { owner_id: `${responsavelId}`, stage_id: RD_STAGE_NEGOCIACAO } });
+    await createTask({
+        deal_id: dealId,
+        name: "Revenda Autorizou",
+        notes: `Lead trazido pela revenda (${pci}). A revenda pediu que a BOXER atenda o cliente. Caminho: ${descCaminho}.`,
+        owner_id: RD_OWNER_DEFAULT,
+        type: "task"
+    });
+    return { atendimento, responsavel };
+}
+
+module.exports = { aplicarCaminhoVenda, encaminharLeadDaRevenda };

@@ -130,6 +130,14 @@ const REVENDA_SEM_CREDITO = [...REVENDA_INVALIDOS, "Sem Revenda"];
 // ─── PCI por caminho de venda ────────────────────────────────
 // PCI 12a = BOX>REV (revenda atende) — NUNCA inverter
 // PCI 12b = BOX+REV>IND (Boxer vende) — NUNCA inverter
+// Lead TRAZIDO PELA REVENDA (Nova Negociação): o PCI é o da regra do projeto, pelo produto — Máquina=15, Laser=14,
+// Robô=13 (André, 28/10/2026). Os caminhos/atendimento só mudam PARA ONDE o card vai, nunca o PCI.
+const PCI_POR_SEGMENTO = {
+    "Máquinas": "PCI 15",
+    "Laser": "PCI 14",
+    "Robo": "PCI 13"
+};
+
 const PCI_POR_CAMINHO = {
     "BOX>REV": "PCI 12a",
     "BOX+REV>IND": "PCI 12b"
@@ -173,6 +181,7 @@ module.exports = {
     REVENDA_INVALIDOS,
     REVENDA_SEM_CREDITO,
     PCI_POR_CAMINHO,
+    PCI_POR_SEGMENTO,
     EMAIL_FALLBACK,
     ESTADOS
 };

@@ -293,11 +293,28 @@
             <input type="text" id="negEstado" placeholder="UF ou nome do estado">
           </div>
           <div class="field">
+            <label>Produto do Lead <span class="req">*</span></label>
+            <select id="negSegmento">
+              <option value="">Selecione o produto</option>
+              <option value="Máquinas">Máquinas (PCI 15)</option>
+              <option value="Laser">Laser (PCI 14)</option>
+              <option value="Robo">Robô (PCI 13)</option>
+            </select>
+          </div>
+          <div class="field">
             <label>Caminho de Venda <span class="req">*</span></label>
             <select id="negCaminho">
               <option value="">Como deseja atender este lead?</option>
               <option value="BOX>REV">Eu assumo a venda (revenda atende)</option>
               <option value="BOX+REV>IND">Boxer vende, eu ganho comissao</option>
+            </select>
+          </div>
+          <div class="field hidden" id="campoAtendimento">
+            <label>Quem atende o cliente? <span class="req">*</span></label>
+            <select id="negAtendimento">
+              <option value="">Selecione</option>
+              <option value="revenda">Eu atendo o cliente (o lead não vai para vendedor Boxer)</option>
+              <option value="boxer">Um vendedor Boxer atende o cliente</option>
             </select>
           </div>
         </div>
@@ -636,7 +653,7 @@
   <script src="js/session-isolation.js?v=1"></script>
   <script src="js/utils.js?v=16"></script>
   <script src="js/leads.js?v=24"></script>
-  <script src="js/negociacoes.js?v=19"></script>
+  <script src="js/negociacoes.js?v=20"></script>
   <script src="js/cadastro.js?v=16"></script>
   <script src="js/cashback.js?v=21"></script>
   <script src="js/admin.js?v=37"></script>

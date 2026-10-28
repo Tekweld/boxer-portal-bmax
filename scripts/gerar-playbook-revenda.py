@@ -179,14 +179,17 @@ item([("Trouxe um cliente novo? ", True), ("Use ", False), ("+ Nova Negociação
 
 secao("Nova Negociação: registrando um cliente que você trouxe")
 item([("O que preencher: ", True),
-      ("CNPJ, nome do cliente, cidade, estado, caminho de venda e ", False), ("orçamento", True),
+      ("CNPJ, nome do cliente, cidade, estado, produto, caminho de venda e ", False), ("orçamento", True),
       (" são obrigatórios. CEP, máquina de interesse e observações são opcionais. Em ", False), ("Orçamento", True),
       (", anexe de ", False), ("1 a 3 arquivos", True),
       (" (PDF, imagem, Word ou Excel, até 10 MB cada): o time Boxer recebe o link no card do RD, sem precisar de login e sem prazo para expirar.", False)], 91)
-item([("Caminho de venda: ", True), ("Eu assumo a venda", True),
-      (" → o cliente fica registrado em nome da sua revenda, você atende e a venda é sua (sem comissão da Boxer); passam a contar os ", False),
+item([("Produto: ", True), ("Máquinas, Laser ou Robô. Ele define o PCI do lead (15, 14 ou 13, tabela da página 2) e não muda com o caminho escolhido. ", False),
+      ("Caminho de venda: ", True), ("Eu assumo a venda", True),
+      (" → a venda é sua e o cliente fica registrado em nome da sua revenda; passam a contar os ", False),
       ("60 dias corridos", True), (" para registrar Vendido ou Perdido. ", False), ("Boxer vende, eu ganho comissão", True),
-      (" → o time Boxer atende e você recebe a comissão da tabela da página 2.", False)], 91)
+      (" → a Boxer fatura e você recebe o cashback. Nesse caso, diga ", False), ("quem atende o cliente", True),
+      (": se for ", False), ("você", True), (", o lead não aparece para vendedor da Boxer; se for ", False), ("um vendedor Boxer", True),
+      (", ele chega ao vendedor responsável da sua região.", False)], 91)
 item([("Por que meu cadastro foi recusado? ", True),
       ("Antes de salvar, o Portal confere se esse CNPJ já tem uma negociação ativa na Boxer (de qualquer revenda). Se tiver, aparece um aviso vermelho — "
        "“Cadastro NÃO foi salvo” — com o nome do lead que já existe, e nada é criado. Cada cliente só pode ter uma negociação ativa por vez, "
@@ -214,7 +217,7 @@ rico(p, [("Seu cashback é um percentual sobre o ", False), ("valor real da vend
 tabela([6.9, 1.4] + [1.45] * 6, ["Situação do lead", "PCI"] + [f"Classe {i}" for i in range(1, 7)],
        [[d, pci] + [pct(v) for v in vals] for d, pci, vals in COMISSOES], centro_a_partir=1)
 p = doc.add_paragraph(); espaco(p, 3, 0)
-run(p, "Quando você assume a venda (“Eu assumo”), a venda é sua e não há comissão da Boxer sobre ela.", tam=8.5, cor=SEC, italico=True)
+run(p, "Em lead enviado pela Boxer, se você escolher “Eu assumo” (PCI 12a), a venda é sua e não há comissão da Boxer sobre ela.", tam=8.5, cor=SEC, italico=True)
 
 secao("Como acompanhar e usar o cashback")
 item([("Extrato: ", True), ("clique em ", False), ("ver extrato", True),

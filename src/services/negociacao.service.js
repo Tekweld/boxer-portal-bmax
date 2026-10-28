@@ -3,8 +3,8 @@ const { createLead, createTask, createNote, getLeadByCnpj, limparCacheVarreduraF
 const { validarParaAnexar, anexarENotificarRD } = require("./orcamento.service");
 const { sendEmail } = require("./email.service");
 const { getRepresentativeEmailByName, getRevendaEmailByName } = require("./user.service");
-const { aplicarCaminhoVenda } = require("./caminhoVenda.service");
-const { RD_OWNERS, RD_OWNER_DEFAULT, EMAIL_FALLBACK } = require("../config/constants");
+const { aplicarCaminhoVenda, encaminharLeadDaRevenda } = require("./caminhoVenda.service");
+const { RD_OWNERS, RD_OWNER_DEFAULT, EMAIL_FALLBACK, PCI_POR_SEGMENTO } = require("../config/constants");
 const { logger } = require("../logger");
 
 const { Negociacao, User, Representante } = db;
@@ -34,6 +34,24 @@ async function createNegociacao(data) {
     // no servidor, não só na tela, para não dar pra pular chamando a API direto.
     if (!orcamentos.length) {
         throw new Error("Anexe pelo menos 1 orçamento (PDF, imagem, Word ou Excel) para registrar a negociação.");
+    }
+
+    // Lead trazido pela REVENDA (André, 28/10/2026): o PCI é o da regra do projeto pelo produto (Máquina 15, Laser 14,
+    // Robô 13) e NUNCA vira 12a/12b — o caminho e "quem atende" só decidem para onde o card vai.
+    if (data.role === "revenda") {
+        const pciRevenda = PCI_POR_SEGMENTO[data.segmento];
+        if (!pciRevenda) throw new Error("Selecione o segmento do produto (Máquinas, Laser ou Robô).");
+        if (!["BOX>REV", "BOX+REV>IND"].includes(data.caminho)) throw new Error("Selecione o Caminho de Venda.");
+        data.pci = pciRevenda;
+        // Revenda vende -> ela mesma atende; Boxer vende -> precisa dizer quem atende o cliente
+        if (data.caminho === "BOX>REV") data.atendimento = "revenda";
+        if (!["revenda", "boxer"].includes(data.atendimento)) throw new Error("Informe quem atenderá o cliente: a revenda ou um vendedor da Boxer.");
+        // Se a Boxer vai atender, já confere o vendedor da região ANTES de criar o card (não deixa lead pela metade)
+        if (data.atendimento === "boxer") {
+            const { lerPlanilhaResponsavel } = require("./responsavel.service");
+            const resp = await lerPlanilhaResponsavel(data.cidade, data.estado);
+            if (!resp || !RD_OWNERS[resp]) throw new Error(`Não encontramos o vendedor Boxer responsável pela cidade "${data.cidade}" / estado "${data.estado}". Escolha que a revenda atende ou fale com a Boxer.`);
+        }
     }
 
     // Revenda não escolhe representante: preenche pelo cadastro da revenda (nome do RD) — antes o card nascia vazio
@@ -85,7 +103,13 @@ async function createNegociacao(data) {
         }
     }
 
-    if (data.caminho) {
+    if (data.role === "revenda") {
+        try {
+            await encaminharLeadDaRevenda(leadId, { caminho: data.caminho, atendimento: data.atendimento, cidade: data.cidade, estado: data.estado, pci: data.pci });
+        } catch (error) {
+            logger.error({ message: "Falha ao encaminhar lead da revenda na criação da negociação", dealId: leadId, error: error.message });
+        }
+    } else if (data.caminho) {
         try {
             await aplicarCaminhoVenda(leadId, data.caminho, data.cidade, data.estado);
         } catch (error) {
