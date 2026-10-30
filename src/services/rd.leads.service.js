@@ -771,6 +771,32 @@ async function createOrg(orgData) {
     return await rdFetch("/organizations", "POST", { organization: orgData });
 }
 
+// Contato do cliente (28-30/10/2026): o time comercial precisa de nome e telefone para trabalhar o lead que a
+// revenda/representante envia. Valida ANTES de criar o card (não deixa lead sem contato) e devolve o contato normalizado.
+function validarContatoLead({ contato_nome, contato_telefone, contato_email }) {
+    const nome = String(contato_nome || "").trim();
+    if (nome.length < 2) throw new Error("Informe o Nome do contato (pessoa que atende no cliente).");
+    const digitos = String(contato_telefone || "").replace(/\D/g, "");
+    const nacional = digitos.length > 11 && digitos.startsWith("55") ? digitos.slice(2) : digitos;
+    if (nacional.length < 10 || nacional.length > 11) throw new Error("Informe o Telefone do contato com DDD (10 ou 11 números).");
+    const email = String(contato_email || "").trim().toLowerCase();
+    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new Error("E-mail do contato inválido.");
+    return { nome, telefone: formatarTelefoneContato(nacional), email };
+}
+
+// Cria o contato no RD já vinculado ao deal (mesmo padrão validado no GVX: POST /contacts com deal_ids;
+// se o RD não vincular, anexa por /deals/:id/contacts).
+async function criarContatoDoLead(dealId, contato) {
+    const cp = { name: contato.nome, phones: [{ phone: contato.telefone }], deal_ids: [dealId] };
+    if (contato.email) cp.emails = [{ email: contato.email }];
+    const cr = await rdFetch("/contacts", "POST", { contact: cp });
+    const contatoId = cr?.contact?._id || cr?._id || cr?.id || null;
+    if (contatoId && !(cr?.contact?.deal_ids || cr?.deal_ids || []).includes(dealId)) {
+        await rdFetch(`/deals/${dealId}/contacts`, "POST", { contact_id: contatoId });
+    }
+    return contatoId;
+}
+
 // ─── TASKS ───────────────────────────────────────────────────
 
 async function getTask(id) {
@@ -1217,6 +1243,8 @@ module.exports = {
     createNote,
     updateTask,
     createOrg,
+    validarContatoLead,
+    criarContatoDoLead,
     getOrgByCNPJ,
     getLeadByCnpj,
     getLeadNotes,

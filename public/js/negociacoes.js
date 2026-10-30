@@ -169,6 +169,10 @@ function atualizarRoteamentoNeg() {
     $("campoResponsavel").classList.toggle("hidden", revendaAtende);
   }
 }
+$("negContatoTelefone").addEventListener("input", e => {
+  const c = e.target.value.replace(/\D/g, "").slice(0, 11);
+  e.target.value = c.length <= 10 ? c.replace(/(\d{2})(\d)/, "($1) $2").replace(/(\d{4})(\d)/, "$1-$2") : c.replace(/(\d{2})(\d{5})(\d)/, "($1) $2-$3");
+});
 $("negCaminho").addEventListener("change", atualizarRoteamentoNeg);
 $("negAtendimento").addEventListener("change", atualizarRoteamentoNeg);
 $("negPci").addEventListener("change", atualizarRoteamentoNeg);
@@ -186,6 +190,9 @@ $("btnSalvarNegociacao").addEventListener("click", async () => {
     cidade: $("negCidade").value,
     maquinainteresse: $("negMaquina").value,
     observacoes: $("negObs").value,
+    contato_nome: $("negContatoNome").value,
+    contato_telefone: $("negContatoTelefone").value,
+    contato_email: $("negContatoEmail").value,
     usuario: session.username
   };
 
@@ -193,6 +200,10 @@ $("btnSalvarNegociacao").addEventListener("click", async () => {
   if (!novaNegociacao.cnpj.trim()) return toast("Informe o CNPJ.", "warn");
   if (!cnpjValidoNeg(novaNegociacao.cnpj)) return toast("CNPJ inválido: confira os números (o dígito verificador não confere).", "warn");
   if (!novaNegociacao.cidade.trim()) return toast("Informe a Cidade.", "warn");
+  if (novaNegociacao.contato_nome.trim().length < 2) return toast("Informe o Nome do Contato.", "warn");
+  const telDigitos = novaNegociacao.contato_telefone.replace(/\D/g, "").replace(/^55(?=\d{11,12}$)/, "");
+  if (telDigitos.length < 10 || telDigitos.length > 11) return toast("Informe o Telefone do contato com DDD.", "warn");
+  if (novaNegociacao.contato_email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(novaNegociacao.contato_email.trim())) return toast("E-mail do contato inválido.", "warn");
 
   if (session.role === "revenda") {
     novaNegociacao.revenda = session.name;
@@ -279,6 +290,9 @@ $("btnSalvarNegociacao").addEventListener("click", async () => {
   $("negCidade").value = "";
   $("negMaquina").value = "";
   $("negObs").value = "";
+  $("negContatoNome").value = "";
+  $("negContatoTelefone").value = "";
+  $("negContatoEmail").value = "";
   negArquivos = []; renderNegArquivos();
   $("negRepresentante").value = "";
   $("negResponsavel").value = "";

@@ -1,5 +1,5 @@
 const db = require("../database");
-const { createLead, createTask, createNote, getLeadByCnpj, limparCacheVarreduraFunis, resolverRepresentanteDaRevenda, cnpjValido, getLeadDuplicadoPorNome, analisarUnidadesDaEmpresa, getCustomField } = require("./rd.leads.service");
+const { createLead, createTask, createNote, getLeadByCnpj, limparCacheVarreduraFunis, resolverRepresentanteDaRevenda, cnpjValido, getLeadDuplicadoPorNome, analisarUnidadesDaEmpresa, getCustomField, validarContatoLead, criarContatoDoLead } = require("./rd.leads.service");
 const { validarParaAnexar, anexarENotificarRD } = require("./orcamento.service");
 const { sendEmail } = require("./email.service");
 const { getRepresentativeEmailByName, getRevendaEmailByName } = require("./user.service");
@@ -20,6 +20,10 @@ async function createNegociacao(data) {
     if (!data.cnpj || !data.cnpj.trim()) {
         throw new Error("O campo 'CNPJ' é obrigatório.");
     }
+
+    // Contato do cliente é obrigatório para qualquer perfil (nome + telefone; e-mail opcional) — sem ele o time
+    // comercial não consegue trabalhar o lead. Validado no servidor para não dar pra pular chamando a API direto.
+    const contato = validarContatoLead(data);
 
     const cnpjToSearch = (data.cnpj || '').trim();
 
@@ -101,6 +105,20 @@ async function createNegociacao(data) {
     limparCacheVarreduraFunis();
     const leadId = leadResponse.id || leadResponse._id || (leadResponse.data && leadResponse.data.id);
 
+    // Contato no card do RD. Se falhar, o card já existe: grava os dados numa nota (sem acento, o RD corrompe) para
+    // o time não ficar sem o telefone, e a negociação NÃO falha.
+    const avisosContato = [];
+    try {
+        await criarContatoDoLead(leadId, contato);
+    } catch (e) {
+        logger.error({ message: "Falha ao criar contato do lead no RD", dealId: leadId, error: e.message });
+        avisosContato.push("O card foi criado, mas o contato do cliente não foi vinculado no RD. Os dados foram gravados numa nota do card.");
+        try {
+            const sa = s => String(s || "").normalize("NFD").replace(/[̀-ͯ]/g, "");
+            await createNote(leadId, `CONTATO DO CLIENTE (nao foi possivel vincular como contato): ${sa(contato.nome)} - tel ${contato.telefone}${contato.email ? " - " + contato.email : ""}`);
+        } catch (e2) { logger.error({ message: "Falha ao gravar nota de contato", dealId: leadId, error: e2.message }); }
+    }
+
     const novaNegociacao = await Negociacao.create({
         user_id: data.user_id,
         cnpj: data.cnpj,
@@ -130,7 +148,7 @@ async function createNegociacao(data) {
 
     await createTask(taskData);
 
-    const avisos = [];
+    const avisos = [...avisosContato];
     if (unidadesMesmaCidade.length) {
         const sa = s => String(s || "").normalize("NFD").replace(/[̀-ͯ]/g, ""); // nota do RD corrompe acento
         const lista = unidadesMesmaCidade.map(u => `${sa(u.nome)} (CNPJ ${u.cnpj}, ${sa(u.funil)}, ${sa(u.estagio)}, resp. ${sa(u.responsavel)})`).join("; ");
