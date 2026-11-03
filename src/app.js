@@ -478,6 +478,17 @@ app.get("/api/cron/pci12-followup", async (req, res) => {
                 continue;
             }
 
+            // Trava (caso Telha Fabrica, 08/10/2026): se a revenda/admin JÁ escolheu o caminho (log de auditoria), o card só
+            // está em "PCI 12" porque algo reverteu o campo — o robô não aplica 12b por cima da escolha. Fica só no relatório
+            // (e no log) para o admin conferir; o rastreamento permanece aberto, sem aplicar nada.
+            const escolhaFeita = await require("./services/pci12Tracking.service").buscarEscolhaCaminhoNaAuditoria(dealId);
+            if (escolhaFeita) {
+                resultado.escolhaPreservada = resultado.escolhaPreservada || [];
+                resultado.escolhaPreservada.push({ dealId, nome: deal.name, caminho: escolhaFeita.caminho, quando: escolhaFeita.quando });
+                logger.warn({ message: "PCI12 com caminho já escolhido na auditoria mas PCI de volta em 12 — 12b automático NÃO aplicado", dealId, caminho: escolhaFeita.caminho });
+                continue;
+            }
+
             // Trava (caso Heitor/Suprimig, 28/10/2026): se nenhum login do Portal enxerga a REVENDA/LOJA do card, a revenda
             // não tem como responder — o prazo NÃO conta (relógio zerado a cada rodada) e o admin é avisado (sync-revenda-rep-rd).
             const revendaDoCard = getCustomField(deal, "REVENDA/LOJA") || "";

@@ -246,6 +246,10 @@ async function aplicarCaminhoVenda(dealId, caminho, cidade, estado, opts = {}) {
         body.data.stage_id = stageId;
     }
 
+    // A atualização do card vem ANTES da tarefa: se o RD recusar o update (ex.: 422), não sobra uma tarefa
+    // "Revenda Assumiu" num card cujo PCI não mudou (caso Telha Fabrica, 08/10/2026).
+    const result = await updateLead(dealId, body);
+
     if (novoPci === "PCI 12b") {
         await createTask({
             deal_id: dealId,
@@ -265,8 +269,6 @@ async function aplicarCaminhoVenda(dealId, caminho, cidade, estado, opts = {}) {
             type: "task"
         });
     }
-
-    const result = await updateLead(dealId, body);
 
     // Caminho definido — encerra o rastreamento da troca automática de
     // responsável (ver bloco PCI12 em sync-revenda-rep-rd / cron

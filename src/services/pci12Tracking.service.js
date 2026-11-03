@@ -128,7 +128,21 @@ async function buscarDataAssumidoNaAuditoria(dealId) {
     } catch { return null; }
 }
 
+// Escolha de caminho já feita por alguém (revenda/admin) segundo o log de auditoria — o robô de 48h NUNCA pode
+// sobrescrevê-la (caso Telha Fabrica, 08/10/2026: a escolha BOX>REV das 10:12 foi desfeita pelo 12b automático das 14:29
+// porque o PCI do card tinha voltado a "PCI 12"). Devolve { caminho, quando } da mais recente, ou null.
+async function buscarEscolhaCaminhoNaAuditoria(dealId) {
+    const rows = await sequelize.query(
+        `SELECT metadata->>'caminho' AS caminho, "createdAt" AS quando FROM "AuditLogs"
+         WHERE action = 'SELECT_CAMINHO_VENDA' AND entity_id = :dealId AND status = 'success'
+         ORDER BY "createdAt" DESC LIMIT 1`,
+        { replacements: { dealId }, type: QueryTypes.SELECT }
+    );
+    return rows[0] || null;
+}
+
 module.exports = {
+    buscarEscolhaCaminhoNaAuditoria,
     registrarTroca,
     buscarPendentes,
     buscarOwnerOriginal,
