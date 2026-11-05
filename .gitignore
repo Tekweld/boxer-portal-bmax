@@ -7,3 +7,4 @@ stderr.log
 *.htaccess
 .vercel
 .env*
+scripts/backups/
