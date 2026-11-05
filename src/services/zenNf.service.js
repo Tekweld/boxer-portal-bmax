@@ -126,4 +126,14 @@ async function notasPorLeads(leads) {
     return out;
 }
 
-module.exports = { notasPorLeads, configurado };
+// Notas de um CNPJ emitidas a partir de `desde` (AAAA-MM-DD), separadas em com tag bmax e sem tag.
+// Usada pela simulação/automação de fechamento de venda por NF.
+async function notasParaCard(cnpj, desde) {
+    const c = so(cnpj);
+    const ok = n => n.data >= desde;
+    const comTag = ((await notasComTagBmax()).get(c) || []).filter(ok);
+    const semTag = comTag.length ? [] : (await notasDoCnpj(c)).filter(ok);
+    return { comTag, semTag };
+}
+
+module.exports = { notasPorLeads, notasParaCard, configurado };

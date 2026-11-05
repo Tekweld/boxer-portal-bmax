@@ -619,6 +619,23 @@ app.get("/api/cron/status-x-etapa", async (req, res) => {
     }
 });
 
+// Fase 2 do cashback automático (05/11/2026): fechamento de venda por NF do ZEN. HOJE SÓ SIMULA — lista o que
+// fecharia (valor da NF, etapa de destino, win=true, cashback estimado) sem escrever em nada. Ligar de verdade
+// só depois da validação do André.
+app.get("/api/cron/cashback-nf", async (req, res) => {
+    const secret = req.headers["authorization"];
+    const valido = secret === `Bearer ${process.env.CRON_SECRET}` ||
+        (process.env.CRON_TRIGGER_KEY && secret === `Bearer ${process.env.CRON_TRIGGER_KEY}`);
+    if (!valido) return res.status(401).json({ error: "unauthorized" });
+    if (req.query.aplicar) return res.status(400).json({ error: "Fechamento automático ainda em simulação — não liberado." });
+    try {
+        res.json({ ok: true, ...(await require("./services/cashbackNf.service").simular()) });
+    } catch (err) {
+        logger.error({ message: "Erro na simulação cashback-nf", error: err.message, stack: err.stack });
+        res.status(500).json({ error: err.message });
+    }
+});
+
 // Prazo de 60 dias do PCI12a (André, 08/10/2026): contado desde que a revenda assumiu
 // ("Eu assumo a venda"). Vencido sem venda nem perda, o lead — esteja no funil que
 // estiver — vai pro funil BMAX, etapa "Prazo Vencido" (arquivado). Lead vendido ou

@@ -651,6 +651,10 @@ async function updateLead(id, body) {
     // amount_montly). Pra gravar o valor da venda de fato, precisa escrever em
     // `amount_unique` — testado ao vivo contra um deal descartável antes de fixar isso.
     if (body?.data?.amount_total !== undefined) v1Body.amount_unique = body.data.amount_total;
+    // "Botão de venda" do RD: `win: true` marca o card como GANHO (e o RD preenche closed_at); `false` = perdido.
+    // Mover só a etapa NÃO marca o card como ganho — quem fecha venda por código tem que mandar win junto
+    // (testado ao vivo no card testeSC em 05/11/2026: `{deal:{win:true}}` -> HTTP 200, win=true e closed_at preenchido).
+    if (body?.data?.win === true || body?.data?.win === false) v1Body.win = body.data.win;
 
     if (body?.data?.custom_fields) {
         v1Body.deal_custom_fields = [];

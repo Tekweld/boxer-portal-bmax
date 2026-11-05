@@ -201,3 +201,10 @@ Todas autenticadas via header `Authorization: Bearer <CRON_SECRET>`. Vercel Hobb
 - **NF** = `src/services/zenNf.service.js` (somente leitura). Fonte principal: NFs de saída com a **tag `bmax`** no ZEN (`GET /fiscal/outgoingInvoice?q=tags==bmax`; `=like=` não funciona em tags; case-insensitive; também existe na venda `/sale/sale`). Casa pelo CNPJ do card, janela −45/+90 dias do fechamento e melhor combinação de até 3 notas contra o valor do card. Sem nota com tag, cai na busca por CNPJ e marca `†`; `~` = não fecha com o valor do card.
 - Exige `ZEN_EMAIL` e `ZEN_SENHA` nas variáveis do Portal na Vercel; sem elas a coluna mostra "—" (não quebra). Cache de 15 min.
 - Teste: `scripts/teste-extrato-nf-pct-5-11-2026.js <.env do Motor>`.
+
+### Fase 2 do cashback automático — fechamento de venda por NF (SIMULAÇÃO, 05/11/2026)
+- `src/services/cashbackNf.service.js` (`simular()`) + rota `GET /api/cron/cashback-nf` (Bearer CRON_SECRET/CRON_TRIGGER_KEY; `?aplicar=1` é recusado — ainda não liberado). Só lê: RD (cards abertos de revenda, PCI 12a/12b/13/14/15, etapas Assumido/Negociação/Lead, criados desde 01/05/2026) × ZEN (NF após a criação do card, pelo CNPJ).
+- Decisões: **FECHARIA** (NF com tag `bmax`, PCI e Classe ok), **REVISAR** (NF sem tag, várias notas, sem Classe/regra, CNPJ inválido), **AGUARDAR** (sem NF), **ERRO**.
+- Ação planejada ao ligar: `amount_unique` = soma das NFs; mover para Venda Efetivada (funil Indústria Interno) ou Vendido (BMAX) **e marcar win=true** — mover etapa NÃO marca o card como ganho. `updateLead` agora aceita `data.win` (testado no testeSC: `{deal:{win:true}}` → 200, win=true, closed_at preenchido). Depois `recalcularComissoes` credita.
+- Planilha: `scripts/simulacao-cashback-nf-5-11-2026.js <.env do Motor>` → `Documentação/Simulacao_fechamento_por_NF_05-11-2026.xlsx`.
+- 05/11/2026: 42 candidatos, todos AGUARDAR (nenhum com NF ainda). Teste do card testeSC deixou ele com win=true (etapa inalterada).
