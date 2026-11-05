@@ -1368,12 +1368,49 @@ router.get("/comissoes/agentes", authenticate, authorize(["adm"]), async (req, r
     }
 });
 
+// Acrescenta em cada linha do extrato: `nf` (NF de saída do ZEN que originou a venda, pelo CNPJ do card) e
+// `pct_exibicao` (% de comissão aplicado = PCI × Classe de Preço na matriz da política). O % vem gravado no
+// lançamento (comissao_pct); em lançamentos antigos sem ele, recalcula pela matriz atual (`pct_estimado`).
+// Falha do ZEN nunca derruba o extrato — a coluna só fica vazia.
+const AGENTE_MATRIZ = { revenda: "Revenda", representante: "Rep", vendedor_interno: "VI/VT" };
+async function enriquecerNfEPct(tipo, linhas, dealMap) {
+    const { notasPorLeads } = require("../services/zenNf.service");
+    const { resolverComissao } = require("../services/cashback.service");
+    const vistos = new Set();
+    const leads = [];
+    for (const l of linhas) {
+        if (l.tipo !== "credito" || !l.lead_id || vistos.has(l.lead_id)) continue;
+        vistos.add(l.lead_id);
+        const d = dealMap.get(l.lead_id);
+        if (!d) continue;
+        leads.push({ id: l.lead_id, cnpj: getCustomField(d, "CNPJ"), fechadoEm: d.closed_at || d.updated_at, valorCard: d.amount_total });
+    }
+    const nfs = await notasPorLeads(leads).catch(() => ({}));
+    for (const l of linhas) {
+        l.nf = nfs[l.lead_id] || "";
+        const d = l.lead_id ? dealMap.get(l.lead_id) : null;
+        const classe = l.classe_preco || (d ? (getCustomField(d, "CLASSE DE PREÇO") || "").replace(/\D/g, "") : "");
+        l.classe_exibicao = classe || "";
+        if (l.comissao_pct !== null && l.comissao_pct !== undefined) {
+            l.pct_exibicao = Number(l.comissao_pct);
+        } else if (l.tipo === "credito" && (l.pci || extrairPciDoTexto(l.descricao)) && classe) {
+            try {
+                const p = await resolverComissao(l.pci || extrairPciDoTexto(l.descricao), AGENTE_MATRIZ[tipo], classe);
+                if (p !== null && p !== undefined) { l.pct_exibicao = p; l.pct_estimado = true; }
+            } catch { /* sem regra */ }
+        }
+    }
+    return linhas;
+}
+
 router.get("/comissoes/extrato", authenticate, authorize(["adm"]), async (req, res) => {
     try {
         const { tipo, nome, mes } = req.query;
         if (!TIPOS_AGENTE[tipo]) return res.status(400).json({ error: "tipo inválido" });
         if (!nome) return res.status(400).json({ error: "nome é obrigatório" });
         const extrato = await anexarNomeLead(await getExtratoPorAgente(tipo, nome, mes || null));
+        const dealMap = new Map((await getLeads("admin", "adm")).map(d => [d.id || d._id, d]));
+        await enriquecerNfEPct(tipo, extrato, dealMap);
         res.json(extrato);
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -1408,6 +1445,7 @@ router.get("/comissoes/exportar", authenticate, authorize(["adm"]), async (req, 
 
         for (const t of tipos) {
             const linhas = await getExtratoTipoAgente(t, mes || null);
+            await enriquecerNfEPct(t, linhas, dealMap);
             const porAgente = {};
             for (const l of linhas) {
                 if (!porAgente[l.nome]) porAgente[l.nome] = [];
@@ -1440,7 +1478,9 @@ router.get("/comissoes/exportar", authenticate, authorize(["adm"]), async (req, 
                         "Cashback Creditado (R$)": Number(x.valor),
                         "Valor Total da Venda (R$)": deal ? Number(deal.amount_total || 0) : "",
                         PCI: x.pci || extrairPciDoTexto(x.descricao),
-                        "Classe de Preço": classePreco,
+                        "Classe de Preço": classePreco || x.classe_exibicao,
+                        "% Comissão": x.pct_exibicao !== undefined ? String(Number((x.pct_exibicao * 100).toFixed(2))).replace(".", ",") + "%" + (x.pct_estimado ? " (estimado)" : "") : "",
+                        "NF (ZEN)": x.nf || "",
                         Revenda: deal ? (getCustomField(deal, "REVENDA/LOJA") || "") : "",
                         "Lead (RD)": x.lead_id || "",
                         "Nome do Lead": deal ? (deal.name || "") : "",

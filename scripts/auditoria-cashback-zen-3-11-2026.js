@@ -45,7 +45,8 @@ async function pool(itens, n, fn) {
   const deals = await l.getLeads("admin", "adm");
   const vendaStages = new Set([C.RD_STAGE_VENDIDO, C.RD_STAGE_VENDA_EFETIVADA, C.RD_STAGE_ENTREGA_TECNICA]);
   const abertoStages = new Set([C.RD_STAGE_ASSUMIDO, C.RD_STAGE_NEGOCIACAO, C.RD_STAGE_LEAD]);
-  const linhas = [];
+  const linhas = []; let antigos = 0;
+  const CORTE = "2026-05-01";
   for (const d of deals) {
     const stageId = d.deal_stage && d.deal_stage.id;
     const revenda = l.getCustomField(d, "REVENDA/LOJA") || "";
@@ -55,8 +56,10 @@ async function pool(itens, n, fn) {
     const vendido = vendaStages.has(stageId);
     const aberto = abertoStages.has(stageId) && /^PCI(12A|12B|13|14|15)$/.test(pciN);
     if (!(vendido || aberto) || !revenda || revenda === "Sem Revenda" || revenda === "?????") continue;
-    linhas.push({ dealId: d.id || d._id, nome: d.name, cnpj, revenda, pci, classe: (l.getCustomField(d, "CLASSE DE PREÇO") || "").replace(/\D/g, ""), etapa: d.deal_stage && d.deal_stage.name, status: vendido ? "Vendido" : "Em aberto", valorCard: Number(d.amount_total || 0), criado: dia(d.created_at), dono: d.user && d.user.name, representante: l.getCustomField(d, "REPRESENTANTE") || "" });
+    if (vendido && dia(d.closed_at || d.updated_at) < CORTE) { antigos++; continue; }
+    linhas.push({ dealId: d.id || d._id, nome: d.name, cnpj, revenda, pci, classe: (l.getCustomField(d, "CLASSE DE PREÇO") || "").replace(/\D/g, ""), etapa: d.deal_stage && d.deal_stage.name, status: vendido ? "Vendido" : "Em aberto", valorCard: Number(d.amount_total || 0), criado: dia(d.created_at), fechado: dia(d.closed_at || d.updated_at), dono: d.user && d.user.name, representante: l.getCustomField(d, "REPRESENTANTE") || "" });
   }
+  console.log("vendidos ignorados (fechados antes de maio):", antigos);
   console.log("cards a auditar:", linhas.length, "(vendidos:", linhas.filter(x => x.status === "Vendido").length + ")");
 
   // pessoa(s) por CNPJ -> notas
@@ -83,9 +86,12 @@ async function pool(itens, n, fn) {
   await pool(linhas, 3, async x => {
     const info = porCnpj[x.cnpj] || { pessoas: [], nfs: [] };
     const validas = info.nfs.filter(n => n.status !== "CANCELED" && !n.devolvida && n.data >= x.criado);
-    const total = Number(validas.reduce((s, n) => s + n.total, 0).toFixed(2));
+    const somaDias = (a, b) => Math.round((new Date(a) - new Date(b)) / 86400000);
+    const janela = x.status === "Vendido" ? validas.filter(n => { const dd = somaDias(n.data, x.fechado); return dd >= -45 && dd <= 90; }) : validas;
+    const total = Number(janela.reduce((s, n) => s + n.total, 0).toFixed(2));
+    const totalTodas = Number(validas.reduce((s, n) => s + n.total, 0).toFixed(2));
     let itens = "";
-    for (const n of validas.slice(0, 3)) {
+    for (const n of janela.slice(0, 3)) {
       try {
         const it = await zget("/fiscal/outgoingInvoiceItem", { q: "invoice.id==" + n.id, max: 20 });
         itens += `NF ${n.numero}: ` + it.map(i => `${i.quantity}x ${(i.productPacking && i.productPacking.product && i.productPacking.product.description || "?").slice(0, 40)}`).join("; ") + " | ";
@@ -95,6 +101,14 @@ async function pool(itens, n, fn) {
     if (x.status === "Vendido" && total > 0 && x.classe) {
       try { const c = await calcularComissoes({ valorTotal: total, pci: x.pci, classePreco: x.classe, representante: x.representante, responsavelRd: x.dono }); cashCorreto = c.faltando ? null : Number((((c.revenda && c.revenda.valor) || 0) + ((c.representante && c.representante.valor) || 0) + ((c.vendedorInterno && c.vendedorInterno.valor) || 0)).toFixed(2)); } catch { /* sem regra */ }
     }
+    // Melhor combinação de 1 a 3 notas da janela que fecha o valor do card (outras compras do mesmo CNPJ não contam)
+    let melhor = null;
+    if (x.status === "Vendido" && x.valorCard > 0) {
+      const cand = janela.slice(0, 14), k = cand.length;
+      const testa = idx => { const t = idx.reduce((s, i) => s + cand[i].total, 0); const e = Math.abs(t - x.valorCard) / x.valorCard; if (!melhor || e < melhor.erro) melhor = { erro: e, total: Number(t.toFixed(2)), notas: idx.map(i => cand[i]) }; };
+      for (let a = 0; a < k; a++) { testa([a]); for (let b = a + 1; b < k; b++) { testa([a, b]); for (let c = b + 1; c < k; c++) testa([a, b, c]); } }
+    }
+    const bate = melhor && melhor.erro <= 0.01;
     const dif = x.status === "Vendido" ? Number((x.valorCard - total).toFixed(2)) : null;
     let situacao;
     if (!x.cnpj || x.cnpj.length !== 14) situacao = "CNPJ do card inválido/vazio";
@@ -102,13 +116,13 @@ async function pool(itens, n, fn) {
     else if (!info.pessoas.length) situacao = x.status === "Vendido" ? "Cliente NÃO encontrado no ZEN (venda sem nota?)" : "Cliente ainda não existe no ZEN";
     else if (!validas.length) situacao = x.status === "Vendido" ? "Cliente existe, SEM nota após a criação do card" : "Sem nota ainda (normal)";
     else if (x.status === "Em aberto") situacao = "TEM NOTA — candidato a fechar como vendido";
-    else if (Math.abs(dif) <= Math.max(1, total * 0.005)) situacao = "OK — valor do card = notas";
-    else situacao = dif > 0 ? "Card MAIOR que as notas" : "Card MENOR que as notas";
-    resultado.push({ ...x, pessoas: info.pessoas.join(" / "), qtdNf: validas.length, totalNf: total, nfs: validas.map(n => `${n.numero} (${n.data}) R$ ${n.total}`).join("; "), itens: itens.slice(0, 300), dif, cashAtual: Number(cashAtual.toFixed(2)), cashCorreto, situacao });
+    else if (bate) situacao = "OK — nota(s) batem com o valor do card" + (melhor.notas.length > 1 || Math.abs(dif) > 1 ? " (há outras notas do cliente na janela)" : "");
+    else situacao = dif > 0 ? "Card MAIOR que as notas (nenhuma combinação bate)" : "Card MENOR que as notas (nenhuma combinação bate)";
+    resultado.push({ ...x, notasQueBatem: bate ? melhor.notas.map(n => `${n.numero} R$ ${n.total}`).join(" + ") : (melhor ? `mais próxima: ${melhor.notas.map(n => n.numero + " R$ " + n.total).join(" + ")}` : ""), pessoas: info.pessoas.join(" / "), qtdNf: janela.length, totalNf: total, totalTodas, nfs: janela.map(n => `${n.numero} (${n.data}, ${somaDias(n.data, x.fechado)}d do fechamento) R$ ${n.total}`).join("; "), itens: itens.slice(0, 300), dif, cashAtual: Number(cashAtual.toFixed(2)), cashCorreto, situacao });
   });
 
   const wb = new ExcelJS.Workbook();
-  const cols = [["Situação", "situacao", 38], ["Cliente (RD)", "nome", 34], ["CNPJ", "cnpj", 17], ["Revenda", "revenda", 22], ["PCI", "pci", 9], ["Classe", "classe", 7], ["Etapa", "etapa", 18], ["Valor no card (R$)", "valorCard", 16], ["Notas ZEN (R$)", "totalNf", 15], ["Diferença card−notas", "dif", 16], ["Cashback creditado hoje (R$ total)", "cashAtual", 20], ["Cashback total pelas notas (R$)", "cashCorreto", 20], ["Qtd notas", "qtdNf", 9], ["Notas", "nfs", 50], ["Itens (amostra)", "itens", 60], ["Criado em", "criado", 11], ["Responsável RD", "dono", 18], ["Deal id", "dealId", 26]];
+  const cols = [["Situação", "situacao", 38], ["Cliente (RD)", "nome", 34], ["CNPJ", "cnpj", 17], ["Revenda", "revenda", 22], ["PCI", "pci", 9], ["Classe", "classe", 7], ["Etapa", "etapa", 18], ["Valor no card (R$)", "valorCard", 16], ["Notas ZEN perto do fechamento (R$)", "totalNf", 18], ["Todas as notas após criação (R$)", "totalTodas", 18], ["Diferença card−notas", "dif", 16], ["Cashback creditado hoje (R$ total)", "cashAtual", 20], ["Cashback total pelas notas (R$)", "cashCorreto", 20], ["Nota(s) que batem com o card", "notasQueBatem", 34], ["Qtd notas", "qtdNf", 9], ["Notas", "nfs", 50], ["Itens (amostra)", "itens", 60], ["Criado em", "criado", 11], ["Fechado/atualizado em", "fechado", 12], ["Responsável RD", "dono", 18], ["Deal id", "dealId", 26]];
   const ordem = { "TEM NOTA — candidato a fechar como vendido": 0 };
   for (const [titulo, filtro] of [["Vendidos x notas", x => x.status === "Vendido"], ["Em aberto", x => x.status === "Em aberto"]]) {
     const ws = wb.addWorksheet(titulo); ws.columns = cols.map(([header, key, width]) => ({ header, key, width }));
@@ -116,7 +130,7 @@ async function pool(itens, n, fn) {
     rows.forEach(r => ws.addRow(r));
     ws.getRow(1).font = { bold: true, color: { argb: "FFFFFFFF" } }; ws.getRow(1).fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF1D327B" } };
     ws.views = [{ state: "frozen", ySplit: 1 }]; ws.autoFilter = { from: "A1", to: ws.getRow(1).getCell(cols.length).address };
-    ["valorCard", "totalNf", "dif", "cashAtual", "cashCorreto"].forEach(k => { ws.getColumn(k).numFmt = "#,##0.00"; });
+    ["valorCard", "totalNf", "totalTodas", "dif", "cashAtual", "cashCorreto"].forEach(k => { ws.getColumn(k).numFmt = "#,##0.00"; });
   }
   const cont = {}; resultado.forEach(r => { const k = r.status + " | " + r.situacao; cont[k] = (cont[k] || 0) + 1; });
   const rs = wb.addWorksheet("Resumo", { properties: { tabColor: { argb: "FF25BBEE" } } });
@@ -126,7 +140,7 @@ async function pool(itens, n, fn) {
   const somaV = resultado.filter(r => r.status === "Vendido");
   rs.addRow({}); rs.addRow({ k: "Total no card (vendidos)", n: Number(somaV.reduce((s, r) => s + r.valorCard, 0).toFixed(2)) });
   rs.addRow({ k: "Total em notas ZEN desses clientes (após criação do card)", n: Number(somaV.reduce((s, r) => s + r.totalNf, 0).toFixed(2)) });
-  rs.addRow({ k: "Como ler: nota = NF de saída do ZEN, status ≠ cancelada, sem devolução, emitida a partir do dia da criação do card, somada por CNPJ do cliente (todas as notas, não só do produto BMax)." });
+  rs.addRow({ k: "Como ler: nota = NF de saída do ZEN, status ≠ cancelada, sem devolução, emitida de 45 dias antes a 90 dias depois do fechamento do card (coluna 'perto do fechamento'), somada por CNPJ do cliente (todas as notas, não só do produto BMax). Vendidos fechados antes de 01/05/2026 foram ignorados." });
   wb.views = [{ activeTab: 2 }];
   await wb.xlsx.writeFile(SAIDA);
   console.log("RESUMO:", JSON.stringify(cont, null, 1));

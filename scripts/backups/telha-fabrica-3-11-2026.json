@@ -1,0 +1,1319 @@
+{
+ "deal": {
+  "_id": "6abc56b04e38b80001ad9877",
+  "id": "6abc56b04e38b80001ad9877",
+  "name": "Telha Fabrica Materiais Para Construcao LTDA",
+  "amount_montly": 0,
+  "amount_unique": 0,
+  "amount_total": 0,
+  "best_moment_to_touch": false,
+  "closed_at": null,
+  "created_at": "2026-09-29T21:24:16.502-03:00",
+  "updated_at": "2026-10-08T14:29:39.901-03:00",
+  "deal_lost_reason_id": null,
+  "deal_lost_note": null,
+  "prediction_date": null,
+  "win": null,
+  "rating": 2,
+  "hold": null,
+  "interactions": 6,
+  "last_note_content": "<div>\n<p>Cliente solicita or&ccedil;amento de umaalumig 400</p>\n</div>",
+  "deal_source_id": "661f2c342da2420001b2e011",
+  "campaign_id": "69ea30e58702b90001cf9eeb",
+  "stop_time_limit": {
+   "expiration_date_time": "2026-10-15T10:12:24.959-03:00",
+   "expired": true,
+   "expired_days": 19
+  },
+  "from_rdsm_integration": true,
+  "errors": {},
+  "c_cf_errors": {},
+  "contact_errors": {},
+  "user": {
+   "_id": "6a2007b8b9704500268c5624",
+   "id": "6a2007b8b9704500268c5624",
+   "name": "Maxmiller Santos"
+  },
+  "campaign": {
+   "_id": "69ea30e58702b90001cf9eeb",
+   "id": "69ea30e58702b90001cf9eeb",
+   "name": "FORMULÁRIOS SITE"
+  },
+  "organization": {
+   "_id": "6abc56af4e38b80001ad9868",
+   "id": "6abc56af4e38b80001ad9868",
+   "name": "Telha Fabrica Materiais Para Construcao LTDA",
+   "resume": null,
+   "url": null,
+   "organization_custom_fields": [
+    {
+     "_id": "6abc56b04e38b80001ad986a",
+     "created_at": null,
+     "custom_field_id": "6615830a002ddc00150be685",
+     "updated_at": null,
+     "value": "Telha Fabrica Materiais Para Construcao LTDA"
+    },
+    {
+     "_id": "6abc56b04e38b80001ad986b",
+     "created_at": null,
+     "custom_field_id": "685add33ce81b10018004e6d",
+     "updated_at": null,
+     "value": "Jardim Zulmira"
+    },
+    {
+     "_id": "6abc56b04e38b80001ad986c",
+     "created_at": null,
+     "custom_field_id": "685add9f7bd71f001727851c",
+     "updated_at": null,
+     "value": "Ativo"
+    },
+    {
+     "_id": "6abc56b04e38b80001ad986d",
+     "created_at": null,
+     "custom_field_id": "685addb55158f300149e869e",
+     "updated_at": null,
+     "value": "MATRIZ"
+    },
+    {
+     "_id": "6abc56b04e38b80001ad986e",
+     "created_at": null,
+     "custom_field_id": "685addfdb62e04001ea2c8c1",
+     "updated_at": null,
+     "value": "EPP"
+    },
+    {
+     "_id": "6abc56b04e38b80001ad986f",
+     "created_at": null,
+     "custom_field_id": "685ade09c843f500183407d3",
+     "updated_at": null,
+     "value": "R$ 79.000,00"
+    },
+    {
+     "_id": "6abc56b04e38b80001ad9870",
+     "created_at": null,
+     "custom_field_id": "685ade13ce81b10016004ece",
+     "updated_at": null,
+     "value": "(15) 3031-9601"
+    },
+    {
+     "_id": "6abc56b04e38b80001ad9871",
+     "created_at": null,
+     "custom_field_id": "685ade1eac25a6001950013b",
+     "updated_at": null,
+     "value": "21/12/2015"
+    },
+    {
+     "_id": "6abc56b04e38b80001ad9872",
+     "created_at": null,
+     "custom_field_id": "685ade27821bec00169d66eb",
+     "updated_at": null,
+     "value": "Rua Humberto de Campos, 183"
+    },
+    {
+     "_id": "6abc56b04e38b80001ad9873",
+     "created_at": null,
+     "custom_field_id": "685ade39220195001d54d962",
+     "updated_at": null,
+     "value": "Atividade Principal: 47.44-0-05 - Comércio varejista de materiais de construção não especificados anteriormenteAtividades Secundárias:43.99-1-03 - Obras de alvenaria"
+    },
+    {
+     "_id": "6abc56b04e38b80001ad9874",
+     "created_at": null,
+     "custom_field_id": "661582f3c3b2c90015345101",
+     "updated_at": null,
+     "value": "23.872.299/0001-70"
+    },
+    {
+     "_id": "6abc56b04e38b80001ad9875",
+     "created_at": null,
+     "custom_field_id": "661582fab845080022ccef54",
+     "updated_at": null,
+     "value": "Sorocaba - São Paulo / Brasil"
+    },
+    {
+     "_id": "6abc56b04e38b80001ad9876",
+     "created_at": null,
+     "custom_field_id": "685ade2fb62e040017a2c8dd",
+     "updated_at": null,
+     "value": "18061-000"
+    }
+   ],
+   "visible": true,
+   "address": null,
+   "address_longitude": null,
+   "address_latitude": null,
+   "organization_segments": []
+  },
+  "deal_source": {
+   "_id": "661f2c342da2420001b2e011",
+   "id": "661f2c342da2420001b2e011",
+   "name": "Social | YouTube"
+  },
+  "deal_pipeline": {
+   "id": "66151c1470449b000d54e914",
+   "name": "INDÚSTRIA - INTERNO"
+  },
+  "deal_stage": {
+   "_id": "66151c1470449b000d54e917",
+   "id": "66151c1470449b000d54e917",
+   "name": "NEGOCIAÇÃO",
+   "nickname": "N",
+   "deal_pipeline_id": "66151c1470449b000d54e914"
+  },
+  "deal_stage_histories": [
+   {
+    "_id": "6abc56b04e38b80001ad987e",
+    "id": "6abc56b04e38b80001ad987e",
+    "deal_stage_id": "68b19e2883a5f700170072d5",
+    "start_date": "2026-09-29T21:24:16.499-03:00",
+    "end_date": "2026-09-30T07:48:26.776-03:00"
+   },
+   {
+    "_id": "6abc56b04e38b80001ad987f",
+    "id": "6abc56b04e38b80001ad987f",
+    "deal_stage_id": "68b19e2883a5f700170072d5",
+    "start_date": "2026-09-29T21:24:16.504-03:00",
+    "end_date": "2026-09-30T07:48:26.776-03:00"
+   },
+   {
+    "_id": "6abce8faa2404a00290ec8f1",
+    "id": "6abce8faa2404a00290ec8f1",
+    "deal_stage_id": "68b19e2883a5f700170072d6",
+    "start_date": "2026-09-30T07:48:26.776-03:00",
+    "end_date": "2026-09-30T14:51:51.407-03:00"
+   },
+   {
+    "_id": "6abd4c3787b6830020eb37f5",
+    "id": "6abd4c3787b6830020eb37f5",
+    "deal_stage_id": "678f7e08dc0b4800142783ac",
+    "start_date": "2026-10-01T10:04:41.771-03:00",
+    "end_date": "2026-10-08T10:12:24.904-03:00"
+   },
+   {
+    "_id": "6abe5a2d9674300028978d36",
+    "id": "6abe5a2d9674300028978d36",
+    "deal_stage_id": "6a2bff35a294cf00226dd602",
+    "start_date": "2026-10-01T10:03:41.769-03:00",
+    "end_date": "2026-10-01T10:04:41.771-03:00"
+   },
+   {
+    "_id": "6ac796b8624dcb0020b26772",
+    "id": "6ac796b8624dcb0020b26772",
+    "deal_stage_id": "66151c1470449b000d54e917",
+    "start_date": "2026-10-08T10:12:24.906-03:00",
+    "end_date": null
+   }
+  ],
+  "deal_custom_fields": [
+   {
+    "value": "23.872.299/0001-70",
+    "created_at": null,
+    "updated_at": null,
+    "custom_field_id": "66549f56bc9996000f00486d",
+    "custom_field": {
+     "_id": "66549f56bc9996000f00486d",
+     "ai_instructions": null,
+     "allow_new": false,
+     "application_scope": "all",
+     "calculation_action": "none",
+     "created_at": "2024-05-27T11:57:26.689-03:00",
+     "display_rules": [
+      {
+       "_id": "69779b70308a3b0017f0334e",
+       "always": true,
+       "created_at": null,
+       "property": null,
+       "updated_at": null,
+       "value": null
+      }
+     ],
+     "editable_on_deal": false,
+     "for": "deal",
+     "input_format": null,
+     "input_mask": null,
+     "input_placeholder": null,
+     "instance_id": "6601788248020f001322ee4e",
+     "label": "CNPJ",
+     "max_length": null,
+     "min_length": null,
+     "opts": [],
+     "order": 2,
+     "product_ids": [],
+     "required": true,
+     "required_rules": [
+      {
+       "_id": "69779b70308a3b0017f0334c",
+       "always": true,
+       "created_at": "2026-01-26T13:50:56.128-03:00",
+       "property": null,
+       "updated_at": "2026-01-26T13:50:56.128-03:00",
+       "value": null
+      }
+     ],
+     "slug": "cnpj",
+     "type": "text",
+     "unique": false,
+     "updated_at": "2026-01-26T13:50:56.128-03:00",
+     "visible": true
+    }
+   },
+   {
+    "value": "HOBYSTA",
+    "created_at": null,
+    "updated_at": null,
+    "custom_field_id": "67bcc1b075f21d00240a1e82",
+    "custom_field": {
+     "_id": "67bcc1b075f21d00240a1e82",
+     "ai_instructions": null,
+     "allow_new": true,
+     "application_scope": "all",
+     "calculation_action": "none",
+     "created_at": "2025-02-24T16:00:00.791-03:00",
+     "display_rules": [
+      {
+       "_id": "68273141d3b2fd001e17684e",
+       "always": true,
+       "created_at": null,
+       "property": null,
+       "updated_at": null,
+       "value": null
+      }
+     ],
+     "editable_on_deal": false,
+     "for": "deal",
+     "input_format": null,
+     "input_mask": null,
+     "input_placeholder": null,
+     "instance_id": "6601788248020f001322ee4e",
+     "label": "FRENTE DE TRABALHO",
+     "max_length": null,
+     "min_length": null,
+     "opts": [
+      "HOBYSTA",
+      "PROFISSIONAL",
+      "INDUSTRIAL",
+      "Indústria Metalúrgica",
+      "Outros",
+      "Indústria Petroquímica",
+      "Indústria Eletroeletrônica",
+      "Indústria de Autopeças",
+      "Indústria de Embalagens",
+      "Indústria Automotiva",
+      "Indústria de Alimentos e Bebidas",
+      "Indústria Moveleira"
+     ],
+     "order": 6,
+     "product_ids": [],
+     "required": false,
+     "slug": "area-de-atuacao",
+     "type": "option",
+     "unique": false,
+     "updated_at": "2026-10-07T10:14:35.604-03:00",
+     "visible": true
+    }
+   },
+   {
+    "value": "alumig400",
+    "created_at": null,
+    "updated_at": null,
+    "custom_field_id": "69a1eaa65a4db30013c0bd1b",
+    "custom_field": {
+     "_id": "69a1eaa65a4db30013c0bd1b",
+     "ai_instructions": null,
+     "allow_new": false,
+     "application_scope": "all",
+     "calculation_action": "none",
+     "created_at": "2026-02-27T16:04:06.314-03:00",
+     "display_rules": [
+      {
+       "_id": "69e247956ed02b00170560e9",
+       "always": true,
+       "created_at": null,
+       "property": null,
+       "updated_at": null,
+       "value": null
+      }
+     ],
+     "editable_on_deal": false,
+     "for": "deal",
+     "input_format": null,
+     "input_mask": null,
+     "input_placeholder": null,
+     "instance_id": "6601788248020f001322ee4e",
+     "label": "MÁQUINA DE INTERESSE",
+     "max_length": null,
+     "min_length": null,
+     "opts": [],
+     "order": 12,
+     "product_ids": [],
+     "required": false,
+     "slug": "maquina-de-interesse-1",
+     "type": "text",
+     "unique": false,
+     "updated_at": "2026-10-08T09:17:07.896-03:00",
+     "visible": true
+    }
+   },
+   {
+    "value": "PCI 12b",
+    "created_at": "2026-09-30T07:44:23.841-03:00",
+    "updated_at": "2026-10-08T12:13:07.946-03:00",
+    "custom_field_id": "6a3ae56694471c001e755ff8",
+    "custom_field": {
+     "_id": "6a3ae56694471c001e755ff8",
+     "ai_instructions": null,
+     "allow_new": false,
+     "application_scope": "all",
+     "calculation_action": "none",
+     "created_at": "2026-06-23T16:58:30.959-03:00",
+     "display_rules": [
+      {
+       "_id": "6aa34a082375d10022d3d79c",
+       "always": null,
+       "created_at": null,
+       "property": "deal_pipeline_id",
+       "updated_at": null,
+       "value": "66151c1470449b000d54e914"
+      },
+      {
+       "_id": "6aa34a082375d10022d3d79d",
+       "always": null,
+       "created_at": null,
+       "property": "deal_pipeline_id",
+       "updated_at": null,
+       "value": "6a2bff35a294cf00226dd600"
+      },
+      {
+       "_id": "6aa34a082375d10022d3d79e",
+       "always": null,
+       "created_at": null,
+       "property": "deal_pipeline_id",
+       "updated_at": null,
+       "value": "68b19e2883a5f700170072d3"
+      }
+     ],
+     "editable_on_deal": false,
+     "for": "deal",
+     "input_format": null,
+     "input_mask": null,
+     "input_placeholder": null,
+     "instance_id": "6601788248020f001322ee4e",
+     "label": "PERFIL PCI",
+     "max_length": null,
+     "min_length": null,
+     "opts": [
+      "PCI 1",
+      "PCI 2",
+      "PCI 3",
+      "PCI 4",
+      "PCI 5",
+      "PCI 6",
+      "PCI 7",
+      "PCI 8",
+      "PCI 9",
+      "PCI 10",
+      "PCI 11",
+      "PCI 12",
+      "PCI 13",
+      "PCI 14",
+      "PCI 15",
+      "PCI 16",
+      "PCI 17",
+      "PCI 18",
+      "PCI 12a",
+      "PCI 12b",
+      "Sem PCI"
+     ],
+     "order": 14,
+     "product_ids": [],
+     "required": true,
+     "required_rules": [
+      {
+       "_id": "6aa34a082375d10022d3d793",
+       "always": null,
+       "created_at": "2026-09-10T21:23:36.600-03:00",
+       "property": "deal_stage_id",
+       "updated_at": "2026-09-10T21:23:36.600-03:00",
+       "value": "66151c1470449b000d54e919"
+      },
+      {
+       "_id": "6aa34a082375d10022d3d794",
+       "always": null,
+       "created_at": "2026-09-10T21:23:36.600-03:00",
+       "property": "deal_stage_id",
+       "updated_at": "2026-09-10T21:23:36.600-03:00",
+       "value": "66151c4859f00e001209d066"
+      },
+      {
+       "_id": "6aa34a082375d10022d3d795",
+       "always": null,
+       "created_at": "2026-09-10T21:23:36.600-03:00",
+       "property": "deal_stage_id",
+       "updated_at": "2026-09-10T21:23:36.600-03:00",
+       "value": "6aa05557a4f8c10025433f09"
+      },
+      {
+       "_id": "6aa34a082375d10022d3d796",
+       "always": null,
+       "created_at": "2026-09-10T21:23:36.600-03:00",
+       "property": "deal_stage_id",
+       "updated_at": "2026-09-10T21:23:36.600-03:00",
+       "value": "68b19e2883a5f700170072d8"
+      },
+      {
+       "_id": "6aa34a082375d10022d3d797",
+       "always": null,
+       "created_at": "2026-09-10T21:23:36.600-03:00",
+       "property": "deal_stage_id",
+       "updated_at": "2026-09-10T21:23:36.600-03:00",
+       "value": "6a5794edcc530e001d770fb9"
+      },
+      {
+       "_id": "6aa34a082375d10022d3d798",
+       "always": null,
+       "created_at": "2026-09-10T21:23:36.600-03:00",
+       "property": "deal_stage_id",
+       "updated_at": "2026-09-10T21:23:36.600-03:00",
+       "value": "68b19e2883a5f700170072d9"
+      },
+      {
+       "_id": "6aa34a082375d10022d3d799",
+       "always": null,
+       "created_at": "2026-09-10T21:23:36.601-03:00",
+       "property": "deal_stage_id",
+       "updated_at": "2026-09-10T21:23:36.601-03:00",
+       "value": "68b19ead1ff5c8001a61d73d"
+      },
+      {
+       "_id": "6aa34a082375d10022d3d79a",
+       "always": null,
+       "created_at": "2026-09-10T21:23:36.601-03:00",
+       "property": "deal_stage_id",
+       "updated_at": "2026-09-10T21:23:36.601-03:00",
+       "value": "68b19eeab3e5a3001b7c83b6"
+      },
+      {
+       "_id": "6aa34a082375d10022d3d79b",
+       "always": null,
+       "created_at": "2026-09-10T21:23:36.601-03:00",
+       "property": "deal_stage_id",
+       "updated_at": "2026-09-10T21:23:36.601-03:00",
+       "value": "68b19ef1fd3c29001b0a118a"
+      }
+     ],
+     "slug": "perfil-pci",
+     "type": "option",
+     "unique": false,
+     "updated_at": "2026-10-19T10:26:48.226-03:00",
+     "visible": true
+    }
+   },
+   {
+    "value": "SP",
+    "created_at": "2026-09-30T07:46:28.451-03:00",
+    "updated_at": "2026-09-30T07:46:28.451-03:00",
+    "custom_field_id": "67407ad5f612fe001acf4874",
+    "custom_field": {
+     "_id": "67407ad5f612fe001acf4874",
+     "ai_instructions": null,
+     "allow_new": false,
+     "application_scope": "all",
+     "calculation_action": "none",
+     "created_at": "2024-11-22T09:36:37.187-03:00",
+     "display_rules": [
+      {
+       "_id": "69de7ccc2b3cd50013034ba5",
+       "always": true,
+       "created_at": null,
+       "property": null,
+       "updated_at": null,
+       "value": null
+      }
+     ],
+     "editable_on_deal": false,
+     "for": "deal",
+     "input_format": null,
+     "input_mask": null,
+     "input_placeholder": null,
+     "instance_id": "6601788248020f001322ee4e",
+     "label": "ESTADO",
+     "max_length": null,
+     "min_length": null,
+     "opts": [],
+     "order": 3,
+     "product_ids": [],
+     "required": true,
+     "required_rules": [
+      {
+       "_id": "69de7cbbd0a89c001703d02d",
+       "always": true,
+       "created_at": "2026-04-14T14:43:23.395-03:00",
+       "property": null,
+       "updated_at": "2026-04-14T14:43:23.395-03:00",
+       "value": null
+      }
+     ],
+     "slug": "estado",
+     "type": "text",
+     "unique": false,
+     "updated_at": "2026-04-14T14:43:40.885-03:00",
+     "visible": true
+    }
+   },
+   {
+    "value": "SOROCABA",
+    "created_at": "2026-09-30T07:46:32.286-03:00",
+    "updated_at": "2026-09-30T07:46:32.286-03:00",
+    "custom_field_id": "69de7c5ff84e9d00198ba86d",
+    "custom_field": {
+     "_id": "69de7c5ff84e9d00198ba86d",
+     "ai_instructions": null,
+     "allow_new": false,
+     "application_scope": "all",
+     "calculation_action": "none",
+     "created_at": "2026-04-14T14:41:51.737-03:00",
+     "display_rules": [
+      {
+       "_id": "69fca6f1290da1001504f252",
+       "always": true,
+       "created_at": null,
+       "property": null,
+       "updated_at": null,
+       "value": null
+      }
+     ],
+     "editable_on_deal": false,
+     "for": "deal",
+     "input_format": null,
+     "input_mask": null,
+     "input_placeholder": null,
+     "instance_id": "6601788248020f001322ee4e",
+     "label": "CIDADE",
+     "max_length": null,
+     "min_length": null,
+     "opts": [],
+     "order": 4,
+     "product_ids": [],
+     "required": true,
+     "required_rules": [
+      {
+       "_id": "69fca6f1290da1001504f250",
+       "always": true,
+       "created_at": "2026-05-07T11:51:29.273-03:00",
+       "property": null,
+       "updated_at": "2026-05-07T11:51:29.273-03:00",
+       "value": null
+      }
+     ],
+     "slug": "cidade",
+     "type": "text",
+     "unique": false,
+     "updated_at": "2026-05-07T11:51:29.273-03:00",
+     "visible": true
+    }
+   },
+   {
+    "value": "Fernando Augusto",
+    "created_at": "2026-09-30T07:48:11.963-03:00",
+    "updated_at": "2026-09-30T07:48:11.963-03:00",
+    "custom_field_id": "687562da830acf00229b542f",
+    "custom_field": {
+     "_id": "687562da830acf00229b542f",
+     "ai_instructions": null,
+     "allow_new": false,
+     "application_scope": "all",
+     "calculation_action": "none",
+     "created_at": "2025-07-14T17:04:42.827-03:00",
+     "display_rules": [
+      {
+       "_id": "6aa34a2dc49053002488c4ce",
+       "always": null,
+       "created_at": null,
+       "property": "deal_pipeline_id",
+       "updated_at": null,
+       "value": "68755de2587a7f0018857ed2"
+      },
+      {
+       "_id": "6aa34a2dc49053002488c4cf",
+       "always": null,
+       "created_at": null,
+       "property": "deal_pipeline_id",
+       "updated_at": null,
+       "value": "66151c1470449b000d54e914"
+      },
+      {
+       "_id": "6aa34a2dc49053002488c4d0",
+       "always": null,
+       "created_at": null,
+       "property": "deal_pipeline_id",
+       "updated_at": null,
+       "value": "673f4b3a0eb48c00130c6ab2"
+      },
+      {
+       "_id": "6aa34a2dc49053002488c4d1",
+       "always": null,
+       "created_at": null,
+       "property": "deal_pipeline_id",
+       "updated_at": null,
+       "value": "68b19e2883a5f700170072d3"
+      }
+     ],
+     "editable_on_deal": false,
+     "for": "deal",
+     "input_format": null,
+     "input_mask": null,
+     "input_placeholder": null,
+     "instance_id": "6601788248020f001322ee4e",
+     "label": "REPRESENTANTE ",
+     "max_length": null,
+     "min_length": null,
+     "opts": [
+      "Lucas do Vale",
+      "Victor Lantyer",
+      "Fernando Augusto",
+      "Caio Tito",
+      "Hugo Carpanese",
+      "Fernando Marques",
+      "Carlos Alberto",
+      "Cristina Perez",
+      "Joyce Florencio",
+      "Patrick Ferreira",
+      "Weberson Rodrigues",
+      "Daniela Gelsleichter",
+      "Kleber Vasconcelos ",
+      "Francisco Garra",
+      "José Maria",
+      "N/D",
+      "Lorena Leite",
+      "Sergio Serlam",
+      "Célio Almeida",
+      "Silvio Valente",
+      "Paulo Machado",
+      "Manoel Messias",
+      "Ronaldo/Marcus Macieira",
+      "Francisco Campopiano",
+      "SANTOS",
+      "RPC - Robertinho",
+      "Sem Representante",
+      "Mayron Welds",
+      "Caio P Mancini",
+      "Carlos",
+      "Patrick",
+      "Victor VLM",
+      "Weberson",
+      "fergeorgetto@gmail.com",
+      "caio@pmancini.com.br"
+     ],
+     "order": 16,
+     "product_ids": [],
+     "required": true,
+     "required_rules": [
+      {
+       "_id": "6aa34a2dc49053002488c4c1",
+       "always": null,
+       "created_at": "2026-09-10T21:24:13.172-03:00",
+       "property": "deal_stage_id",
+       "updated_at": "2026-09-10T21:24:13.172-03:00",
+       "value": "673f4b3a0eb48c00130c6ab4"
+      },
+      {
+       "_id": "6aa34a2dc49053002488c4c2",
+       "always": null,
+       "created_at": "2026-09-10T21:24:13.172-03:00",
+       "property": "deal_stage_id",
+       "updated_at": "2026-09-10T21:24:13.172-03:00",
+       "value": "685d5f24dfc06d0014db36eb"
+      },
+      {
+       "_id": "6aa34a2dc49053002488c4c3",
+       "always": null,
+       "created_at": "2026-09-10T21:24:13.172-03:00",
+       "property": "deal_stage_id",
+       "updated_at": "2026-09-10T21:24:13.172-03:00",
+       "value": "673f4b3a0eb48c00130c6ab6"
+      },
+      {
+       "_id": "6aa34a2dc49053002488c4c4",
+       "always": null,
+       "created_at": "2026-09-10T21:24:13.172-03:00",
+       "property": "deal_stage_id",
+       "updated_at": "2026-09-10T21:24:13.172-03:00",
+       "value": "6740895695aebe0013c5f2af"
+      },
+      {
+       "_id": "6aa34a2dc49053002488c4c5",
+       "always": null,
+       "created_at": "2026-09-10T21:24:13.172-03:00",
+       "property": "deal_stage_id",
+       "updated_at": "2026-09-10T21:24:13.172-03:00",
+       "value": "6809226ea66ac80014ac1fb3"
+      },
+      {
+       "_id": "6aa34a2dc49053002488c4c6",
+       "always": null,
+       "created_at": "2026-09-10T21:24:13.172-03:00",
+       "property": "deal_stage_id",
+       "updated_at": "2026-09-10T21:24:13.172-03:00",
+       "value": "6740895b76799f0013656185"
+      },
+      {
+       "_id": "6aa34a2dc49053002488c4c7",
+       "always": null,
+       "created_at": "2026-09-10T21:24:13.172-03:00",
+       "property": "deal_stage_id",
+       "updated_at": "2026-09-10T21:24:13.172-03:00",
+       "value": "6744ad9351c24d00139836ab"
+      },
+      {
+       "_id": "6aa34a2dc49053002488c4c8",
+       "always": null,
+       "created_at": "2026-09-10T21:24:13.172-03:00",
+       "property": "deal_stage_id",
+       "updated_at": "2026-09-10T21:24:13.172-03:00",
+       "value": "68b19e2883a5f700170072d8"
+      },
+      {
+       "_id": "6aa34a2dc49053002488c4c9",
+       "always": null,
+       "created_at": "2026-09-10T21:24:13.172-03:00",
+       "property": "deal_stage_id",
+       "updated_at": "2026-09-10T21:24:13.172-03:00",
+       "value": "6a5794edcc530e001d770fb9"
+      },
+      {
+       "_id": "6aa34a2dc49053002488c4ca",
+       "always": null,
+       "created_at": "2026-09-10T21:24:13.172-03:00",
+       "property": "deal_stage_id",
+       "updated_at": "2026-09-10T21:24:13.172-03:00",
+       "value": "68b19e2883a5f700170072d9"
+      },
+      {
+       "_id": "6aa34a2dc49053002488c4cb",
+       "always": null,
+       "created_at": "2026-09-10T21:24:13.172-03:00",
+       "property": "deal_stage_id",
+       "updated_at": "2026-09-10T21:24:13.172-03:00",
+       "value": "68b19ead1ff5c8001a61d73d"
+      },
+      {
+       "_id": "6aa34a2dc49053002488c4cc",
+       "always": null,
+       "created_at": "2026-09-10T21:24:13.172-03:00",
+       "property": "deal_stage_id",
+       "updated_at": "2026-09-10T21:24:13.172-03:00",
+       "value": "68b19eeab3e5a3001b7c83b6"
+      },
+      {
+       "_id": "6aa34a2dc49053002488c4cd",
+       "always": null,
+       "created_at": "2026-09-10T21:24:13.172-03:00",
+       "property": "deal_stage_id",
+       "updated_at": "2026-09-10T21:24:13.172-03:00",
+       "value": "68b19ef1fd3c29001b0a118a"
+      }
+     ],
+     "slug": "representante",
+     "type": "option",
+     "unique": false,
+     "updated_at": "2026-10-19T10:26:48.246-03:00",
+     "visible": true
+    }
+   },
+   {
+    "value": "CS Ferramentas",
+    "created_at": "2026-09-30T07:48:19.393-03:00",
+    "updated_at": "2026-10-01T10:08:11.718-03:00",
+    "custom_field_id": "69a19ce32db3db00162b7f77",
+    "custom_field": {
+     "_id": "69a19ce32db3db00162b7f77",
+     "ai_instructions": null,
+     "allow_new": false,
+     "application_scope": "all",
+     "calculation_action": "none",
+     "created_at": "2026-02-27T10:32:19.208-03:00",
+     "display_rules": [
+      {
+       "_id": "6ac6530f328ef0002925788b",
+       "always": true,
+       "created_at": null,
+       "property": null,
+       "updated_at": null,
+       "value": null
+      }
+     ],
+     "editable_on_deal": false,
+     "for": "deal",
+     "input_format": null,
+     "input_mask": null,
+     "input_placeholder": null,
+     "instance_id": "6601788248020f001322ee4e",
+     "label": "REVENDA/LOJA",
+     "max_length": null,
+     "min_length": null,
+     "opts": [
+      "Luitex SBO",
+      "Luitex Mogi Guaçu",
+      "Luitex Sumaré",
+      "Luitex Americana",
+      "Eletro Solda",
+      "Technofer",
+      "Suprimig",
+      "Ipanema Soldas (LT)",
+      "42863 Alphabras Poços de Caldas 1",
+      "42546 Alphabras Poços de Caldas 2",
+      "31490 Alphabras SJBV ",
+      "Mil Máquinas",
+      "Soldapar",
+      "Total Soldas",
+      "Atual Equipamentos",
+      "Romapar",
+      "LC Ferragens",
+      "Bismark",
+      "Coamassa",
+      "WMS",
+      "Cascavel Soldas",
+      "Casa do Soldador",
+      "A Bittencourt (Casa dos Parafusos)",
+      "Ruzam Parafusos",
+      "Schneider",
+      "Brasolda",
+      "Forte Soldas",
+      "Trianorte",
+      "Diafer Jaguariáiva",
+      "Diafer Itararé",
+      "Diafer Capão",
+      "Diafer Itapeva Matriz",
+      "Diafer Itapeva",
+      "Diafer Itapetininga",
+      "Diafer Ponta Grossa",
+      "CS Ferramentas",
+      "Comercial Soldas",
+      "VR",
+      "Locsoldas",
+      "Oxi-Rio",
+      "Ed Maq",
+      "Ferragista",
+      "Oxigênio Jundiaí",
+      "Manfer",
+      "Dominik",
+      "Samta",
+      "Maqdima",
+      "Tamoyo Itajaí",
+      "Tamoyo Balneário Camboriú 1",
+      "Tamoyo Balneário Camboriú 2",
+      "Tamoyo Porto Belo",
+      "Ferpar",
+      "Fermaq São Bento do Sul",
+      "Fermaq Concórdia",
+      "Certto Ferragens",
+      "Tecmáquinas",
+      "Casa das Ferramentas",
+      "Ap Máquinas ",
+      "Kapdima",
+      "Febrazo",
+      "Nazareno Soldas",
+      "Mattes",
+      "Diferton",
+      "Avantpar",
+      "Almam",
+      "Chapefer",
+      "Rio Máq",
+      "Mepar",
+      "LT Flex",
+      "Fermarcs",
+      "Max Soldas",
+      "Servweld",
+      "Aldesoldas",
+      "AlugaASoldas",
+      "Demil",
+      "WST",
+      "Metatrônica",
+      "LUMAQ",
+      "Ivan Ferramentas",
+      "MAQSOLDAS",
+      "Sem Revenda",
+      "28966, L.C Ferragens Comercial Lins Ltda",
+      "Via Soldas",
+      "30601, Technofer Solucoes Industriais Ltda",
+      "31023, Heitor Nogueira Da Silva, Suprimig Suprimentos Industriais",
+      "37662, Roma - Parafusos E Ferramentas Ltda, Romapar (ROMAPAR)",
+      "42863, Alpha Abras Comercio De Abrasivos Ltda",
+      "alphabras",
+      "Alphabras SJBV",
+      "ATUAL EQUIPAMENTO",
+      "Cd Luitex Americana",
+      "Comercial Soldas Piracicaba",
+      "DIAFER",
+      "Diafer Cd",
+      "Diafer Jaguariaiva",
+      "Eletrosolda Limeira",
+      "LUITEX",
+      "Luitex Sumare",
+      "Metatronica",
+      "Mil Maquinas",
+      "31603, C. S. Ferramentas Ltda",
+      "D. SOLDAS",
+      "28977, Viasoldas Comercio De Produtos Para Solda Ltda",
+      "25932, A Alugaasolda Aluguel De Solda Ltda",
+      "Ultra Maquinas",
+      "Casa do Soldador Monteiro Lobato",
+      "Casa do Soldador Laguna 1656",
+      "Casa do Soldador Colombo",
+      "Casa do Soldador Londrina",
+      "Casa do Soldador Laguna 1630",
+      "Ivan Ferramentas Nepomuceno",
+      "Atual Equipamentos Itapema",
+      "Cascavel Soldas Padre Anchieta",
+      "Ivan Ferramentas Boa Esperança 2"
+     ],
+     "order": 13,
+     "product_ids": [],
+     "required": true,
+     "required_rules": [
+      {
+       "_id": "6ac6530f328ef00029257886",
+       "always": null,
+       "created_at": "2026-10-07T11:11:27.781-03:00",
+       "property": "deal_stage_id",
+       "updated_at": "2026-10-07T11:11:27.781-03:00",
+       "value": "66151c1470449b000d54e917"
+      },
+      {
+       "_id": "6ac6530f328ef00029257887",
+       "always": null,
+       "created_at": "2026-10-07T11:11:27.781-03:00",
+       "property": "deal_stage_id",
+       "updated_at": "2026-10-07T11:11:27.781-03:00",
+       "value": "66153bd8ebb08a0014e92453"
+      },
+      {
+       "_id": "6ac6530f328ef00029257888",
+       "always": null,
+       "created_at": "2026-10-07T11:11:27.781-03:00",
+       "property": "deal_stage_id",
+       "updated_at": "2026-10-07T11:11:27.781-03:00",
+       "value": "66151c1470449b000d54e919"
+      },
+      {
+       "_id": "6ac6530f328ef00029257889",
+       "always": null,
+       "created_at": "2026-10-07T11:11:27.782-03:00",
+       "property": "deal_stage_id",
+       "updated_at": "2026-10-07T11:11:27.782-03:00",
+       "value": "66151c4859f00e001209d066"
+      },
+      {
+       "_id": "6ac6530f328ef0002925788a",
+       "always": null,
+       "created_at": "2026-10-07T11:11:27.782-03:00",
+       "property": "deal_stage_id",
+       "updated_at": "2026-10-07T11:11:27.782-03:00",
+       "value": "6aa05557a4f8c10025433f09"
+      }
+     ],
+     "slug": "revenda-loja",
+     "type": "option",
+     "unique": false,
+     "updated_at": "2026-10-27T13:17:53.121-03:00",
+     "visible": true
+    }
+   },
+   {
+    "value": null,
+    "created_at": "2026-09-30T07:48:26.768-03:00",
+    "updated_at": "2026-09-30T07:48:26.768-03:00",
+    "custom_field_id": "69bd480f74ec6a00133e3a3d",
+    "custom_field": {
+     "_id": "69bd480f74ec6a00133e3a3d",
+     "ai_instructions": null,
+     "allow_new": false,
+     "application_scope": "all",
+     "calculation_action": "none",
+     "created_at": "2026-03-20T10:13:51.515-03:00",
+     "display_rules": [
+      {
+       "_id": "6aa1ba6f32900b002b7a3cbc",
+       "always": null,
+       "created_at": null,
+       "property": "deal_pipeline_id",
+       "updated_at": null,
+       "value": "66151c1470449b000d54e914"
+      }
+     ],
+     "editable_on_deal": false,
+     "for": "deal",
+     "input_format": null,
+     "input_mask": null,
+     "input_placeholder": null,
+     "instance_id": "6601788248020f001322ee4e",
+     "label": "CLASSE DE PREÇO",
+     "max_length": null,
+     "min_length": null,
+     "opts": [
+      "Classe 1",
+      "Classe 2",
+      "Classe 3",
+      "Classe 4",
+      "Classe 5",
+      "Classe 6",
+      "Classe 7",
+      "Sem Classe"
+     ],
+     "order": 8,
+     "product_ids": [],
+     "required": true,
+     "required_rules": [
+      {
+       "_id": "6aa1ba6f32900b002b7a3cb9",
+       "always": null,
+       "created_at": "2026-09-09T16:58:39.837-03:00",
+       "property": "deal_stage_id",
+       "updated_at": "2026-09-09T16:58:39.837-03:00",
+       "value": "66151c1470449b000d54e919"
+      },
+      {
+       "_id": "6aa1ba6f32900b002b7a3cba",
+       "always": null,
+       "created_at": "2026-09-09T16:58:39.837-03:00",
+       "property": "deal_stage_id",
+       "updated_at": "2026-09-09T16:58:39.837-03:00",
+       "value": "66151c4859f00e001209d066"
+      },
+      {
+       "_id": "6aa1ba6f32900b002b7a3cbb",
+       "always": null,
+       "created_at": "2026-09-09T16:58:39.837-03:00",
+       "property": "deal_stage_id",
+       "updated_at": "2026-09-09T16:58:39.837-03:00",
+       "value": "6aa05557a4f8c10025433f09"
+      }
+     ],
+     "slug": "classe-de-preco",
+     "type": "option",
+     "unique": false,
+     "updated_at": "2026-09-09T16:58:39.837-03:00",
+     "visible": true
+    }
+   },
+   {
+    "value": "Máquinas",
+    "created_at": "2026-09-30T07:48:26.772-03:00",
+    "updated_at": "2026-09-30T07:48:26.772-03:00",
+    "custom_field_id": "6aa346e64ea34c002966dda8",
+    "custom_field": {
+     "_id": "6aa346e64ea34c002966dda8",
+     "ai_instructions": null,
+     "allow_new": false,
+     "application_scope": "all",
+     "calculation_action": "none",
+     "created_at": "2026-09-10T21:10:14.397-03:00",
+     "display_rules": [
+      {
+       "_id": "6aa349f087af510020e63cd5",
+       "always": true,
+       "created_at": null,
+       "property": null,
+       "updated_at": null,
+       "value": null
+      }
+     ],
+     "editable_on_deal": false,
+     "for": "deal",
+     "input_format": null,
+     "input_mask": null,
+     "input_placeholder": null,
+     "instance_id": "6601788248020f001322ee4e",
+     "label": "SEGMENTO DE PRODUTO",
+     "max_length": null,
+     "min_length": null,
+     "opts": [
+      "Máquinas",
+      "Laser",
+      "Robo"
+     ],
+     "order": 10,
+     "product_ids": [],
+     "required": true,
+     "required_rules": [
+      {
+       "_id": "6aa349f087af510020e63cca",
+       "always": null,
+       "created_at": "2026-09-10T21:23:12.642-03:00",
+       "property": "deal_stage_id",
+       "updated_at": "2026-09-10T21:23:12.642-03:00",
+       "value": "66151c1470449b000d54e917"
+      },
+      {
+       "_id": "6aa349f087af510020e63ccb",
+       "always": null,
+       "created_at": "2026-09-10T21:23:12.642-03:00",
+       "property": "deal_stage_id",
+       "updated_at": "2026-09-10T21:23:12.642-03:00",
+       "value": "66153bd8ebb08a0014e92453"
+      },
+      {
+       "_id": "6aa349f087af510020e63ccc",
+       "always": null,
+       "created_at": "2026-09-10T21:23:12.642-03:00",
+       "property": "deal_stage_id",
+       "updated_at": "2026-09-10T21:23:12.642-03:00",
+       "value": "66151c1470449b000d54e919"
+      },
+      {
+       "_id": "6aa349f087af510020e63ccd",
+       "always": null,
+       "created_at": "2026-09-10T21:23:12.642-03:00",
+       "property": "deal_stage_id",
+       "updated_at": "2026-09-10T21:23:12.642-03:00",
+       "value": "66151c4859f00e001209d066"
+      },
+      {
+       "_id": "6aa349f087af510020e63cce",
+       "always": null,
+       "created_at": "2026-09-10T21:23:12.642-03:00",
+       "property": "deal_stage_id",
+       "updated_at": "2026-09-10T21:23:12.642-03:00",
+       "value": "6aa05557a4f8c10025433f09"
+      },
+      {
+       "_id": "6aa349f087af510020e63ccf",
+       "always": null,
+       "created_at": "2026-09-10T21:23:12.643-03:00",
+       "property": "deal_stage_id",
+       "updated_at": "2026-09-10T21:23:12.643-03:00",
+       "value": "68b19e2883a5f700170072d8"
+      },
+      {
+       "_id": "6aa349f087af510020e63cd0",
+       "always": null,
+       "created_at": "2026-09-10T21:23:12.643-03:00",
+       "property": "deal_stage_id",
+       "updated_at": "2026-09-10T21:23:12.643-03:00",
+       "value": "6a5794edcc530e001d770fb9"
+      },
+      {
+       "_id": "6aa349f087af510020e63cd1",
+       "always": null,
+       "created_at": "2026-09-10T21:23:12.643-03:00",
+       "property": "deal_stage_id",
+       "updated_at": "2026-09-10T21:23:12.643-03:00",
+       "value": "68b19e2883a5f700170072d9"
+      },
+      {
+       "_id": "6aa349f087af510020e63cd2",
+       "always": null,
+       "created_at": "2026-09-10T21:23:12.643-03:00",
+       "property": "deal_stage_id",
+       "updated_at": "2026-09-10T21:23:12.643-03:00",
+       "value": "68b19ead1ff5c8001a61d73d"
+      },
+      {
+       "_id": "6aa349f087af510020e63cd3",
+       "always": null,
+       "created_at": "2026-09-10T21:23:12.643-03:00",
+       "property": "deal_stage_id",
+       "updated_at": "2026-09-10T21:23:12.643-03:00",
+       "value": "68b19eeab3e5a3001b7c83b6"
+      },
+      {
+       "_id": "6aa349f087af510020e63cd4",
+       "always": null,
+       "created_at": "2026-09-10T21:23:12.643-03:00",
+       "property": "deal_stage_id",
+       "updated_at": "2026-09-10T21:23:12.643-03:00",
+       "value": "68b19ef1fd3c29001b0a118a"
+      }
+     ],
+     "slug": "seguimento-do-produto",
+     "type": "option",
+     "unique": false,
+     "updated_at": "2026-09-10T21:23:12.643-03:00",
+     "visible": true
+    }
+   }
+  ],
+  "next_task": {
+   "_id": "6ac796b7eb324300261c2ff6",
+   "id": "6ac796b7eb324300261c2ff6",
+   "date": "2026-10-08T10:12:23.710-03:00",
+   "hour": "10:12",
+   "subject": "Revenda Assumiu o Atendimento",
+   "type": "task",
+   "user_ids": [
+    "67efe9d367f94d002a8c4929"
+   ]
+  },
+  "deal_products": []
+ },
+ "tarefas": [
+  {
+   "id": "6ac7d3033ad444002a6f3519",
+   "_id": "6ac7d3033ad444002a6f3519",
+   "subject": "Prazo de 48h expirou",
+   "type": "task",
+   "hour": "14:29",
+   "markup": "past",
+   "done": false,
+   "user_ids": [
+    "67efe9d367f94d002a8c4929"
+   ],
+   "notes": "A revenda não escolheu o caminho de venda em 48h - aplicado automaticamente BOX+REV>IND (Boxer vende, revenda mantém a comissão).",
+   "deal_id": "6abc56b04e38b80001ad9877",
+   "done_date": null,
+   "created_at": "2026-10-08T14:29:39.526-03:00",
+   "status": "open",
+   "date": "2026-10-08T17:29:39.510Z",
+   "deal": {
+    "id": "6abc56b04e38b80001ad9877",
+    "_id": "6abc56b04e38b80001ad9877",
+    "name": "Telha Fabrica Materiais Para Construcao LTDA",
+    "hold": null,
+    "rating": 2
+   },
+   "users": [
+    {
+     "id": "67efe9d367f94d002a8c4929",
+     "_id": "67efe9d367f94d002a8c4929",
+     "name": "André Coelho",
+     "nickname": "AC",
+     "email": "andre.coelho@boxersoldas.com.br"
+    }
+   ]
+  },
+  {
+   "id": "6ac796b7eb324300261c2ff6",
+   "_id": "6ac796b7eb324300261c2ff6",
+   "subject": "Revenda Assumiu o Atendimento",
+   "type": "task",
+   "hour": "10:12",
+   "markup": "past",
+   "done": false,
+   "user_ids": [
+    "67efe9d367f94d002a8c4929"
+   ],
+   "notes": "Revenda selecionou o caminho BOX>REV - a revenda seguirá o atendimento diretamente com o cliente.",
+   "deal_id": "6abc56b04e38b80001ad9877",
+   "done_date": null,
+   "created_at": "2026-10-08T10:12:23.722-03:00",
+   "status": "open",
+   "date": "2026-10-08T13:12:23.710Z",
+   "deal": {
+    "id": "6abc56b04e38b80001ad9877",
+    "_id": "6abc56b04e38b80001ad9877",
+    "name": "Telha Fabrica Materiais Para Construcao LTDA",
+    "hold": null,
+    "rating": 2
+   },
+   "users": [
+    {
+     "id": "67efe9d367f94d002a8c4929",
+     "_id": "67efe9d367f94d002a8c4929",
+     "name": "André Coelho",
+     "nickname": "AC",
+     "email": "andre.coelho@boxersoldas.com.br"
+    }
+   ]
+  }
+ ]
+}

@@ -1,0 +1,65 @@
+[
+ {
+  "id": "17fd8fd3-ffc7-43e6-b8ad-4b008e6ddfef",
+  "nome": "Casa Do Soldador - Monteiro Lobato 1168",
+  "nome_rd": "Casa do Soldador Monteiro Lobato",
+  "cnpj": null,
+  "email": null,
+  "user_id": null,
+  "cep": "87050280"
+ },
+ {
+  "id": "ff82c7b9-2788-4edf-aed7-b7a362c26306",
+  "nome": "Casa Do Soldador",
+  "nome_rd": "Casa do Soldador Laguna 1656",
+  "cnpj": null,
+  "email": null,
+  "user_id": null,
+  "cep": "87050363"
+ },
+ {
+  "id": "bc8272c9-3b93-4e8b-a43e-4d821c547d56",
+  "nome": "Casa Do Soldador - Colombo 4738",
+  "nome_rd": "Casa do Soldador Colombo",
+  "cnpj": null,
+  "email": null,
+  "user_id": null,
+  "cep": "87030121"
+ },
+ {
+  "id": "0c2d3706-7951-4eec-b7c5-a7496a52fc58",
+  "nome": "A Casa Do Soldador",
+  "nome_rd": "Casa do Soldador",
+  "cnpj": "72295793000124",
+  "email": "raphael@casadosoldador.com.br",
+  "user_id": 36,
+  "cep": "87069013"
+ },
+ {
+  "id": "683fd728-d24a-4f95-b9d8-9961c06dd74e",
+  "nome": "30601, Technofer Solucoes Industriais Ltda",
+  "nome_rd": "Technofer",
+  "cnpj": null,
+  "email": null,
+  "user_id": 17,
+  "cep": null
+ },
+ {
+  "id": "c4926e29-871f-40ff-bcb1-5b4a77fc72bb",
+  "nome": "Casa Do Soldador",
+  "nome_rd": "Casa do Soldador Londrina",
+  "cnpj": null,
+  "email": null,
+  "user_id": null,
+  "cep": "86010190"
+ },
+ {
+  "id": "c332833f-5398-4c8b-af0c-a4998303d400",
+  "nome": "Casa Do Soldador Ltda",
+  "nome_rd": "Casa do Soldador Laguna 1630",
+  "cnpj": null,
+  "email": null,
+  "user_id": null,
+  "cep": "87050260"
+ }
+]

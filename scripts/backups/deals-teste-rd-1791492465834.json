@@ -1,0 +1,2521 @@
+[
+ {
+  "_id": "6aa5a787af13d50024fa4cc0",
+  "id": "6aa5a787af13d50024fa4cc0",
+  "name": "TESTE_UPDATELEAD_REAL_APAGAR",
+  "amount_montly": 0,
+  "amount_unique": 98765.43,
+  "amount_total": 98765.43,
+  "prediction_date": null,
+  "markup": "future",
+  "last_activity_at": null,
+  "interactions": 1,
+  "markup_last_activities": null,
+  "created_at": "2026-09-12T16:27:03.029-03:00",
+  "updated_at": "2026-09-12T16:27:03.657-03:00",
+  "rating": 1,
+  "markup_created": "30 days",
+  "last_activity_content": null,
+  "user_changed": true,
+  "hold": null,
+  "win": null,
+  "closed_at": null,
+  "stop_time_limit": {},
+  "user": {
+   "_id": "67efe9d367f94d002a8c4929",
+   "id": "67efe9d367f94d002a8c4929",
+   "name": "André Coelho",
+   "nickname": "AC",
+   "email": "andre.coelho@boxersoldas.com.br"
+  },
+  "deal_stage": {
+   "_id": "6a5a200c4d3424002786a346",
+   "id": "6a5a200c4d3424002786a346",
+   "name": "Venda Efetivada",
+   "nickname": "VE",
+   "created_at": "2026-07-17T09:29:00.214-03:00",
+   "updated_at": "2026-07-17T09:29:00.214-03:00"
+  },
+  "contacts": [],
+  "deal_custom_fields": [
+   {
+    "value": "PCI 12a",
+    "created_at": null,
+    "updated_at": null,
+    "custom_field_id": "6a3ae56694471c001e755ff8",
+    "custom_field": {
+     "_id": "6a3ae56694471c001e755ff8",
+     "id": "6a3ae56694471c001e755ff8",
+     "for": "deal",
+     "label": "PERFIL PCI",
+     "order": 13,
+     "allow_new": false,
+     "required": true,
+     "type": "option",
+     "unique": false,
+     "visible": true,
+     "created_at": "2026-06-23T16:58:30.959-03:00",
+     "updated_at": "2026-10-08T09:17:07.875-03:00"
+    }
+   },
+   {
+    "value": "12.345.678/0001-90",
+    "created_at": null,
+    "updated_at": null,
+    "custom_field_id": "66549f56bc9996000f00486d",
+    "custom_field": {
+     "_id": "66549f56bc9996000f00486d",
+     "id": "66549f56bc9996000f00486d",
+     "for": "deal",
+     "label": "CNPJ",
+     "order": 2,
+     "allow_new": false,
+     "required": true,
+     "type": "text",
+     "unique": false,
+     "visible": true,
+     "created_at": "2024-05-27T11:57:26.689-03:00",
+     "updated_at": "2026-01-26T13:50:56.128-03:00"
+    }
+   },
+   {
+    "value": "SP",
+    "created_at": null,
+    "updated_at": null,
+    "custom_field_id": "67407ad5f612fe001acf4874",
+    "custom_field": {
+     "_id": "67407ad5f612fe001acf4874",
+     "id": "67407ad5f612fe001acf4874",
+     "for": "deal",
+     "label": "ESTADO",
+     "order": 3,
+     "allow_new": false,
+     "required": true,
+     "type": "text",
+     "unique": false,
+     "visible": true,
+     "created_at": "2024-11-22T09:36:37.187-03:00",
+     "updated_at": "2026-04-14T14:43:40.885-03:00"
+    }
+   },
+   {
+    "value": "Sao Paulo",
+    "created_at": null,
+    "updated_at": null,
+    "custom_field_id": "69de7c5ff84e9d00198ba86d",
+    "custom_field": {
+     "_id": "69de7c5ff84e9d00198ba86d",
+     "id": "69de7c5ff84e9d00198ba86d",
+     "for": "deal",
+     "label": "CIDADE",
+     "order": 4,
+     "allow_new": false,
+     "required": true,
+     "type": "text",
+     "unique": false,
+     "visible": true,
+     "created_at": "2026-04-14T14:41:51.737-03:00",
+     "updated_at": "2026-05-07T11:51:29.273-03:00"
+    }
+   },
+   {
+    "value": "Luitex Sumaré",
+    "created_at": null,
+    "updated_at": null,
+    "custom_field_id": "69a19ce32db3db00162b7f77",
+    "custom_field": {
+     "_id": "69a19ce32db3db00162b7f77",
+     "id": "69a19ce32db3db00162b7f77",
+     "for": "deal",
+     "label": "REVENDA/LOJA",
+     "order": 16,
+     "allow_new": false,
+     "required": true,
+     "type": "option",
+     "unique": false,
+     "visible": true,
+     "created_at": "2026-02-27T10:32:19.208-03:00",
+     "updated_at": "2026-10-07T11:11:27.782-03:00"
+    }
+   },
+   {
+    "value": null,
+    "created_at": "2026-09-12T16:27:03.640-03:00",
+    "updated_at": "2026-09-12T16:27:03.640-03:00",
+    "custom_field_id": "687562da830acf00229b542f",
+    "custom_field": {
+     "_id": "687562da830acf00229b542f",
+     "id": "687562da830acf00229b542f",
+     "for": "deal",
+     "label": "REPRESENTANTE ",
+     "order": 15,
+     "allow_new": false,
+     "required": true,
+     "type": "option",
+     "unique": false,
+     "visible": true,
+     "created_at": "2025-07-14T17:04:42.827-03:00",
+     "updated_at": "2026-10-08T09:17:06.338-03:00"
+    }
+   },
+   {
+    "value": null,
+    "created_at": "2026-09-12T16:27:03.643-03:00",
+    "updated_at": "2026-09-12T16:27:03.643-03:00",
+    "custom_field_id": "69bd480f74ec6a00133e3a3d",
+    "custom_field": {
+     "_id": "69bd480f74ec6a00133e3a3d",
+     "id": "69bd480f74ec6a00133e3a3d",
+     "for": "deal",
+     "label": "CLASSE DE PREÇO",
+     "order": 8,
+     "allow_new": false,
+     "required": true,
+     "type": "option",
+     "unique": false,
+     "visible": true,
+     "created_at": "2026-03-20T10:13:51.515-03:00",
+     "updated_at": "2026-09-09T16:58:39.837-03:00"
+    }
+   },
+   {
+    "value": null,
+    "created_at": "2026-09-12T16:27:03.648-03:00",
+    "updated_at": "2026-09-12T16:27:03.648-03:00",
+    "custom_field_id": "6aa346e64ea34c002966dda8",
+    "custom_field": {
+     "_id": "6aa346e64ea34c002966dda8",
+     "id": "6aa346e64ea34c002966dda8",
+     "for": "deal",
+     "label": "SEGMENTO DE PRODUTO",
+     "order": 10,
+     "allow_new": false,
+     "required": true,
+     "type": "option",
+     "unique": false,
+     "visible": true,
+     "created_at": "2026-09-10T21:10:14.397-03:00",
+     "updated_at": "2026-09-10T21:23:12.643-03:00"
+    }
+   }
+  ],
+  "deal_products": [],
+  "_pipelineId": "6a2bff35a294cf00226dd600",
+  "_pipelineNome": "BMAX"
+ },
+ {
+  "_id": "6aa5a743a87587002d942dcf",
+  "id": "6aa5a743a87587002d942dcf",
+  "name": "TESTE_AMOUNT_APAGAR",
+  "amount_montly": 0,
+  "amount_unique": 12345.67,
+  "amount_total": 12345.67,
+  "prediction_date": null,
+  "markup": "future",
+  "last_activity_at": null,
+  "interactions": 1,
+  "markup_last_activities": null,
+  "created_at": "2026-09-12T16:25:55.281-03:00",
+  "updated_at": "2026-09-12T16:25:55.761-03:00",
+  "rating": 1,
+  "markup_created": "30 days",
+  "last_activity_content": null,
+  "user_changed": true,
+  "hold": null,
+  "win": null,
+  "closed_at": null,
+  "stop_time_limit": {},
+  "user": {
+   "_id": "67efe9d367f94d002a8c4929",
+   "id": "67efe9d367f94d002a8c4929",
+   "name": "André Coelho",
+   "nickname": "AC",
+   "email": "andre.coelho@boxersoldas.com.br"
+  },
+  "deal_stage": {
+   "_id": "6a5a200c4d3424002786a346",
+   "id": "6a5a200c4d3424002786a346",
+   "name": "Venda Efetivada",
+   "nickname": "VE",
+   "created_at": "2026-07-17T09:29:00.214-03:00",
+   "updated_at": "2026-07-17T09:29:00.214-03:00"
+  },
+  "contacts": [],
+  "deal_custom_fields": [
+   {
+    "value": "PCI 12a",
+    "created_at": null,
+    "updated_at": null,
+    "custom_field_id": "6a3ae56694471c001e755ff8",
+    "custom_field": {
+     "_id": "6a3ae56694471c001e755ff8",
+     "id": "6a3ae56694471c001e755ff8",
+     "for": "deal",
+     "label": "PERFIL PCI",
+     "order": 13,
+     "allow_new": false,
+     "required": true,
+     "type": "option",
+     "unique": false,
+     "visible": true,
+     "created_at": "2026-06-23T16:58:30.959-03:00",
+     "updated_at": "2026-10-08T09:17:07.875-03:00"
+    }
+   },
+   {
+    "value": "12.345.678/0001-90",
+    "created_at": null,
+    "updated_at": null,
+    "custom_field_id": "66549f56bc9996000f00486d",
+    "custom_field": {
+     "_id": "66549f56bc9996000f00486d",
+     "id": "66549f56bc9996000f00486d",
+     "for": "deal",
+     "label": "CNPJ",
+     "order": 2,
+     "allow_new": false,
+     "required": true,
+     "type": "text",
+     "unique": false,
+     "visible": true,
+     "created_at": "2024-05-27T11:57:26.689-03:00",
+     "updated_at": "2026-01-26T13:50:56.128-03:00"
+    }
+   },
+   {
+    "value": "SP",
+    "created_at": null,
+    "updated_at": null,
+    "custom_field_id": "67407ad5f612fe001acf4874",
+    "custom_field": {
+     "_id": "67407ad5f612fe001acf4874",
+     "id": "67407ad5f612fe001acf4874",
+     "for": "deal",
+     "label": "ESTADO",
+     "order": 3,
+     "allow_new": false,
+     "required": true,
+     "type": "text",
+     "unique": false,
+     "visible": true,
+     "created_at": "2024-11-22T09:36:37.187-03:00",
+     "updated_at": "2026-04-14T14:43:40.885-03:00"
+    }
+   },
+   {
+    "value": "Sao Paulo",
+    "created_at": null,
+    "updated_at": null,
+    "custom_field_id": "69de7c5ff84e9d00198ba86d",
+    "custom_field": {
+     "_id": "69de7c5ff84e9d00198ba86d",
+     "id": "69de7c5ff84e9d00198ba86d",
+     "for": "deal",
+     "label": "CIDADE",
+     "order": 4,
+     "allow_new": false,
+     "required": true,
+     "type": "text",
+     "unique": false,
+     "visible": true,
+     "created_at": "2026-04-14T14:41:51.737-03:00",
+     "updated_at": "2026-05-07T11:51:29.273-03:00"
+    }
+   },
+   {
+    "value": "Luitex Sumaré",
+    "created_at": null,
+    "updated_at": null,
+    "custom_field_id": "69a19ce32db3db00162b7f77",
+    "custom_field": {
+     "_id": "69a19ce32db3db00162b7f77",
+     "id": "69a19ce32db3db00162b7f77",
+     "for": "deal",
+     "label": "REVENDA/LOJA",
+     "order": 16,
+     "allow_new": false,
+     "required": true,
+     "type": "option",
+     "unique": false,
+     "visible": true,
+     "created_at": "2026-02-27T10:32:19.208-03:00",
+     "updated_at": "2026-10-07T11:11:27.782-03:00"
+    }
+   },
+   {
+    "value": null,
+    "created_at": "2026-09-12T16:25:55.747-03:00",
+    "updated_at": "2026-09-12T16:25:55.747-03:00",
+    "custom_field_id": "687562da830acf00229b542f",
+    "custom_field": {
+     "_id": "687562da830acf00229b542f",
+     "id": "687562da830acf00229b542f",
+     "for": "deal",
+     "label": "REPRESENTANTE ",
+     "order": 15,
+     "allow_new": false,
+     "required": true,
+     "type": "option",
+     "unique": false,
+     "visible": true,
+     "created_at": "2025-07-14T17:04:42.827-03:00",
+     "updated_at": "2026-10-08T09:17:06.338-03:00"
+    }
+   },
+   {
+    "value": null,
+    "created_at": "2026-09-12T16:25:55.750-03:00",
+    "updated_at": "2026-09-12T16:25:55.750-03:00",
+    "custom_field_id": "69bd480f74ec6a00133e3a3d",
+    "custom_field": {
+     "_id": "69bd480f74ec6a00133e3a3d",
+     "id": "69bd480f74ec6a00133e3a3d",
+     "for": "deal",
+     "label": "CLASSE DE PREÇO",
+     "order": 8,
+     "allow_new": false,
+     "required": true,
+     "type": "option",
+     "unique": false,
+     "visible": true,
+     "created_at": "2026-03-20T10:13:51.515-03:00",
+     "updated_at": "2026-09-09T16:58:39.837-03:00"
+    }
+   },
+   {
+    "value": null,
+    "created_at": "2026-09-12T16:25:55.753-03:00",
+    "updated_at": "2026-09-12T16:25:55.753-03:00",
+    "custom_field_id": "6aa346e64ea34c002966dda8",
+    "custom_field": {
+     "_id": "6aa346e64ea34c002966dda8",
+     "id": "6aa346e64ea34c002966dda8",
+     "for": "deal",
+     "label": "SEGMENTO DE PRODUTO",
+     "order": 10,
+     "allow_new": false,
+     "required": true,
+     "type": "option",
+     "unique": false,
+     "visible": true,
+     "created_at": "2026-09-10T21:10:14.397-03:00",
+     "updated_at": "2026-09-10T21:23:12.643-03:00"
+    }
+   }
+  ],
+  "deal_products": [],
+  "_pipelineId": "6a2bff35a294cf00226dd600",
+  "_pipelineNome": "BMAX"
+ },
+ {
+  "_id": "6aa5a7016020d000231d0575",
+  "id": "6aa5a7016020d000231d0575",
+  "name": "TESTE_FLUXO_VENDIDO_APAGAR4",
+  "amount_montly": 0,
+  "amount_unique": 0,
+  "amount_total": 0,
+  "prediction_date": null,
+  "markup": "future",
+  "last_activity_at": null,
+  "interactions": 1,
+  "markup_last_activities": null,
+  "created_at": "2026-09-12T16:24:49.427-03:00",
+  "updated_at": "2026-09-12T16:24:50.625-03:00",
+  "rating": 1,
+  "markup_created": "30 days",
+  "last_activity_content": null,
+  "user_changed": true,
+  "hold": null,
+  "win": null,
+  "closed_at": null,
+  "stop_time_limit": {},
+  "user": {
+   "_id": "67efe9d367f94d002a8c4929",
+   "id": "67efe9d367f94d002a8c4929",
+   "name": "André Coelho",
+   "nickname": "AC",
+   "email": "andre.coelho@boxersoldas.com.br"
+  },
+  "deal_stage": {
+   "_id": "6a5a200c4d3424002786a346",
+   "id": "6a5a200c4d3424002786a346",
+   "name": "Venda Efetivada",
+   "nickname": "VE",
+   "created_at": "2026-07-17T09:29:00.214-03:00",
+   "updated_at": "2026-07-17T09:29:00.214-03:00"
+  },
+  "contacts": [],
+  "deal_custom_fields": [
+   {
+    "value": "PCI 12a",
+    "created_at": null,
+    "updated_at": null,
+    "custom_field_id": "6a3ae56694471c001e755ff8",
+    "custom_field": {
+     "_id": "6a3ae56694471c001e755ff8",
+     "id": "6a3ae56694471c001e755ff8",
+     "for": "deal",
+     "label": "PERFIL PCI",
+     "order": 13,
+     "allow_new": false,
+     "required": true,
+     "type": "option",
+     "unique": false,
+     "visible": true,
+     "created_at": "2026-06-23T16:58:30.959-03:00",
+     "updated_at": "2026-10-08T09:17:07.875-03:00"
+    }
+   },
+   {
+    "value": "12.345.678/0001-90",
+    "created_at": null,
+    "updated_at": null,
+    "custom_field_id": "66549f56bc9996000f00486d",
+    "custom_field": {
+     "_id": "66549f56bc9996000f00486d",
+     "id": "66549f56bc9996000f00486d",
+     "for": "deal",
+     "label": "CNPJ",
+     "order": 2,
+     "allow_new": false,
+     "required": true,
+     "type": "text",
+     "unique": false,
+     "visible": true,
+     "created_at": "2024-05-27T11:57:26.689-03:00",
+     "updated_at": "2026-01-26T13:50:56.128-03:00"
+    }
+   },
+   {
+    "value": "SP",
+    "created_at": null,
+    "updated_at": null,
+    "custom_field_id": "67407ad5f612fe001acf4874",
+    "custom_field": {
+     "_id": "67407ad5f612fe001acf4874",
+     "id": "67407ad5f612fe001acf4874",
+     "for": "deal",
+     "label": "ESTADO",
+     "order": 3,
+     "allow_new": false,
+     "required": true,
+     "type": "text",
+     "unique": false,
+     "visible": true,
+     "created_at": "2024-11-22T09:36:37.187-03:00",
+     "updated_at": "2026-04-14T14:43:40.885-03:00"
+    }
+   },
+   {
+    "value": "Sao Paulo",
+    "created_at": null,
+    "updated_at": null,
+    "custom_field_id": "69de7c5ff84e9d00198ba86d",
+    "custom_field": {
+     "_id": "69de7c5ff84e9d00198ba86d",
+     "id": "69de7c5ff84e9d00198ba86d",
+     "for": "deal",
+     "label": "CIDADE",
+     "order": 4,
+     "allow_new": false,
+     "required": true,
+     "type": "text",
+     "unique": false,
+     "visible": true,
+     "created_at": "2026-04-14T14:41:51.737-03:00",
+     "updated_at": "2026-05-07T11:51:29.273-03:00"
+    }
+   },
+   {
+    "value": "Luitex Sumaré",
+    "created_at": null,
+    "updated_at": null,
+    "custom_field_id": "69a19ce32db3db00162b7f77",
+    "custom_field": {
+     "_id": "69a19ce32db3db00162b7f77",
+     "id": "69a19ce32db3db00162b7f77",
+     "for": "deal",
+     "label": "REVENDA/LOJA",
+     "order": 16,
+     "allow_new": false,
+     "required": true,
+     "type": "option",
+     "unique": false,
+     "visible": true,
+     "created_at": "2026-02-27T10:32:19.208-03:00",
+     "updated_at": "2026-10-07T11:11:27.782-03:00"
+    }
+   },
+   {
+    "value": null,
+    "created_at": "2026-09-12T16:24:50.618-03:00",
+    "updated_at": "2026-09-12T16:24:50.618-03:00",
+    "custom_field_id": "687562da830acf00229b542f",
+    "custom_field": {
+     "_id": "687562da830acf00229b542f",
+     "id": "687562da830acf00229b542f",
+     "for": "deal",
+     "label": "REPRESENTANTE ",
+     "order": 15,
+     "allow_new": false,
+     "required": true,
+     "type": "option",
+     "unique": false,
+     "visible": true,
+     "created_at": "2025-07-14T17:04:42.827-03:00",
+     "updated_at": "2026-10-08T09:17:06.338-03:00"
+    }
+   },
+   {
+    "value": null,
+    "created_at": "2026-09-12T16:24:50.619-03:00",
+    "updated_at": "2026-09-12T16:24:50.619-03:00",
+    "custom_field_id": "69bd480f74ec6a00133e3a3d",
+    "custom_field": {
+     "_id": "69bd480f74ec6a00133e3a3d",
+     "id": "69bd480f74ec6a00133e3a3d",
+     "for": "deal",
+     "label": "CLASSE DE PREÇO",
+     "order": 8,
+     "allow_new": false,
+     "required": true,
+     "type": "option",
+     "unique": false,
+     "visible": true,
+     "created_at": "2026-03-20T10:13:51.515-03:00",
+     "updated_at": "2026-09-09T16:58:39.837-03:00"
+    }
+   },
+   {
+    "value": null,
+    "created_at": "2026-09-12T16:24:50.621-03:00",
+    "updated_at": "2026-09-12T16:24:50.621-03:00",
+    "custom_field_id": "6aa346e64ea34c002966dda8",
+    "custom_field": {
+     "_id": "6aa346e64ea34c002966dda8",
+     "id": "6aa346e64ea34c002966dda8",
+     "for": "deal",
+     "label": "SEGMENTO DE PRODUTO",
+     "order": 10,
+     "allow_new": false,
+     "required": true,
+     "type": "option",
+     "unique": false,
+     "visible": true,
+     "created_at": "2026-09-10T21:10:14.397-03:00",
+     "updated_at": "2026-09-10T21:23:12.643-03:00"
+    }
+   }
+  ],
+  "deal_products": [],
+  "_pipelineId": "6a2bff35a294cf00226dd600",
+  "_pipelineNome": "BMAX"
+ },
+ {
+  "_id": "6a6c910d2165d600205b1122",
+  "id": "6a6c910d2165d600205b1122",
+  "name": "Teste Integração BMAX 32",
+  "amount_montly": 0,
+  "amount_unique": 0,
+  "amount_total": 0,
+  "prediction_date": null,
+  "markup": "future",
+  "last_activity_at": null,
+  "interactions": 1,
+  "markup_last_activities": null,
+  "created_at": "2026-07-31T09:11:57.683-03:00",
+  "updated_at": "2026-07-31T09:13:06.788-03:00",
+  "rating": 1,
+  "markup_created": "30 days more",
+  "last_activity_content": null,
+  "user_changed": true,
+  "hold": null,
+  "win": null,
+  "closed_at": null,
+  "stop_time_limit": {},
+  "organization": {
+   "_id": "6a3aa6967eea690021c29308",
+   "id": "6a3aa6967eea690021c29308",
+   "name": "Teste Integração BMAX 10",
+   "address": null,
+   "address_latitude": null,
+   "address_longitude": null,
+   "user": {
+    "_id": "6a312b777a6c170023b6427d",
+    "id": "6a312b777a6c170023b6427d",
+    "name": "Khymberlee Fuzetto",
+    "email": "khymberlee.fuzetto@boxersoldas.com.br"
+   },
+   "organization_segments": []
+  },
+  "user": {
+   "_id": "66152391467aac000da67451",
+   "id": "66152391467aac000da67451",
+   "name": "Carlos Fernandes",
+   "nickname": "CF",
+   "email": "vendas.2@boxersoldas.com.br"
+  },
+  "deal_stage": {
+   "_id": "6a5a200c4d3424002786a346",
+   "id": "6a5a200c4d3424002786a346",
+   "name": "Venda Efetivada",
+   "nickname": "VE",
+   "created_at": "2026-07-17T09:29:00.214-03:00",
+   "updated_at": "2026-07-17T09:29:00.214-03:00"
+  },
+  "next_task": {
+   "_id": "6a6c910e53c3ac00205fbac8",
+   "id": "6a6c910e53c3ac00205fbac8",
+   "date": "2026-07-31T09:11:58.627-03:00",
+   "subject": "Lead BMAX",
+   "type": "task",
+   "hour": "09:11"
+  },
+  "contacts": [],
+  "deal_custom_fields": [
+   {
+    "value": "Terra Boa",
+    "created_at": null,
+    "updated_at": null,
+    "custom_field_id": "69de7c5ff84e9d00198ba86d",
+    "custom_field": {
+     "_id": "69de7c5ff84e9d00198ba86d",
+     "id": "69de7c5ff84e9d00198ba86d",
+     "for": "deal",
+     "label": "CIDADE",
+     "order": 4,
+     "allow_new": false,
+     "required": true,
+     "type": "text",
+     "unique": false,
+     "visible": true,
+     "created_at": "2026-04-14T14:41:51.737-03:00",
+     "updated_at": "2026-05-07T11:51:29.273-03:00"
+    }
+   },
+   {
+    "value": "12.345.678/9012-34",
+    "created_at": null,
+    "updated_at": null,
+    "custom_field_id": "66549f56bc9996000f00486d",
+    "custom_field": {
+     "_id": "66549f56bc9996000f00486d",
+     "id": "66549f56bc9996000f00486d",
+     "for": "deal",
+     "label": "CNPJ",
+     "order": 2,
+     "allow_new": false,
+     "required": true,
+     "type": "text",
+     "unique": false,
+     "visible": true,
+     "created_at": "2024-05-27T11:57:26.689-03:00",
+     "updated_at": "2026-01-26T13:50:56.128-03:00"
+    }
+   },
+   {
+    "value": "RO",
+    "created_at": null,
+    "updated_at": null,
+    "custom_field_id": "67407ad5f612fe001acf4874",
+    "custom_field": {
+     "_id": "67407ad5f612fe001acf4874",
+     "id": "67407ad5f612fe001acf4874",
+     "for": "deal",
+     "label": "ESTADO",
+     "order": 3,
+     "allow_new": false,
+     "required": true,
+     "type": "text",
+     "unique": false,
+     "visible": true,
+     "created_at": "2024-11-22T09:36:37.187-03:00",
+     "updated_at": "2026-04-14T14:43:40.885-03:00"
+    }
+   },
+   {
+    "value": "Régua INOX",
+    "created_at": null,
+    "updated_at": null,
+    "custom_field_id": "69a1eaa65a4db30013c0bd1b",
+    "custom_field": {
+     "_id": "69a1eaa65a4db30013c0bd1b",
+     "id": "69a1eaa65a4db30013c0bd1b",
+     "for": "deal",
+     "label": "MÁQUINA DE INTERESSE",
+     "order": 12,
+     "allow_new": false,
+     "required": false,
+     "type": "text",
+     "unique": false,
+     "visible": true,
+     "created_at": "2026-02-27T16:04:06.314-03:00",
+     "updated_at": "2026-10-08T09:17:07.896-03:00"
+    }
+   },
+   {
+    "value": "R$ 3000",
+    "created_at": null,
+    "updated_at": null,
+    "custom_field_id": "661405c2d6161a0014264a6b",
+    "custom_field": {
+     "_id": "661405c2d6161a0014264a6b",
+     "id": "661405c2d6161a0014264a6b",
+     "for": "deal",
+     "label": "NOTAS",
+     "order": 7,
+     "allow_new": false,
+     "required": false,
+     "type": "text",
+     "unique": false,
+     "visible": true,
+     "created_at": "2024-04-08T11:57:06.847-03:00",
+     "updated_at": "2026-09-10T21:11:57.684-03:00"
+    }
+   },
+   {
+    "value": "PCI 12b",
+    "created_at": null,
+    "updated_at": null,
+    "custom_field_id": "6a3ae56694471c001e755ff8",
+    "custom_field": {
+     "_id": "6a3ae56694471c001e755ff8",
+     "id": "6a3ae56694471c001e755ff8",
+     "for": "deal",
+     "label": "PERFIL PCI",
+     "order": 13,
+     "allow_new": false,
+     "required": true,
+     "type": "option",
+     "unique": false,
+     "visible": true,
+     "created_at": "2026-06-23T16:58:30.959-03:00",
+     "updated_at": "2026-10-08T09:17:07.875-03:00"
+    }
+   },
+   {
+    "value": "N/D",
+    "created_at": null,
+    "updated_at": null,
+    "custom_field_id": "687562da830acf00229b542f",
+    "custom_field": {
+     "_id": "687562da830acf00229b542f",
+     "id": "687562da830acf00229b542f",
+     "for": "deal",
+     "label": "REPRESENTANTE ",
+     "order": 15,
+     "allow_new": false,
+     "required": true,
+     "type": "option",
+     "unique": false,
+     "visible": true,
+     "created_at": "2025-07-14T17:04:42.827-03:00",
+     "updated_at": "2026-10-08T09:17:06.338-03:00"
+    }
+   },
+   {
+    "value": "Luitex Americana",
+    "created_at": null,
+    "updated_at": null,
+    "custom_field_id": "69a19ce32db3db00162b7f77",
+    "custom_field": {
+     "_id": "69a19ce32db3db00162b7f77",
+     "id": "69a19ce32db3db00162b7f77",
+     "for": "deal",
+     "label": "REVENDA/LOJA",
+     "order": 16,
+     "allow_new": false,
+     "required": true,
+     "type": "option",
+     "unique": false,
+     "visible": true,
+     "created_at": "2026-02-27T10:32:19.208-03:00",
+     "updated_at": "2026-10-07T11:11:27.782-03:00"
+    }
+   }
+  ],
+  "deal_products": [],
+  "_pipelineId": "6a2bff35a294cf00226dd600",
+  "_pipelineNome": "BMAX"
+ },
+ {
+  "_id": "6a6c00b1137f0500261374c8",
+  "id": "6a6c00b1137f0500261374c8",
+  "name": "Teste Integração BMAX 31",
+  "amount_montly": 0,
+  "amount_unique": 0,
+  "amount_total": 0,
+  "prediction_date": null,
+  "markup": "future",
+  "last_activity_at": null,
+  "interactions": 1,
+  "markup_last_activities": null,
+  "created_at": "2026-07-30T22:56:01.954-03:00",
+  "updated_at": "2026-07-30T22:57:51.919-03:00",
+  "rating": 1,
+  "markup_created": "30 days more",
+  "last_activity_content": null,
+  "user_changed": true,
+  "hold": null,
+  "win": null,
+  "closed_at": null,
+  "stop_time_limit": {},
+  "organization": {
+   "_id": "6a3aa6967eea690021c29308",
+   "id": "6a3aa6967eea690021c29308",
+   "name": "Teste Integração BMAX 10",
+   "address": null,
+   "address_latitude": null,
+   "address_longitude": null,
+   "user": {
+    "_id": "6a312b777a6c170023b6427d",
+    "id": "6a312b777a6c170023b6427d",
+    "name": "Khymberlee Fuzetto",
+    "email": "khymberlee.fuzetto@boxersoldas.com.br"
+   },
+   "organization_segments": []
+  },
+  "user": {
+   "_id": "66152391467aac000da67451",
+   "id": "66152391467aac000da67451",
+   "name": "Carlos Fernandes",
+   "nickname": "CF",
+   "email": "vendas.2@boxersoldas.com.br"
+  },
+  "deal_stage": {
+   "_id": "6a2bff35a294cf00226dd603",
+   "id": "6a2bff35a294cf00226dd603",
+   "name": "Prazo Vencido",
+   "nickname": "PV",
+   "created_at": "2026-06-12T09:44:37.132-03:00",
+   "updated_at": "2026-06-12T09:46:06.366-03:00"
+  },
+  "next_task": {
+   "_id": "6a6c00b218ad960031e3624d",
+   "id": "6a6c00b218ad960031e3624d",
+   "date": "2026-07-30T22:56:02.683-03:00",
+   "subject": "Lead BMAX",
+   "type": "task",
+   "hour": "22:56"
+  },
+  "contacts": [],
+  "deal_custom_fields": [
+   {
+    "value": "Terra Boa",
+    "created_at": null,
+    "updated_at": null,
+    "custom_field_id": "69de7c5ff84e9d00198ba86d",
+    "custom_field": {
+     "_id": "69de7c5ff84e9d00198ba86d",
+     "id": "69de7c5ff84e9d00198ba86d",
+     "for": "deal",
+     "label": "CIDADE",
+     "order": 4,
+     "allow_new": false,
+     "required": true,
+     "type": "text",
+     "unique": false,
+     "visible": true,
+     "created_at": "2026-04-14T14:41:51.737-03:00",
+     "updated_at": "2026-05-07T11:51:29.273-03:00"
+    }
+   },
+   {
+    "value": "12.345.678/9012-34",
+    "created_at": null,
+    "updated_at": null,
+    "custom_field_id": "66549f56bc9996000f00486d",
+    "custom_field": {
+     "_id": "66549f56bc9996000f00486d",
+     "id": "66549f56bc9996000f00486d",
+     "for": "deal",
+     "label": "CNPJ",
+     "order": 2,
+     "allow_new": false,
+     "required": true,
+     "type": "text",
+     "unique": false,
+     "visible": true,
+     "created_at": "2024-05-27T11:57:26.689-03:00",
+     "updated_at": "2026-01-26T13:50:56.128-03:00"
+    }
+   },
+   {
+    "value": "RO",
+    "created_at": null,
+    "updated_at": null,
+    "custom_field_id": "67407ad5f612fe001acf4874",
+    "custom_field": {
+     "_id": "67407ad5f612fe001acf4874",
+     "id": "67407ad5f612fe001acf4874",
+     "for": "deal",
+     "label": "ESTADO",
+     "order": 3,
+     "allow_new": false,
+     "required": true,
+     "type": "text",
+     "unique": false,
+     "visible": true,
+     "created_at": "2024-11-22T09:36:37.187-03:00",
+     "updated_at": "2026-04-14T14:43:40.885-03:00"
+    }
+   },
+   {
+    "value": "Régua INOX",
+    "created_at": null,
+    "updated_at": null,
+    "custom_field_id": "69a1eaa65a4db30013c0bd1b",
+    "custom_field": {
+     "_id": "69a1eaa65a4db30013c0bd1b",
+     "id": "69a1eaa65a4db30013c0bd1b",
+     "for": "deal",
+     "label": "MÁQUINA DE INTERESSE",
+     "order": 12,
+     "allow_new": false,
+     "required": false,
+     "type": "text",
+     "unique": false,
+     "visible": true,
+     "created_at": "2026-02-27T16:04:06.314-03:00",
+     "updated_at": "2026-10-08T09:17:07.896-03:00"
+    }
+   },
+   {
+    "value": "R$ 1234.56",
+    "created_at": null,
+    "updated_at": null,
+    "custom_field_id": "661405c2d6161a0014264a6b",
+    "custom_field": {
+     "_id": "661405c2d6161a0014264a6b",
+     "id": "661405c2d6161a0014264a6b",
+     "for": "deal",
+     "label": "NOTAS",
+     "order": 7,
+     "allow_new": false,
+     "required": false,
+     "type": "text",
+     "unique": false,
+     "visible": true,
+     "created_at": "2024-04-08T11:57:06.847-03:00",
+     "updated_at": "2026-09-10T21:11:57.684-03:00"
+    }
+   },
+   {
+    "value": "PCI 12b",
+    "created_at": null,
+    "updated_at": null,
+    "custom_field_id": "6a3ae56694471c001e755ff8",
+    "custom_field": {
+     "_id": "6a3ae56694471c001e755ff8",
+     "id": "6a3ae56694471c001e755ff8",
+     "for": "deal",
+     "label": "PERFIL PCI",
+     "order": 13,
+     "allow_new": false,
+     "required": true,
+     "type": "option",
+     "unique": false,
+     "visible": true,
+     "created_at": "2026-06-23T16:58:30.959-03:00",
+     "updated_at": "2026-10-08T09:17:07.875-03:00"
+    }
+   },
+   {
+    "value": "N/D",
+    "created_at": null,
+    "updated_at": null,
+    "custom_field_id": "687562da830acf00229b542f",
+    "custom_field": {
+     "_id": "687562da830acf00229b542f",
+     "id": "687562da830acf00229b542f",
+     "for": "deal",
+     "label": "REPRESENTANTE ",
+     "order": 15,
+     "allow_new": false,
+     "required": true,
+     "type": "option",
+     "unique": false,
+     "visible": true,
+     "created_at": "2025-07-14T17:04:42.827-03:00",
+     "updated_at": "2026-10-08T09:17:06.338-03:00"
+    }
+   },
+   {
+    "value": "Luitex Americana",
+    "created_at": null,
+    "updated_at": null,
+    "custom_field_id": "69a19ce32db3db00162b7f77",
+    "custom_field": {
+     "_id": "69a19ce32db3db00162b7f77",
+     "id": "69a19ce32db3db00162b7f77",
+     "for": "deal",
+     "label": "REVENDA/LOJA",
+     "order": 16,
+     "allow_new": false,
+     "required": true,
+     "type": "option",
+     "unique": false,
+     "visible": true,
+     "created_at": "2026-02-27T10:32:19.208-03:00",
+     "updated_at": "2026-10-07T11:11:27.782-03:00"
+    }
+   }
+  ],
+  "deal_products": [],
+  "_pipelineId": "6a2bff35a294cf00226dd600",
+  "_pipelineNome": "BMAX"
+ },
+ {
+  "_id": "6a6bfe27feb2e8002582312e",
+  "id": "6a6bfe27feb2e8002582312e",
+  "name": "Teste Integração BMAX 29",
+  "amount_montly": 0,
+  "amount_unique": 0,
+  "amount_total": 0,
+  "prediction_date": null,
+  "markup": "future",
+  "last_activity_at": null,
+  "interactions": 1,
+  "markup_last_activities": null,
+  "created_at": "2026-07-30T22:45:11.224-03:00",
+  "updated_at": "2026-07-31T08:53:47.345-03:00",
+  "rating": 1,
+  "markup_created": "30 days more",
+  "last_activity_content": null,
+  "user_changed": true,
+  "hold": null,
+  "win": null,
+  "closed_at": null,
+  "stop_time_limit": {},
+  "organization": {
+   "_id": "6a3aa6967eea690021c29308",
+   "id": "6a3aa6967eea690021c29308",
+   "name": "Teste Integração BMAX 10",
+   "address": null,
+   "address_latitude": null,
+   "address_longitude": null,
+   "user": {
+    "_id": "6a312b777a6c170023b6427d",
+    "id": "6a312b777a6c170023b6427d",
+    "name": "Khymberlee Fuzetto",
+    "email": "khymberlee.fuzetto@boxersoldas.com.br"
+   },
+   "organization_segments": []
+  },
+  "user": {
+   "_id": "66152391467aac000da67451",
+   "id": "66152391467aac000da67451",
+   "name": "Carlos Fernandes",
+   "nickname": "CF",
+   "email": "vendas.2@boxersoldas.com.br"
+  },
+  "deal_stage": {
+   "_id": "6a5a200c4d3424002786a346",
+   "id": "6a5a200c4d3424002786a346",
+   "name": "Venda Efetivada",
+   "nickname": "VE",
+   "created_at": "2026-07-17T09:29:00.214-03:00",
+   "updated_at": "2026-07-17T09:29:00.214-03:00"
+  },
+  "next_task": {
+   "_id": "6a6bfe27f62ab40020812480",
+   "id": "6a6bfe27f62ab40020812480",
+   "date": "2026-07-30T22:45:11.810-03:00",
+   "subject": "Lead BMAX",
+   "type": "task",
+   "hour": "22:45"
+  },
+  "contacts": [],
+  "deal_custom_fields": [
+   {
+    "value": "Terra Boa",
+    "created_at": null,
+    "updated_at": null,
+    "custom_field_id": "69de7c5ff84e9d00198ba86d",
+    "custom_field": {
+     "_id": "69de7c5ff84e9d00198ba86d",
+     "id": "69de7c5ff84e9d00198ba86d",
+     "for": "deal",
+     "label": "CIDADE",
+     "order": 4,
+     "allow_new": false,
+     "required": true,
+     "type": "text",
+     "unique": false,
+     "visible": true,
+     "created_at": "2026-04-14T14:41:51.737-03:00",
+     "updated_at": "2026-05-07T11:51:29.273-03:00"
+    }
+   },
+   {
+    "value": "12.345.678/9012-34",
+    "created_at": null,
+    "updated_at": null,
+    "custom_field_id": "66549f56bc9996000f00486d",
+    "custom_field": {
+     "_id": "66549f56bc9996000f00486d",
+     "id": "66549f56bc9996000f00486d",
+     "for": "deal",
+     "label": "CNPJ",
+     "order": 2,
+     "allow_new": false,
+     "required": true,
+     "type": "text",
+     "unique": false,
+     "visible": true,
+     "created_at": "2024-05-27T11:57:26.689-03:00",
+     "updated_at": "2026-01-26T13:50:56.128-03:00"
+    }
+   },
+   {
+    "value": "RO",
+    "created_at": null,
+    "updated_at": null,
+    "custom_field_id": "67407ad5f612fe001acf4874",
+    "custom_field": {
+     "_id": "67407ad5f612fe001acf4874",
+     "id": "67407ad5f612fe001acf4874",
+     "for": "deal",
+     "label": "ESTADO",
+     "order": 3,
+     "allow_new": false,
+     "required": true,
+     "type": "text",
+     "unique": false,
+     "visible": true,
+     "created_at": "2024-11-22T09:36:37.187-03:00",
+     "updated_at": "2026-04-14T14:43:40.885-03:00"
+    }
+   },
+   {
+    "value": "Régua INOX",
+    "created_at": null,
+    "updated_at": null,
+    "custom_field_id": "69a1eaa65a4db30013c0bd1b",
+    "custom_field": {
+     "_id": "69a1eaa65a4db30013c0bd1b",
+     "id": "69a1eaa65a4db30013c0bd1b",
+     "for": "deal",
+     "label": "MÁQUINA DE INTERESSE",
+     "order": 12,
+     "allow_new": false,
+     "required": false,
+     "type": "text",
+     "unique": false,
+     "visible": true,
+     "created_at": "2026-02-27T16:04:06.314-03:00",
+     "updated_at": "2026-10-08T09:17:07.896-03:00"
+    }
+   },
+   {
+    "value": "R$ 2500",
+    "created_at": null,
+    "updated_at": null,
+    "custom_field_id": "661405c2d6161a0014264a6b",
+    "custom_field": {
+     "_id": "661405c2d6161a0014264a6b",
+     "id": "661405c2d6161a0014264a6b",
+     "for": "deal",
+     "label": "NOTAS",
+     "order": 7,
+     "allow_new": false,
+     "required": false,
+     "type": "text",
+     "unique": false,
+     "visible": true,
+     "created_at": "2024-04-08T11:57:06.847-03:00",
+     "updated_at": "2026-09-10T21:11:57.684-03:00"
+    }
+   },
+   {
+    "value": "PCI 12b",
+    "created_at": null,
+    "updated_at": null,
+    "custom_field_id": "6a3ae56694471c001e755ff8",
+    "custom_field": {
+     "_id": "6a3ae56694471c001e755ff8",
+     "id": "6a3ae56694471c001e755ff8",
+     "for": "deal",
+     "label": "PERFIL PCI",
+     "order": 13,
+     "allow_new": false,
+     "required": true,
+     "type": "option",
+     "unique": false,
+     "visible": true,
+     "created_at": "2026-06-23T16:58:30.959-03:00",
+     "updated_at": "2026-10-08T09:17:07.875-03:00"
+    }
+   },
+   {
+    "value": "N/D",
+    "created_at": null,
+    "updated_at": null,
+    "custom_field_id": "687562da830acf00229b542f",
+    "custom_field": {
+     "_id": "687562da830acf00229b542f",
+     "id": "687562da830acf00229b542f",
+     "for": "deal",
+     "label": "REPRESENTANTE ",
+     "order": 15,
+     "allow_new": false,
+     "required": true,
+     "type": "option",
+     "unique": false,
+     "visible": true,
+     "created_at": "2025-07-14T17:04:42.827-03:00",
+     "updated_at": "2026-10-08T09:17:06.338-03:00"
+    }
+   },
+   {
+    "value": "Luitex Americana",
+    "created_at": null,
+    "updated_at": null,
+    "custom_field_id": "69a19ce32db3db00162b7f77",
+    "custom_field": {
+     "_id": "69a19ce32db3db00162b7f77",
+     "id": "69a19ce32db3db00162b7f77",
+     "for": "deal",
+     "label": "REVENDA/LOJA",
+     "order": 16,
+     "allow_new": false,
+     "required": true,
+     "type": "option",
+     "unique": false,
+     "visible": true,
+     "created_at": "2026-02-27T10:32:19.208-03:00",
+     "updated_at": "2026-10-07T11:11:27.782-03:00"
+    }
+   }
+  ],
+  "deal_products": [],
+  "_pipelineId": "6a2bff35a294cf00226dd600",
+  "_pipelineNome": "BMAX"
+ },
+ {
+  "_id": "6a6bd5d5f9030000382e7886",
+  "id": "6a6bd5d5f9030000382e7886",
+  "name": "Teste Integração BMAX 25",
+  "amount_montly": 0,
+  "amount_unique": 0,
+  "amount_total": 0,
+  "prediction_date": null,
+  "markup": "future",
+  "last_activity_at": null,
+  "interactions": 1,
+  "markup_last_activities": null,
+  "created_at": "2026-07-30T19:53:09.466-03:00",
+  "updated_at": "2026-08-03T10:28:33.283-03:00",
+  "rating": 1,
+  "markup_created": "30 days more",
+  "last_activity_content": null,
+  "user_changed": true,
+  "hold": null,
+  "win": null,
+  "closed_at": null,
+  "stop_time_limit": {},
+  "organization": {
+   "_id": "6a3aa6967eea690021c29308",
+   "id": "6a3aa6967eea690021c29308",
+   "name": "Teste Integração BMAX 10",
+   "address": null,
+   "address_latitude": null,
+   "address_longitude": null,
+   "user": {
+    "_id": "6a312b777a6c170023b6427d",
+    "id": "6a312b777a6c170023b6427d",
+    "name": "Khymberlee Fuzetto",
+    "email": "khymberlee.fuzetto@boxersoldas.com.br"
+   },
+   "organization_segments": []
+  },
+  "user": {
+   "_id": "66152391467aac000da67451",
+   "id": "66152391467aac000da67451",
+   "name": "Carlos Fernandes",
+   "nickname": "CF",
+   "email": "vendas.2@boxersoldas.com.br"
+  },
+  "deal_stage": {
+   "_id": "6a5a200c4d3424002786a346",
+   "id": "6a5a200c4d3424002786a346",
+   "name": "Venda Efetivada",
+   "nickname": "VE",
+   "created_at": "2026-07-17T09:29:00.214-03:00",
+   "updated_at": "2026-07-17T09:29:00.214-03:00"
+  },
+  "next_task": {
+   "_id": "6a6bd5d618ad960020ca3332",
+   "id": "6a6bd5d618ad960020ca3332",
+   "date": "2026-07-30T19:53:10.569-03:00",
+   "subject": "Lead BMAX",
+   "type": "task",
+   "hour": "19:53"
+  },
+  "contacts": [],
+  "deal_custom_fields": [
+   {
+    "value": "Terra Boa",
+    "created_at": null,
+    "updated_at": null,
+    "custom_field_id": "69de7c5ff84e9d00198ba86d",
+    "custom_field": {
+     "_id": "69de7c5ff84e9d00198ba86d",
+     "id": "69de7c5ff84e9d00198ba86d",
+     "for": "deal",
+     "label": "CIDADE",
+     "order": 4,
+     "allow_new": false,
+     "required": true,
+     "type": "text",
+     "unique": false,
+     "visible": true,
+     "created_at": "2026-04-14T14:41:51.737-03:00",
+     "updated_at": "2026-05-07T11:51:29.273-03:00"
+    }
+   },
+   {
+    "value": "12.345.678/9012-34",
+    "created_at": null,
+    "updated_at": null,
+    "custom_field_id": "66549f56bc9996000f00486d",
+    "custom_field": {
+     "_id": "66549f56bc9996000f00486d",
+     "id": "66549f56bc9996000f00486d",
+     "for": "deal",
+     "label": "CNPJ",
+     "order": 2,
+     "allow_new": false,
+     "required": true,
+     "type": "text",
+     "unique": false,
+     "visible": true,
+     "created_at": "2024-05-27T11:57:26.689-03:00",
+     "updated_at": "2026-01-26T13:50:56.128-03:00"
+    }
+   },
+   {
+    "value": "Régua INOX",
+    "created_at": null,
+    "updated_at": null,
+    "custom_field_id": "69a1eaa65a4db30013c0bd1b",
+    "custom_field": {
+     "_id": "69a1eaa65a4db30013c0bd1b",
+     "id": "69a1eaa65a4db30013c0bd1b",
+     "for": "deal",
+     "label": "MÁQUINA DE INTERESSE",
+     "order": 12,
+     "allow_new": false,
+     "required": false,
+     "type": "text",
+     "unique": false,
+     "visible": true,
+     "created_at": "2026-02-27T16:04:06.314-03:00",
+     "updated_at": "2026-10-08T09:17:07.896-03:00"
+    }
+   },
+   {
+    "value": "R$ 10000",
+    "created_at": null,
+    "updated_at": null,
+    "custom_field_id": "661405c2d6161a0014264a6b",
+    "custom_field": {
+     "_id": "661405c2d6161a0014264a6b",
+     "id": "661405c2d6161a0014264a6b",
+     "for": "deal",
+     "label": "NOTAS",
+     "order": 7,
+     "allow_new": false,
+     "required": false,
+     "type": "text",
+     "unique": false,
+     "visible": true,
+     "created_at": "2024-04-08T11:57:06.847-03:00",
+     "updated_at": "2026-09-10T21:11:57.684-03:00"
+    }
+   },
+   {
+    "value": "PCI 12a",
+    "created_at": null,
+    "updated_at": null,
+    "custom_field_id": "6a3ae56694471c001e755ff8",
+    "custom_field": {
+     "_id": "6a3ae56694471c001e755ff8",
+     "id": "6a3ae56694471c001e755ff8",
+     "for": "deal",
+     "label": "PERFIL PCI",
+     "order": 13,
+     "allow_new": false,
+     "required": true,
+     "type": "option",
+     "unique": false,
+     "visible": true,
+     "created_at": "2026-06-23T16:58:30.959-03:00",
+     "updated_at": "2026-10-08T09:17:07.875-03:00"
+    }
+   },
+   {
+    "value": "N/D",
+    "created_at": null,
+    "updated_at": null,
+    "custom_field_id": "687562da830acf00229b542f",
+    "custom_field": {
+     "_id": "687562da830acf00229b542f",
+     "id": "687562da830acf00229b542f",
+     "for": "deal",
+     "label": "REPRESENTANTE ",
+     "order": 15,
+     "allow_new": false,
+     "required": true,
+     "type": "option",
+     "unique": false,
+     "visible": true,
+     "created_at": "2025-07-14T17:04:42.827-03:00",
+     "updated_at": "2026-10-08T09:17:06.338-03:00"
+    }
+   },
+   {
+    "value": "Luitex Americana",
+    "created_at": null,
+    "updated_at": null,
+    "custom_field_id": "69a19ce32db3db00162b7f77",
+    "custom_field": {
+     "_id": "69a19ce32db3db00162b7f77",
+     "id": "69a19ce32db3db00162b7f77",
+     "for": "deal",
+     "label": "REVENDA/LOJA",
+     "order": 16,
+     "allow_new": false,
+     "required": true,
+     "type": "option",
+     "unique": false,
+     "visible": true,
+     "created_at": "2026-02-27T10:32:19.208-03:00",
+     "updated_at": "2026-10-07T11:11:27.782-03:00"
+    }
+   },
+   {
+    "value": "RO",
+    "created_at": null,
+    "updated_at": null,
+    "custom_field_id": "67407ad5f612fe001acf4874",
+    "custom_field": {
+     "_id": "67407ad5f612fe001acf4874",
+     "id": "67407ad5f612fe001acf4874",
+     "for": "deal",
+     "label": "ESTADO",
+     "order": 3,
+     "allow_new": false,
+     "required": true,
+     "type": "text",
+     "unique": false,
+     "visible": true,
+     "created_at": "2024-11-22T09:36:37.187-03:00",
+     "updated_at": "2026-04-14T14:43:40.885-03:00"
+    }
+   }
+  ],
+  "deal_products": [],
+  "_pipelineId": "6a2bff35a294cf00226dd600",
+  "_pipelineNome": "BMAX"
+ },
+ {
+  "_id": "6a6a07338169e6001dc77a53",
+  "id": "6a6a07338169e6001dc77a53",
+  "name": "Teste Integração BMAX 19",
+  "amount_montly": 0,
+  "amount_unique": 0,
+  "amount_total": 0,
+  "prediction_date": null,
+  "markup": "future",
+  "last_activity_at": null,
+  "interactions": 1,
+  "markup_last_activities": null,
+  "created_at": "2026-07-29T10:59:15.919-03:00",
+  "updated_at": "2026-07-30T09:42:23.772-03:00",
+  "rating": 1,
+  "markup_created": "30 days more",
+  "last_activity_content": null,
+  "user_changed": true,
+  "hold": null,
+  "win": null,
+  "closed_at": null,
+  "stop_time_limit": {},
+  "organization": {
+   "_id": "6a3aa6967eea690021c29308",
+   "id": "6a3aa6967eea690021c29308",
+   "name": "Teste Integração BMAX 10",
+   "address": null,
+   "address_latitude": null,
+   "address_longitude": null,
+   "user": {
+    "_id": "6a312b777a6c170023b6427d",
+    "id": "6a312b777a6c170023b6427d",
+    "name": "Khymberlee Fuzetto",
+    "email": "khymberlee.fuzetto@boxersoldas.com.br"
+   },
+   "organization_segments": []
+  },
+  "user": {
+   "_id": "66152391467aac000da67451",
+   "id": "66152391467aac000da67451",
+   "name": "Carlos Fernandes",
+   "nickname": "CF",
+   "email": "vendas.2@boxersoldas.com.br"
+  },
+  "deal_stage": {
+   "_id": "6a5a200c4d3424002786a346",
+   "id": "6a5a200c4d3424002786a346",
+   "name": "Venda Efetivada",
+   "nickname": "VE",
+   "created_at": "2026-07-17T09:29:00.214-03:00",
+   "updated_at": "2026-07-17T09:29:00.214-03:00"
+  },
+  "next_task": {
+   "_id": "6a6a073456de3c001d52a7f6",
+   "id": "6a6a073456de3c001d52a7f6",
+   "date": "2026-07-29T10:59:16.811-03:00",
+   "subject": "Lead BMAX",
+   "type": "task",
+   "hour": "10:59"
+  },
+  "contacts": [],
+  "deal_custom_fields": [
+   {
+    "value": "Terra Boa",
+    "created_at": null,
+    "updated_at": null,
+    "custom_field_id": "69de7c5ff84e9d00198ba86d",
+    "custom_field": {
+     "_id": "69de7c5ff84e9d00198ba86d",
+     "id": "69de7c5ff84e9d00198ba86d",
+     "for": "deal",
+     "label": "CIDADE",
+     "order": 4,
+     "allow_new": false,
+     "required": true,
+     "type": "text",
+     "unique": false,
+     "visible": true,
+     "created_at": "2026-04-14T14:41:51.737-03:00",
+     "updated_at": "2026-05-07T11:51:29.273-03:00"
+    }
+   },
+   {
+    "value": "12.345.678/9012-34",
+    "created_at": null,
+    "updated_at": null,
+    "custom_field_id": "66549f56bc9996000f00486d",
+    "custom_field": {
+     "_id": "66549f56bc9996000f00486d",
+     "id": "66549f56bc9996000f00486d",
+     "for": "deal",
+     "label": "CNPJ",
+     "order": 2,
+     "allow_new": false,
+     "required": true,
+     "type": "text",
+     "unique": false,
+     "visible": true,
+     "created_at": "2024-05-27T11:57:26.689-03:00",
+     "updated_at": "2026-01-26T13:50:56.128-03:00"
+    }
+   },
+   {
+    "value": "Régua INOX",
+    "created_at": null,
+    "updated_at": null,
+    "custom_field_id": "69a1eaa65a4db30013c0bd1b",
+    "custom_field": {
+     "_id": "69a1eaa65a4db30013c0bd1b",
+     "id": "69a1eaa65a4db30013c0bd1b",
+     "for": "deal",
+     "label": "MÁQUINA DE INTERESSE",
+     "order": 12,
+     "allow_new": false,
+     "required": false,
+     "type": "text",
+     "unique": false,
+     "visible": true,
+     "created_at": "2026-02-27T16:04:06.314-03:00",
+     "updated_at": "2026-10-08T09:17:07.896-03:00"
+    }
+   },
+   {
+    "value": "R$ 1000",
+    "created_at": null,
+    "updated_at": null,
+    "custom_field_id": "661405c2d6161a0014264a6b",
+    "custom_field": {
+     "_id": "661405c2d6161a0014264a6b",
+     "id": "661405c2d6161a0014264a6b",
+     "for": "deal",
+     "label": "NOTAS",
+     "order": 7,
+     "allow_new": false,
+     "required": false,
+     "type": "text",
+     "unique": false,
+     "visible": true,
+     "created_at": "2024-04-08T11:57:06.847-03:00",
+     "updated_at": "2026-09-10T21:11:57.684-03:00"
+    }
+   },
+   {
+    "value": "PCI 12b",
+    "created_at": null,
+    "updated_at": null,
+    "custom_field_id": "6a3ae56694471c001e755ff8",
+    "custom_field": {
+     "_id": "6a3ae56694471c001e755ff8",
+     "id": "6a3ae56694471c001e755ff8",
+     "for": "deal",
+     "label": "PERFIL PCI",
+     "order": 13,
+     "allow_new": false,
+     "required": true,
+     "type": "option",
+     "unique": false,
+     "visible": true,
+     "created_at": "2026-06-23T16:58:30.959-03:00",
+     "updated_at": "2026-10-08T09:17:07.875-03:00"
+    }
+   },
+   {
+    "value": "N/D",
+    "created_at": null,
+    "updated_at": null,
+    "custom_field_id": "687562da830acf00229b542f",
+    "custom_field": {
+     "_id": "687562da830acf00229b542f",
+     "id": "687562da830acf00229b542f",
+     "for": "deal",
+     "label": "REPRESENTANTE ",
+     "order": 15,
+     "allow_new": false,
+     "required": true,
+     "type": "option",
+     "unique": false,
+     "visible": true,
+     "created_at": "2025-07-14T17:04:42.827-03:00",
+     "updated_at": "2026-10-08T09:17:06.338-03:00"
+    }
+   },
+   {
+    "value": "Luitex Americana",
+    "created_at": null,
+    "updated_at": null,
+    "custom_field_id": "69a19ce32db3db00162b7f77",
+    "custom_field": {
+     "_id": "69a19ce32db3db00162b7f77",
+     "id": "69a19ce32db3db00162b7f77",
+     "for": "deal",
+     "label": "REVENDA/LOJA",
+     "order": 16,
+     "allow_new": false,
+     "required": true,
+     "type": "option",
+     "unique": false,
+     "visible": true,
+     "created_at": "2026-02-27T10:32:19.208-03:00",
+     "updated_at": "2026-10-07T11:11:27.782-03:00"
+    }
+   },
+   {
+    "value": "RO",
+    "created_at": null,
+    "updated_at": null,
+    "custom_field_id": "67407ad5f612fe001acf4874",
+    "custom_field": {
+     "_id": "67407ad5f612fe001acf4874",
+     "id": "67407ad5f612fe001acf4874",
+     "for": "deal",
+     "label": "ESTADO",
+     "order": 3,
+     "allow_new": false,
+     "required": true,
+     "type": "text",
+     "unique": false,
+     "visible": true,
+     "created_at": "2024-11-22T09:36:37.187-03:00",
+     "updated_at": "2026-04-14T14:43:40.885-03:00"
+    }
+   }
+  ],
+  "deal_products": [],
+  "_pipelineId": "6a2bff35a294cf00226dd600",
+  "_pipelineNome": "BMAX"
+ },
+ {
+  "_id": "6a62bb375aa51d00246cb23d",
+  "id": "6a62bb375aa51d00246cb23d",
+  "name": "Teste Integração BMAX 18",
+  "amount_montly": 0,
+  "amount_unique": 0,
+  "amount_total": 0,
+  "prediction_date": null,
+  "markup": "future",
+  "last_activity_at": null,
+  "interactions": 6,
+  "markup_last_activities": null,
+  "created_at": "2026-07-23T22:09:11.307-03:00",
+  "updated_at": "2026-07-29T10:11:01.387-03:00",
+  "rating": 1,
+  "markup_created": "30 days more",
+  "last_activity_content": null,
+  "user_changed": true,
+  "hold": null,
+  "win": null,
+  "closed_at": null,
+  "stop_time_limit": {},
+  "organization": {
+   "_id": "6a3aa6967eea690021c29308",
+   "id": "6a3aa6967eea690021c29308",
+   "name": "Teste Integração BMAX 10",
+   "address": null,
+   "address_latitude": null,
+   "address_longitude": null,
+   "user": {
+    "_id": "6a312b777a6c170023b6427d",
+    "id": "6a312b777a6c170023b6427d",
+    "name": "Khymberlee Fuzetto",
+    "email": "khymberlee.fuzetto@boxersoldas.com.br"
+   },
+   "organization_segments": []
+  },
+  "user": {
+   "_id": "66152391467aac000da67451",
+   "id": "66152391467aac000da67451",
+   "name": "Carlos Fernandes",
+   "nickname": "CF",
+   "email": "vendas.2@boxersoldas.com.br"
+  },
+  "deal_stage": {
+   "_id": "6a2bff35a294cf00226dd603",
+   "id": "6a2bff35a294cf00226dd603",
+   "name": "Prazo Vencido",
+   "nickname": "PV",
+   "created_at": "2026-06-12T09:44:37.132-03:00",
+   "updated_at": "2026-06-12T09:46:06.366-03:00"
+  },
+  "next_task": {
+   "_id": "6a62bb37f555b800323ede19",
+   "id": "6a62bb37f555b800323ede19",
+   "date": "2026-07-23T22:09:11.756-03:00",
+   "subject": "Lead BMAX",
+   "type": "task",
+   "hour": "22:09"
+  },
+  "contacts": [],
+  "deal_custom_fields": [
+   {
+    "value": "Terra Boa",
+    "created_at": null,
+    "updated_at": null,
+    "custom_field_id": "69de7c5ff84e9d00198ba86d",
+    "custom_field": {
+     "_id": "69de7c5ff84e9d00198ba86d",
+     "id": "69de7c5ff84e9d00198ba86d",
+     "for": "deal",
+     "label": "CIDADE",
+     "order": 4,
+     "allow_new": false,
+     "required": true,
+     "type": "text",
+     "unique": false,
+     "visible": true,
+     "created_at": "2026-04-14T14:41:51.737-03:00",
+     "updated_at": "2026-05-07T11:51:29.273-03:00"
+    }
+   },
+   {
+    "value": "12.345.678/9012-34",
+    "created_at": null,
+    "updated_at": null,
+    "custom_field_id": "66549f56bc9996000f00486d",
+    "custom_field": {
+     "_id": "66549f56bc9996000f00486d",
+     "id": "66549f56bc9996000f00486d",
+     "for": "deal",
+     "label": "CNPJ",
+     "order": 2,
+     "allow_new": false,
+     "required": true,
+     "type": "text",
+     "unique": false,
+     "visible": true,
+     "created_at": "2024-05-27T11:57:26.689-03:00",
+     "updated_at": "2026-01-26T13:50:56.128-03:00"
+    }
+   },
+   {
+    "value": "Régua INOX",
+    "created_at": null,
+    "updated_at": null,
+    "custom_field_id": "69a1eaa65a4db30013c0bd1b",
+    "custom_field": {
+     "_id": "69a1eaa65a4db30013c0bd1b",
+     "id": "69a1eaa65a4db30013c0bd1b",
+     "for": "deal",
+     "label": "MÁQUINA DE INTERESSE",
+     "order": 12,
+     "allow_new": false,
+     "required": false,
+     "type": "text",
+     "unique": false,
+     "visible": true,
+     "created_at": "2026-02-27T16:04:06.314-03:00",
+     "updated_at": "2026-10-08T09:17:07.896-03:00"
+    }
+   },
+   {
+    "value": "R$ 5000",
+    "created_at": null,
+    "updated_at": null,
+    "custom_field_id": "661405c2d6161a0014264a6b",
+    "custom_field": {
+     "_id": "661405c2d6161a0014264a6b",
+     "id": "661405c2d6161a0014264a6b",
+     "for": "deal",
+     "label": "NOTAS",
+     "order": 7,
+     "allow_new": false,
+     "required": false,
+     "type": "text",
+     "unique": false,
+     "visible": true,
+     "created_at": "2024-04-08T11:57:06.847-03:00",
+     "updated_at": "2026-09-10T21:11:57.684-03:00"
+    }
+   },
+   {
+    "value": "PCI 12b",
+    "created_at": null,
+    "updated_at": null,
+    "custom_field_id": "6a3ae56694471c001e755ff8",
+    "custom_field": {
+     "_id": "6a3ae56694471c001e755ff8",
+     "id": "6a3ae56694471c001e755ff8",
+     "for": "deal",
+     "label": "PERFIL PCI",
+     "order": 13,
+     "allow_new": false,
+     "required": true,
+     "type": "option",
+     "unique": false,
+     "visible": true,
+     "created_at": "2026-06-23T16:58:30.959-03:00",
+     "updated_at": "2026-10-08T09:17:07.875-03:00"
+    }
+   },
+   {
+    "value": "Lucas do Vale",
+    "created_at": null,
+    "updated_at": null,
+    "custom_field_id": "687562da830acf00229b542f",
+    "custom_field": {
+     "_id": "687562da830acf00229b542f",
+     "id": "687562da830acf00229b542f",
+     "for": "deal",
+     "label": "REPRESENTANTE ",
+     "order": 15,
+     "allow_new": false,
+     "required": true,
+     "type": "option",
+     "unique": false,
+     "visible": true,
+     "created_at": "2025-07-14T17:04:42.827-03:00",
+     "updated_at": "2026-10-08T09:17:06.338-03:00"
+    }
+   },
+   {
+    "value": "Luitex Americana",
+    "created_at": null,
+    "updated_at": null,
+    "custom_field_id": "69a19ce32db3db00162b7f77",
+    "custom_field": {
+     "_id": "69a19ce32db3db00162b7f77",
+     "id": "69a19ce32db3db00162b7f77",
+     "for": "deal",
+     "label": "REVENDA/LOJA",
+     "order": 16,
+     "allow_new": false,
+     "required": true,
+     "type": "option",
+     "unique": false,
+     "visible": true,
+     "created_at": "2026-02-27T10:32:19.208-03:00",
+     "updated_at": "2026-10-07T11:11:27.782-03:00"
+    }
+   },
+   {
+    "value": "RO",
+    "created_at": null,
+    "updated_at": null,
+    "custom_field_id": "67407ad5f612fe001acf4874",
+    "custom_field": {
+     "_id": "67407ad5f612fe001acf4874",
+     "id": "67407ad5f612fe001acf4874",
+     "for": "deal",
+     "label": "ESTADO",
+     "order": 3,
+     "allow_new": false,
+     "required": true,
+     "type": "text",
+     "unique": false,
+     "visible": true,
+     "created_at": "2024-11-22T09:36:37.187-03:00",
+     "updated_at": "2026-04-14T14:43:40.885-03:00"
+    }
+   }
+  ],
+  "deal_products": [],
+  "_pipelineId": "6a2bff35a294cf00226dd600",
+  "_pipelineNome": "BMAX"
+ },
+ {
+  "_id": "6a5968946e992a0030ca4556",
+  "id": "6a5968946e992a0030ca4556",
+  "name": "Teste Integração BMAX 13",
+  "amount_montly": 0,
+  "amount_unique": 0,
+  "amount_total": 0,
+  "prediction_date": null,
+  "markup": "future",
+  "last_activity_at": null,
+  "interactions": 2,
+  "markup_last_activities": null,
+  "created_at": "2026-07-16T20:26:12.412-03:00",
+  "updated_at": "2026-07-21T15:04:35.966-03:00",
+  "rating": 1,
+  "markup_created": "30 days more",
+  "last_activity_content": null,
+  "user_changed": true,
+  "hold": null,
+  "win": null,
+  "closed_at": null,
+  "stop_time_limit": {},
+  "organization": {
+   "_id": "6a3aa6967eea690021c29308",
+   "id": "6a3aa6967eea690021c29308",
+   "name": "Teste Integração BMAX 10",
+   "address": null,
+   "address_latitude": null,
+   "address_longitude": null,
+   "user": {
+    "_id": "6a312b777a6c170023b6427d",
+    "id": "6a312b777a6c170023b6427d",
+    "name": "Khymberlee Fuzetto",
+    "email": "khymberlee.fuzetto@boxersoldas.com.br"
+   },
+   "organization_segments": []
+  },
+  "user": {
+   "_id": "661572a5823cb7000e85e146",
+   "id": "661572a5823cb7000e85e146",
+   "name": "Billy",
+   "nickname": "BI",
+   "email": "adriel.costa@boxersoldas.com.br"
+  },
+  "deal_stage": {
+   "_id": "6a5a200c4d3424002786a346",
+   "id": "6a5a200c4d3424002786a346",
+   "name": "Venda Efetivada",
+   "nickname": "VE",
+   "created_at": "2026-07-17T09:29:00.214-03:00",
+   "updated_at": "2026-07-17T09:29:00.214-03:00"
+  },
+  "contacts": [],
+  "deal_custom_fields": [
+   {
+    "value": "São Paulo",
+    "created_at": null,
+    "updated_at": null,
+    "custom_field_id": "69de7c5ff84e9d00198ba86d",
+    "custom_field": {
+     "_id": "69de7c5ff84e9d00198ba86d",
+     "id": "69de7c5ff84e9d00198ba86d",
+     "for": "deal",
+     "label": "CIDADE",
+     "order": 4,
+     "allow_new": false,
+     "required": true,
+     "type": "text",
+     "unique": false,
+     "visible": true,
+     "created_at": "2026-04-14T14:41:51.737-03:00",
+     "updated_at": "2026-05-07T11:51:29.273-03:00"
+    }
+   },
+   {
+    "value": "12.345.678/9012-34",
+    "created_at": null,
+    "updated_at": null,
+    "custom_field_id": "66549f56bc9996000f00486d",
+    "custom_field": {
+     "_id": "66549f56bc9996000f00486d",
+     "id": "66549f56bc9996000f00486d",
+     "for": "deal",
+     "label": "CNPJ",
+     "order": 2,
+     "allow_new": false,
+     "required": true,
+     "type": "text",
+     "unique": false,
+     "visible": true,
+     "created_at": "2024-05-27T11:57:26.689-03:00",
+     "updated_at": "2026-01-26T13:50:56.128-03:00"
+    }
+   },
+   {
+    "value": "Régua INOX",
+    "created_at": null,
+    "updated_at": null,
+    "custom_field_id": "69a1eaa65a4db30013c0bd1b",
+    "custom_field": {
+     "_id": "69a1eaa65a4db30013c0bd1b",
+     "id": "69a1eaa65a4db30013c0bd1b",
+     "for": "deal",
+     "label": "MÁQUINA DE INTERESSE",
+     "order": 12,
+     "allow_new": false,
+     "required": false,
+     "type": "text",
+     "unique": false,
+     "visible": true,
+     "created_at": "2026-02-27T16:04:06.314-03:00",
+     "updated_at": "2026-10-08T09:17:07.896-03:00"
+    }
+   },
+   {
+    "value": "R$ 1200",
+    "created_at": null,
+    "updated_at": null,
+    "custom_field_id": "661405c2d6161a0014264a6b",
+    "custom_field": {
+     "_id": "661405c2d6161a0014264a6b",
+     "id": "661405c2d6161a0014264a6b",
+     "for": "deal",
+     "label": "NOTAS",
+     "order": 7,
+     "allow_new": false,
+     "required": false,
+     "type": "text",
+     "unique": false,
+     "visible": true,
+     "created_at": "2024-04-08T11:57:06.847-03:00",
+     "updated_at": "2026-09-10T21:11:57.684-03:00"
+    }
+   },
+   {
+    "value": "PCI 17",
+    "created_at": null,
+    "updated_at": null,
+    "custom_field_id": "6a3ae56694471c001e755ff8",
+    "custom_field": {
+     "_id": "6a3ae56694471c001e755ff8",
+     "id": "6a3ae56694471c001e755ff8",
+     "for": "deal",
+     "label": "PERFIL PCI",
+     "order": 13,
+     "allow_new": false,
+     "required": true,
+     "type": "option",
+     "unique": false,
+     "visible": true,
+     "created_at": "2026-06-23T16:58:30.959-03:00",
+     "updated_at": "2026-10-08T09:17:07.875-03:00"
+    }
+   },
+   {
+    "value": "Luitex Americana",
+    "created_at": null,
+    "updated_at": null,
+    "custom_field_id": "69a19ce32db3db00162b7f77",
+    "custom_field": {
+     "_id": "69a19ce32db3db00162b7f77",
+     "id": "69a19ce32db3db00162b7f77",
+     "for": "deal",
+     "label": "REVENDA/LOJA",
+     "order": 16,
+     "allow_new": false,
+     "required": true,
+     "type": "option",
+     "unique": false,
+     "visible": true,
+     "created_at": "2026-02-27T10:32:19.208-03:00",
+     "updated_at": "2026-10-07T11:11:27.782-03:00"
+    }
+   }
+  ],
+  "deal_products": [],
+  "_pipelineId": "6a2bff35a294cf00226dd600",
+  "_pipelineNome": "BMAX"
+ },
+ {
+  "_id": "6a4d6e511749a10022b4e5ac",
+  "id": "6a4d6e511749a10022b4e5ac",
+  "name": "Teste Integração BMAX 14",
+  "amount_montly": 0,
+  "amount_unique": 0,
+  "amount_total": 0,
+  "prediction_date": null,
+  "markup": "future",
+  "last_activity_at": null,
+  "interactions": 2,
+  "markup_last_activities": null,
+  "created_at": "2026-07-07T18:23:30.135-03:00",
+  "updated_at": "2026-07-22T09:06:33.632-03:00",
+  "rating": 1,
+  "markup_created": "30 days more",
+  "last_activity_content": null,
+  "user_changed": true,
+  "hold": null,
+  "win": null,
+  "closed_at": null,
+  "stop_time_limit": {},
+  "organization": {
+   "_id": "6a3aa6967eea690021c29308",
+   "id": "6a3aa6967eea690021c29308",
+   "name": "Teste Integração BMAX 10",
+   "address": null,
+   "address_latitude": null,
+   "address_longitude": null,
+   "user": {
+    "_id": "6a312b777a6c170023b6427d",
+    "id": "6a312b777a6c170023b6427d",
+    "name": "Khymberlee Fuzetto",
+    "email": "khymberlee.fuzetto@boxersoldas.com.br"
+   },
+   "organization_segments": []
+  },
+  "user": {
+   "_id": "661572a5823cb7000e85e146",
+   "id": "661572a5823cb7000e85e146",
+   "name": "Billy",
+   "nickname": "BI",
+   "email": "adriel.costa@boxersoldas.com.br"
+  },
+  "deal_stage": {
+   "_id": "6a5a200c4d3424002786a346",
+   "id": "6a5a200c4d3424002786a346",
+   "name": "Venda Efetivada",
+   "nickname": "VE",
+   "created_at": "2026-07-17T09:29:00.214-03:00",
+   "updated_at": "2026-07-17T09:29:00.214-03:00"
+  },
+  "next_task": {
+   "_id": "6a60b2497c5083002f545ca8",
+   "id": "6a60b2497c5083002f545ca8",
+   "date": "2026-07-22T09:06:33.555-03:00",
+   "subject": "Revenda Autorizou",
+   "type": "task",
+   "hour": "09:06"
+  },
+  "contacts": [],
+  "deal_custom_fields": [
+   {
+    "value": "São Paulo",
+    "created_at": null,
+    "updated_at": null,
+    "custom_field_id": "69de7c5ff84e9d00198ba86d",
+    "custom_field": {
+     "_id": "69de7c5ff84e9d00198ba86d",
+     "id": "69de7c5ff84e9d00198ba86d",
+     "for": "deal",
+     "label": "CIDADE",
+     "order": 4,
+     "allow_new": false,
+     "required": true,
+     "type": "text",
+     "unique": false,
+     "visible": true,
+     "created_at": "2026-04-14T14:41:51.737-03:00",
+     "updated_at": "2026-05-07T11:51:29.273-03:00"
+    }
+   },
+   {
+    "value": "12.345.678/9012-34",
+    "created_at": null,
+    "updated_at": null,
+    "custom_field_id": "66549f56bc9996000f00486d",
+    "custom_field": {
+     "_id": "66549f56bc9996000f00486d",
+     "id": "66549f56bc9996000f00486d",
+     "for": "deal",
+     "label": "CNPJ",
+     "order": 2,
+     "allow_new": false,
+     "required": true,
+     "type": "text",
+     "unique": false,
+     "visible": true,
+     "created_at": "2024-05-27T11:57:26.689-03:00",
+     "updated_at": "2026-01-26T13:50:56.128-03:00"
+    }
+   },
+   {
+    "value": "Régua INOX",
+    "created_at": null,
+    "updated_at": null,
+    "custom_field_id": "69a1eaa65a4db30013c0bd1b",
+    "custom_field": {
+     "_id": "69a1eaa65a4db30013c0bd1b",
+     "id": "69a1eaa65a4db30013c0bd1b",
+     "for": "deal",
+     "label": "MÁQUINA DE INTERESSE",
+     "order": 12,
+     "allow_new": false,
+     "required": false,
+     "type": "text",
+     "unique": false,
+     "visible": true,
+     "created_at": "2026-02-27T16:04:06.314-03:00",
+     "updated_at": "2026-10-08T09:17:07.896-03:00"
+    }
+   },
+   {
+    "value": "R$ 1000",
+    "created_at": null,
+    "updated_at": null,
+    "custom_field_id": "661405c2d6161a0014264a6b",
+    "custom_field": {
+     "_id": "661405c2d6161a0014264a6b",
+     "id": "661405c2d6161a0014264a6b",
+     "for": "deal",
+     "label": "NOTAS",
+     "order": 7,
+     "allow_new": false,
+     "required": false,
+     "type": "text",
+     "unique": false,
+     "visible": true,
+     "created_at": "2024-04-08T11:57:06.847-03:00",
+     "updated_at": "2026-09-10T21:11:57.684-03:00"
+    }
+   },
+   {
+    "value": "PCI 17",
+    "created_at": null,
+    "updated_at": null,
+    "custom_field_id": "6a3ae56694471c001e755ff8",
+    "custom_field": {
+     "_id": "6a3ae56694471c001e755ff8",
+     "id": "6a3ae56694471c001e755ff8",
+     "for": "deal",
+     "label": "PERFIL PCI",
+     "order": 13,
+     "allow_new": false,
+     "required": true,
+     "type": "option",
+     "unique": false,
+     "visible": true,
+     "created_at": "2026-06-23T16:58:30.959-03:00",
+     "updated_at": "2026-10-08T09:17:07.875-03:00"
+    }
+   },
+   {
+    "value": "Luitex Americana",
+    "created_at": null,
+    "updated_at": null,
+    "custom_field_id": "69a19ce32db3db00162b7f77",
+    "custom_field": {
+     "_id": "69a19ce32db3db00162b7f77",
+     "id": "69a19ce32db3db00162b7f77",
+     "for": "deal",
+     "label": "REVENDA/LOJA",
+     "order": 16,
+     "allow_new": false,
+     "required": true,
+     "type": "option",
+     "unique": false,
+     "visible": true,
+     "created_at": "2026-02-27T10:32:19.208-03:00",
+     "updated_at": "2026-10-07T11:11:27.782-03:00"
+    }
+   }
+  ],
+  "deal_products": [],
+  "_pipelineId": "6a2bff35a294cf00226dd600",
+  "_pipelineNome": "BMAX"
+ },
+ {
+  "_id": "6a3beb103d4c7e001e67e58e",
+  "id": "6a3beb103d4c7e001e67e58e",
+  "name": "Teste Integração BMAX 13",
+  "amount_montly": 0,
+  "amount_unique": 0,
+  "amount_total": 0,
+  "prediction_date": null,
+  "markup": "future",
+  "last_activity_at": null,
+  "interactions": 6,
+  "markup_last_activities": null,
+  "created_at": "2026-06-24T11:34:56.937-03:00",
+  "updated_at": "2026-07-21T15:32:01.812-03:00",
+  "rating": 1,
+  "markup_created": "30 days more",
+  "last_activity_content": null,
+  "user_changed": true,
+  "hold": null,
+  "win": null,
+  "closed_at": null,
+  "stop_time_limit": {},
+  "organization": {
+   "_id": "6a3aa6967eea690021c29308",
+   "id": "6a3aa6967eea690021c29308",
+   "name": "Teste Integração BMAX 10",
+   "address": null,
+   "address_latitude": null,
+   "address_longitude": null,
+   "user": {
+    "_id": "6a312b777a6c170023b6427d",
+    "id": "6a312b777a6c170023b6427d",
+    "name": "Khymberlee Fuzetto",
+    "email": "khymberlee.fuzetto@boxersoldas.com.br"
+   },
+   "organization_segments": []
+  },
+  "user": {
+   "_id": "661572a5823cb7000e85e146",
+   "id": "661572a5823cb7000e85e146",
+   "name": "Billy",
+   "nickname": "BI",
+   "email": "adriel.costa@boxersoldas.com.br"
+  },
+  "deal_stage": {
+   "_id": "6a5a200c4d3424002786a346",
+   "id": "6a5a200c4d3424002786a346",
+   "name": "Venda Efetivada",
+   "nickname": "VE",
+   "created_at": "2026-07-17T09:29:00.214-03:00",
+   "updated_at": "2026-07-17T09:29:00.214-03:00"
+  },
+  "contacts": [],
+  "deal_custom_fields": [
+   {
+    "value": "São Paulo",
+    "created_at": null,
+    "updated_at": null,
+    "custom_field_id": "69de7c5ff84e9d00198ba86d",
+    "custom_field": {
+     "_id": "69de7c5ff84e9d00198ba86d",
+     "id": "69de7c5ff84e9d00198ba86d",
+     "for": "deal",
+     "label": "CIDADE",
+     "order": 4,
+     "allow_new": false,
+     "required": true,
+     "type": "text",
+     "unique": false,
+     "visible": true,
+     "created_at": "2026-04-14T14:41:51.737-03:00",
+     "updated_at": "2026-05-07T11:51:29.273-03:00"
+    }
+   },
+   {
+    "value": "12.345.678/9012-34",
+    "created_at": null,
+    "updated_at": null,
+    "custom_field_id": "66549f56bc9996000f00486d",
+    "custom_field": {
+     "_id": "66549f56bc9996000f00486d",
+     "id": "66549f56bc9996000f00486d",
+     "for": "deal",
+     "label": "CNPJ",
+     "order": 2,
+     "allow_new": false,
+     "required": true,
+     "type": "text",
+     "unique": false,
+     "visible": true,
+     "created_at": "2024-05-27T11:57:26.689-03:00",
+     "updated_at": "2026-01-26T13:50:56.128-03:00"
+    }
+   },
+   {
+    "value": "Régua INOX",
+    "created_at": null,
+    "updated_at": null,
+    "custom_field_id": "69a1eaa65a4db30013c0bd1b",
+    "custom_field": {
+     "_id": "69a1eaa65a4db30013c0bd1b",
+     "id": "69a1eaa65a4db30013c0bd1b",
+     "for": "deal",
+     "label": "MÁQUINA DE INTERESSE",
+     "order": 12,
+     "allow_new": false,
+     "required": false,
+     "type": "text",
+     "unique": false,
+     "visible": true,
+     "created_at": "2026-02-27T16:04:06.314-03:00",
+     "updated_at": "2026-10-08T09:17:07.896-03:00"
+    }
+   },
+   {
+    "value": "R$ 1750",
+    "created_at": null,
+    "updated_at": null,
+    "custom_field_id": "661405c2d6161a0014264a6b",
+    "custom_field": {
+     "_id": "661405c2d6161a0014264a6b",
+     "id": "661405c2d6161a0014264a6b",
+     "for": "deal",
+     "label": "NOTAS",
+     "order": 7,
+     "allow_new": false,
+     "required": false,
+     "type": "text",
+     "unique": false,
+     "visible": true,
+     "created_at": "2024-04-08T11:57:06.847-03:00",
+     "updated_at": "2026-09-10T21:11:57.684-03:00"
+    }
+   },
+   {
+    "value": "PCI 17",
+    "created_at": null,
+    "updated_at": null,
+    "custom_field_id": "6a3ae56694471c001e755ff8",
+    "custom_field": {
+     "_id": "6a3ae56694471c001e755ff8",
+     "id": "6a3ae56694471c001e755ff8",
+     "for": "deal",
+     "label": "PERFIL PCI",
+     "order": 13,
+     "allow_new": false,
+     "required": true,
+     "type": "option",
+     "unique": false,
+     "visible": true,
+     "created_at": "2026-06-23T16:58:30.959-03:00",
+     "updated_at": "2026-10-08T09:17:07.875-03:00"
+    }
+   },
+   {
+    "value": "Luitex Americana",
+    "created_at": null,
+    "updated_at": null,
+    "custom_field_id": "69a19ce32db3db00162b7f77",
+    "custom_field": {
+     "_id": "69a19ce32db3db00162b7f77",
+     "id": "69a19ce32db3db00162b7f77",
+     "for": "deal",
+     "label": "REVENDA/LOJA",
+     "order": 16,
+     "allow_new": false,
+     "required": true,
+     "type": "option",
+     "unique": false,
+     "visible": true,
+     "created_at": "2026-02-27T10:32:19.208-03:00",
+     "updated_at": "2026-10-07T11:11:27.782-03:00"
+    }
+   }
+  ],
+  "deal_products": [],
+  "_pipelineId": "6a2bff35a294cf00226dd600",
+  "_pipelineNome": "BMAX"
+ }
+]
