@@ -14,6 +14,10 @@
   "outputDirectory": "public",
   "crons": [
     {
+      "path": "/api/cron/termos-prazos",
+      "schedule": "0 13 * * *"
+    },
+    {
       "path": "/api/cron/expirar-cashback",
       "schedule": "0 10 * * *"
     },

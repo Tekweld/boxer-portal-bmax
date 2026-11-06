@@ -14,6 +14,7 @@ const exportRoutes = require("./routes/export.routes");
 const cashbackRoutes = require("./routes/cashback.routes");
 const adminRoutes = require("./routes/admin.routes");
 const auditRoutes = require("./routes/audit.routes");
+const termosRoutes = require("./routes/termos.routes");
 const errorMiddleware = require("./middlewares/errorMiddleware");
 const { logger } = require("./logger");
 
@@ -70,6 +71,7 @@ app.use("/api/export", exportRoutes);
 app.use("/api/cashback", cashbackRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/audit", auditRoutes);
+app.use("/api/termos", termosRoutes);
 
 app.get("/api/health", (req, res) => {
     res.json({ status: "ok", service: "BMAX API" });
@@ -615,6 +617,22 @@ app.get("/api/cron/status-x-etapa", async (req, res) => {
         res.json({ ok: true, ...resultado });
     } catch (err) {
         logger.error({ message: "Erro no cron status-x-etapa", error: err.message, stack: err.stack });
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Termo BPartner Diamante: encerra termos sem a compra das duas máquinas após 30 dias e avisa o admin 5 dias antes.
+app.get("/api/cron/termos-prazos", async (req, res) => {
+    const secret = req.headers["authorization"];
+    const valido = secret === `Bearer ${process.env.CRON_SECRET}` ||
+        (process.env.CRON_TRIGGER_KEY && secret === `Bearer ${process.env.CRON_TRIGGER_KEY}`);
+    if (!valido) return res.status(401).json({ error: "unauthorized" });
+    try {
+        const T = require("./services/termos.service");
+        if (!(await T.flagAtiva())) return res.json({ ok: true, desligado: true });
+        res.json({ ok: true, ...(await T.processarPrazos()) });
+    } catch (err) {
+        logger.error({ message: "Erro no cron termos-prazos", error: err.message, stack: err.stack });
         res.status(500).json({ error: err.message });
     }
 });

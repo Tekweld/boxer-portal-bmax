@@ -7,7 +7,7 @@ const session = {
   repRevendas: []
 };
 
-const SCREENS = ["login", "dash", "cadastro", "negociacoes", "extrato", "gestao"];
+const SCREENS = ["login", "dash", "cadastro", "negociacoes", "extrato", "gestao", "termo"];
 
 function show(screen) {
   if (!SCREENS.includes(screen)) screen = "login";
@@ -166,6 +166,7 @@ async function login() {
     setDashHeader();
     await loadNegociacoes();
     loadCashbackSaldo().then(updateDashCashback);
+    if (typeof verificarTermosPendentes === "function") verificarTermosPendentes();
   } catch (err) {
     toast("API indisponivel", "error");
   } finally {

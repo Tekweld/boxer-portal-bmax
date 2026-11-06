@@ -132,6 +132,7 @@
 
   <!-- DASHBOARD -->
   <main class="wrap hidden" id="screenDash">
+    <div id="termoBanner" class="hidden" style="background:#fff8e1;border:2px solid #f59e0b;border-radius:12px;padding:12px 16px;margin-bottom:12px;font-size:14px"></div>
     <div class="dash-head">
       <div class="dash-title">
         <h2 id="dashTitle">Painel de Revenda</h2>
@@ -374,6 +375,14 @@
   </main>
 
   <!-- EXTRATO CASHBACK -->
+  <main class="wrap hidden" id="screenTermo">
+    <div class="dash-head">
+      <div class="dash-title"><h2>Termo de adesão</h2></div>
+      <div class="dash-actions"><button class="btn" id="btnVoltarTermo" onclick="show('dash')">&larr; Voltar</button></div>
+    </div>
+    <div class="card" id="termoCorpo" style="padding:18px"></div>
+  </main>
+
   <main class="wrap hidden" id="screenExtrato">
     <div class="dash-head">
       <div class="dash-title">
@@ -443,6 +452,7 @@
       <div class="admin-tab" onclick="showAdminTab('repbmax',this)">Representantes BMax</div>
       <div class="admin-tab" onclick="showAdminTab('comissao',this)">Comissão / Classificação</div>
       <div class="admin-tab" onclick="showAdminTab('extrato-comissoes',this)">Extrato de Comissões</div>
+      <div class="admin-tab" onclick="showAdminTab('termos',this)">Termos BPartner</div>
       <div class="admin-tab" onclick="showAdminTab('usuarios',this)">Usuarios</div>
       <div class="admin-tab" onclick="showAdminTab('acessos',this)">Acessos</div>
       <div class="admin-tab" onclick="showAdminTab('whatsapp',this)">WhatsApp</div>
@@ -520,6 +530,10 @@
         <div class="form-actions" style="margin-top:16px">
           <button class="btn primary" onclick="salvarComissaoMatriz()">Salvar Matriz</button>
         </div>
+      </div>
+      <div class="admin-tab-content hidden" id="admin-termos">
+        <p style="color:var(--muted);font-size:13px;margin-bottom:12px">Termo de adesão BPartner (Prata, Ouro e Diamante): a revenda confirma e informa todas as lojas (CNPJ, endereço, CEP), o representante testemunha e a Boxer aprova aqui. A aprovação atualiza o cadastro (CEP, endereço, coordenadas e mesorregião) usado pelo Portal e pelo Motor.</p>
+        <div id="termosAdminBody"></div>
       </div>
       <div class="admin-tab-content hidden" id="admin-extrato-comissoes">
         <p style="color:var(--muted);font-size:13px;margin-bottom:12px">Saldo e extrato de comissão/cashback de cada agente (Revenda, Representante, Vendedor Interno/Técnico), gerado automaticamente pelo cálculo do RD. Exporte em Excel para conferência do time de comissões.</p>
@@ -626,6 +640,10 @@
   </main>
 
   <!-- MODAL ADMIN -->
+  <div class="modal-overlay" id="termoModal" onclick="if(event.target===this)fecharModalTermo()">
+    <div class="modal" id="termoModalContent" style="max-width:820px;max-height:90vh;overflow:auto"></div>
+  </div>
+
   <div class="modal-overlay" id="adminModal" onclick="if(event.target===this)closeAdminModal()">
     <div class="modal" id="adminModalContent"></div>
   </div>
@@ -665,8 +683,9 @@
   <script src="js/negociacoes.js?v=24"></script>
   <script src="js/cadastro.js?v=16"></script>
   <script src="js/cashback.js?v=21"></script>
-  <script src="js/admin.js?v=38"></script>
+  <script src="js/admin.js?v=39"></script>
+  <script src="js/termos.js?v=2"></script>
   <script src="js/audit.js?v=17"></script>
-  <script src="js/app.js?v=28"></script>
+  <script src="js/app.js?v=29"></script>
 </body>
 </html>
