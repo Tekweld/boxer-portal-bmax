@@ -1,0 +1,22 @@
+const P = "C:/Users/andre.coelho.BXSD/BOXER/Dados - Documentos/Comercial/Geral/Estrategia/2026/Projeto BMax/boxer-portal-bmax";
+process.chdir(P);
+require(P + "/node_modules/dotenv").config({ quiet: true });
+const fs = require("fs");
+const K = process.env.SUPABASE_SERVICE_KEY_SISTEMAS;
+const H = { apikey: K, Authorization: "Bearer " + K, "Content-Type": "application/json", Prefer: "return=representation" };
+const URL = "https://bmepxcnrsofofoswubuu.supabase.co/rest/v1/comercial_bmax_config?chave=eq.comissao_complementos";
+const NOVO = [2.2, 2.5, 2.7, 2.9, 3.0, 3.1];
+(async () => {
+  const [row] = await (await fetch(URL + "&select=*", { headers: H })).json();
+  const comp = JSON.parse(row.valor);
+  const alvo = comp.filter(c => ["PCI2", "PCI3"].includes(c.pci));
+  console.log("antes:", alvo.map(c => c.pci + " " + JSON.stringify(c.valores)).join(" | "));
+  const stamp = new Date().toISOString().replace(/[:.]/g, "-");
+  fs.mkdirSync(P + "/scripts/backups", { recursive: true });
+  fs.writeFileSync(`${P}/scripts/backups/comissao_complementos-antes-${stamp}.json`, JSON.stringify(row, null, 1));
+  alvo.forEach(c => { c.valores = NOVO.slice(); });
+  const r = await fetch(URL, { method: "PATCH", headers: H, body: JSON.stringify({ valor: JSON.stringify(comp), atualizado_em: new Date().toISOString() }) });
+  if (!r.ok) throw new Error("PATCH " + r.status + " " + (await r.text()));
+  const [dep] = await (await fetch(URL + "&select=valor", { headers: H })).json();
+  console.log("depois:", JSON.parse(dep.valor).filter(c => ["PCI2", "PCI3"].includes(c.pci)).map(c => c.pci + " " + JSON.stringify(c.valores)).join(" | "));
+})().catch(e => { console.error("ERRO", e.message); process.exit(1); });
