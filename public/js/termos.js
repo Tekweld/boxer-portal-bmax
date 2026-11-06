@@ -142,16 +142,22 @@ async function simularAprovacao(id) {
     try {
         const r = await tApi(`/${id}/aprovar-boxer`, "POST", { simular: true, checklist: checklistTermo() });
         const c = r.cadastro;
+        const mudancas = a => Object.keys(a.depois).filter(k => !["lat", "lng"].includes(k) && String(a.antes[k] ?? "") !== String(a.depois[k] ?? "")).map(k => `${k}: <s>${esc(a.antes[k] ?? "—")}</s> → ${esc(a.depois[k])}`).join("; ") || "sem mudanças";
         $("simResultado").innerHTML = `<div style="margin-top:8px;font-size:13px;background:#f0f7ff;padding:10px;border-radius:8px"><b>Simulação (nada foi gravado)</b>
-          <ul style="padding-left:18px">${c.atualizadas.map(a => `<li><b>${esc(a.loja)}</b>: ${Object.keys(a.depois).filter(k => String(a.antes[k] ?? "") !== String(a.depois[k] ?? "")).map(k => `${k}: <s>${esc(a.antes[k] ?? "—")}</s> → ${esc(a.depois[k])}`).join("; ") || "sem mudanças"}</li>`).join("")}</ul>
+          ${c.bloqueios.map(b => `<p style="color:#991b1b;background:#fee2e2;padding:6px 8px;border-radius:6px"><b>Bloqueia a aprovação:</b> ${esc(b)}</p>`).join("")}
+          <ul style="padding-left:18px">${c.atualizadas.map(a => `<li><b>${esc(a.loja)}</b>${a.userId ? " <span style='color:#1d327b'>(tem login: será espelhado)</span>" : ""}: ${mudancas(a)}</li>`).join("")}</ul>
+          ${c.divergencias.length ? `<div style="background:#fef3c7;padding:8px;border-radius:6px"><b>Troca de CNPJ em loja já cadastrada</b> (pode ser erro de digitação da revenda):<ul style="padding-left:18px">${c.divergencias.map(d => `<li>${esc(d.loja)}: ${esc(d.de)} → <b>${esc(d.para)}</b></li>`).join("")}</ul>
+            <label><input type="checkbox" id="ckCnpj"> Conferi e confirmo a troca de CNPJ</label></div>` : ""}
           ${c.pendentesCadastro.length ? `<p style="color:#d97706">Lojas adicionais para cadastrar manualmente: ${c.pendentesCadastro.map(p => esc(p.razao_social)).join(", ")}</p>` : ""}
           ${c.avisos.map(a => `<p style="color:#92400e">${esc(a)}</p>`).join("")}</div>`;
     } catch (e) { toast(e.message, "error"); }
 }
 async function aprovarTermoBoxer(id) {
     if (!confirm("Aprovar o termo? O cadastro das lojas (CNPJ, CEP, endereço e coordenadas) será atualizado e o comprovante enviado.")) return;
-    try { const r = await tApi(`/${id}/aprovar-boxer`, "POST", { checklist: checklistTermo() }); toast(r.status === "aprovado" ? "Termo aprovado" : "Aprovado — aguardando a compra das máquinas"); fecharModalTermo(); carregarTermosAdmin(); }
-    catch (e) { toast(e.message, "error"); }
+    try {
+        const r = await tApi(`/${id}/aprovar-boxer`, "POST", { checklist: checklistTermo(), confirmarCnpj: !!($("ckCnpj") && $("ckCnpj").checked) });
+        toast(r.status === "aprovado" ? "Termo aprovado" : "Aprovado — aguardando a compra das máquinas"); fecharModalTermo(); carregarTermosAdmin();
+    } catch (e) { toast(e.message, "error"); if (/CNPJ/.test(e.message)) simularAprovacao(id); }
 }
 async function confirmarCompraTermo(id) {
     try { await tApi(`/${id}/confirmar-compra`, "POST", { notas: $("compraNotas").value }); toast("Compra confirmada — grupo agora é Diamante"); fecharModalTermo(); carregarTermosAdmin(); }

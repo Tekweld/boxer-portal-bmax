@@ -1,7 +1,7 @@
 // Termo de Formalização Digital BPartner (Prata/Ouro/Diamante) — Fase 1.
 // Fluxo: revenda (grupo) confirma e informa TODAS as lojas (CNPJ, endereço, CEP) -> representante testemunha ->
 // Boxer (admin) aprova. Na aprovação o cadastro (comercial_revendas_bmax) é atualizado sozinho (CNPJ/CEP só com dígitos,
-// endereço, cidade/UF, lat/lng e mesorregião) e o Motor passa a enxergar os dados certos, pois lê esse mesmo cadastro.
+// endereço, cidade/UF e lat/lng) e o Motor passa a enxergar os dados certos, pois lê esse mesmo cadastro.
 // Diamante: só vira Diamante depois que o admin confirma a compra das duas máquinas (prazo de 30 dias); sem compra, segue Ouro.
 // Tabelas: ver scripts/sql/termos-fase1.sql (boxer-sistemas). Recurso protegido pelo interruptor `termos_ativo`.
 const crypto = require("crypto");
@@ -95,22 +95,20 @@ function renderTexto(corpo, { grupo, programa, lojas }) {
 }
 
 // ─── Elegibilidade (pura) ────────────────────────────────────
+// Qualquer grupo pode receber qualquer programa (decisão do André, 06/11/2026): não há restrição de estado nem de classe de
+// origem. O programa do termo define a classe final das lojas incluídas; diferenças viram aviso para o admin conferir.
 function avaliarElegibilidade({ programa, lojas }) {
     const erros = [], avisos = [];
     const nivel = NIVEL[programa];
     if (!nivel) return { ok: false, erros: ["Programa inválido."], avisos, classeAtual: null };
     if (!lojas.length) return { ok: false, erros: ["O grupo não tem lojas ativas selecionadas."], avisos, classeAtual: null };
-    const classes = [...new Set(lojas.map(l => l.classe || "(sem classe)"))];
-    if (classes.length > 1) erros.push(`As lojas selecionadas têm classes diferentes (${classes.join(", ")}). Emita o termo só para as lojas de uma mesma classe.`);
-    const classeAtual = classes[0];
-    if (programa !== "bpartner_diamante" && classeAtual !== nivel) erros.push(`Termo ${nivel} exige lojas com classe ${nivel} (atual: ${classeAtual}).`);
-    if (programa === "bpartner_diamante") {
-        if (!["Ouro", "Diamante"].includes(classeAtual)) erros.push(`Termo Diamante exige grupo Ouro (upgrade) ou já Diamante (atual: ${classeAtual}).`);
-        const sp = lojas.filter(l => String(l.estado || "").toUpperCase() === "SP");
-        if (sp.length) erros.push(`Diamante é só para lojas fora do estado de SP (em SP: ${sp.map(l => l.nome).join(", ")}).`);
+    const classes = [...new Set(lojas.map(l => l.classe || "sem classe"))];
+    const classeAtual = classes.length === 1 ? classes[0] : "misto";
+    const mudam = lojas.filter(l => l.classe !== nivel);
+    if (mudam.length) {
+        avisos.push(`Classe atual: ${classes.join(", ")}. Ao concluir, ${mudam.length} loja(s) passam a ${nivel}${programa === "bpartner_diamante" ? " (só depois da compra das duas máquinas)" : ""}.`);
     }
-    if (lojas.some(l => !l.mesorregiao_ibge)) avisos.push("Há lojas sem mesorregião no cadastro; ela será preenchida pela tabela de cobertura na aprovação.");
-    return { ok: erros.length === 0, erros, avisos, classeAtual };
+    return { ok: true, erros, avisos, classeAtual };
 }
 
 // ─── Camada de acesso (injetável nos testes) ─────────────────
@@ -126,6 +124,7 @@ const realDeps = {
     notificar: notificarReal,
     gerarComprovante: (...a) => require("./termosPdf.service").gerarComprovante(...a),
     guardarComprovante: guardarComprovanteReal,
+    sincronizarLogin: sincronizarLoginReal,
     invalidarCache: () => { try { require("../routes/config.routes").invalidateConfigCache(); } catch { /* opcional */ } }
 };
 let D = realDeps;
@@ -221,7 +220,7 @@ async function emitir({ grupo, programa, lojaIds, representante }, admin) {
 
     const lojasTermo = lojas.map(l => ({
         revenda_id: l.id, cad_nome: l.nome, cad_cnpj: soDigitos(l.cnpj), cad_endereco: l.endereco, cad_cep: soDigitos(l.cep),
-        cad_cidade: l.cidade, cad_estado: l.estado, cad_mesorregiao: l.mesorregiao_ibge, classe_antes: l.classe
+        cad_cidade: l.cidade, cad_estado: l.estado, classe_antes: l.classe
     }));
     const texto = renderTexto(conteudo.corpo, { grupo, programa, lojas: lojasTermo });
     const criado = rows(await D.post(`/comercial_bmax_termos`, {
@@ -263,6 +262,13 @@ async function revendaConfirmar(termoId, user, body, ctx = {}) {
     });
     const cnpjs = validadas.map(v => v.dados.cnpj);
     if (new Set(cnpjs).size !== cnpjs.length) erros.push("Há CNPJ repetido entre as lojas informadas.");
+
+    // CNPJ já cadastrado em OUTRA loja (de qualquer grupo) = duplicidade: bloqueia antes de gravar qualquer coisa
+    for (const v of validadas) {
+        const proprio = v.id ? (lojas.find(l => l.id === v.id) || {}).revenda_id : null;
+        const dono = await cnpjEmOutraLoja(v.dados.cnpj, proprio);
+        if (dono) erros.push(`O CNPJ ${fmtCnpj(v.dados.cnpj)} já está cadastrado na loja "${dono.nome}". Se for a mesma loja, não a repita; se for engano, corrija o CNPJ.`);
+    }
 
     // CEP precisa existir e bater com a UF (consulta externa; indisponibilidade não bloqueia)
     for (const v of validadas) {
@@ -318,40 +324,67 @@ async function testemunhar(termoId, user, body, ctx = {}) {
 }
 
 // ─── Atualização automática do cadastro ──────────────────────
-async function mesorregiaoDaCidade(cidade, uf) {
-    if (!cidade || !uf) return null;
-    const r = rows(await D.get(`/comercial_bmax_cobertura?cidade=ilike.${enc(cidade)}&estado=eq.${enc(uf)}&select=mesorregiao&limit=1`));
-    return (r[0] && r[0].mesorregiao) || null;
+// Existe OUTRA loja no cadastro (ativa ou não) com esse CNPJ? `proprio` = id da loja que está sendo editada (ignorada).
+async function cnpjEmOutraLoja(cnpj, proprio) {
+    const d = soDigitos(cnpj);
+    const achados = [
+        ...rows(await D.get(`/comercial_revendas_bmax?cnpj=eq.${enc(d)}&select=id,nome`)),
+        ...rows(await D.get(`/comercial_revendas_bmax?cnpj=eq.${enc(fmtCnpj(d))}&select=id,nome`))
+    ];
+    return achados.find(a => a.id !== proprio) || null;
 }
 
-// Grava no cadastro os dados informados pela revenda. Idempotente (reexecutar dá o mesmo resultado). Não renomeia a loja
-// (nome/nome_rd ligam RD, Portal e Motor) e não cria loja nova: lojas adicionais ficam listadas para cadastro manual.
-async function aplicarCadastro(termo, lojas, { dry = false, ator = "termo" } = {}) {
-    const resultado = { atualizadas: [], pendentesCadastro: [], avisos: [] };
+// PLANEJA (só lê): o que seria gravado no cadastro, o que é divergência (precisa de confirmação) e o que bloqueia.
+//  - Nunca renomeia (nome/nome_rd ligam RD, Portal e Motor) e nunca cria loja nova (lojas adicionais ficam listadas).
+//  - Troca de CNPJ de loja existente só com confirmação explícita do admin (pode ser erro de digitação da revenda).
+//  - CNPJ que já existe em outra loja bloqueia (evita duplicidade).
+//  - Se a loja tem login no Portal, o espelho (Revendas/RevendaFilial) recebe cep/cidade/estado (e CNPJ confirmado).
+async function planejarCadastro(termo, lojas, nivel) {
+    const plano = { atualizadas: [], divergencias: [], bloqueios: [], pendentesCadastro: [], avisos: [] };
     for (const l of lojas) {
-        if (l.nova_loja) { resultado.pendentesCadastro.push({ razao_social: l.inf_razao_social, cnpj: l.inf_cnpj, cep: l.inf_cep }); continue; }
+        if (l.nova_loja) { plano.pendentesCadastro.push({ razao_social: l.inf_razao_social, cnpj: l.inf_cnpj, cep: l.inf_cep, cidade: l.inf_cidade, estado: l.inf_estado }); continue; }
         if (!l.revenda_id || !l.inf_cnpj) continue;
         const atual = rows(await D.get(`/comercial_revendas_bmax?id=eq.${enc(l.revenda_id)}&select=*`))[0];
-        if (!atual) { resultado.avisos.push(`Loja ${l.cad_nome} não existe mais no cadastro.`); continue; }
+        if (!atual) { plano.avisos.push(`Loja ${l.cad_nome} não existe mais no cadastro.`); continue; }
+        const cnpjMudou = soDigitos(atual.cnpj) !== l.inf_cnpj;
+        if (cnpjMudou) {
+            const dono = await cnpjEmOutraLoja(l.inf_cnpj, l.revenda_id);
+            if (dono) plano.bloqueios.push(`${l.cad_nome}: o CNPJ ${fmtCnpj(l.inf_cnpj)} já pertence à loja "${dono.nome}".`);
+            else plano.divergencias.push({ loja: l.cad_nome, campo: "cnpj", de: fmtCnpj(atual.cnpj), para: fmtCnpj(l.inf_cnpj) });
+        }
         const patch = {
-            cnpj: l.inf_cnpj, cep: l.inf_cep, endereco: enderecoComposto({ logradouro: l.inf_logradouro, numero: l.inf_numero, bairro: l.inf_bairro, complemento: l.inf_complemento }),
+            cep: l.inf_cep, endereco: enderecoComposto({ logradouro: l.inf_logradouro, numero: l.inf_numero, bairro: l.inf_bairro, complemento: l.inf_complemento }),
             cidade: l.inf_cidade, estado: l.inf_estado
         };
+        if (cnpjMudou || atual.cnpj !== l.inf_cnpj) patch.cnpj = l.inf_cnpj; // padroniza só dígitos
+        if (nivel && nivel !== "Diamante" && atual.classe !== nivel) patch.classe = nivel; // Diamante só após a compra
         const geo = await D.geocode(l.inf_cep, { cidade: l.inf_cidade, estado: l.inf_estado }).catch(() => ({ lat: null, lng: null }));
         if (geo && geo.lat != null && geo.lng != null) { patch.lat = geo.lat; patch.lng = geo.lng; }
-        else resultado.avisos.push(`Sem coordenadas para o CEP ${fmtCep(l.inf_cep)} (${l.cad_nome}); a distância no Motor usa a posição anterior.`);
-        const meso = await mesorregiaoDaCidade(l.inf_cidade, l.inf_estado);
-        if (meso) patch.mesorregiao_ibge = meso;
-        else resultado.avisos.push(`Mesorregião não encontrada para ${l.inf_cidade}/${l.inf_estado} (${l.cad_nome}).`);
+        else plano.avisos.push(`Sem coordenadas para o CEP ${fmtCep(l.inf_cep)} (${l.cad_nome}); a distância no Motor usa a posição anterior.`);
         const antes = {}; for (const k of Object.keys(patch)) antes[k] = atual[k] == null ? null : atual[k];
-        resultado.atualizadas.push({ loja: l.cad_nome, id: l.revenda_id, antes, depois: patch });
-        if (!dry) {
-            await D.patch(`/comercial_revendas_bmax?id=eq.${enc(l.revenda_id)}`, { ...patch, editado_em: D.now().toISOString(), editado_por: `${ator}:${termo.id}` });
-            await D.patch(`/comercial_bmax_termo_lojas?id=eq.${enc(l.id)}`, { cadastro_atualizado_em: D.now().toISOString() });
+        plano.atualizadas.push({ loja: l.cad_nome, id: l.revenda_id, userId: atual.user_id || null, cnpjMudou, antes, depois: patch, loja_termo_id: l.id });
+    }
+    return plano;
+}
+
+// EXECUTA o plano. Idempotente. `confirmarCnpj` libera a troca de CNPJ de lojas existentes.
+async function aplicarCadastro(termo, lojas, { dry = false, ator = "termo", confirmarCnpj = false, nivel = null } = {}) {
+    const plano = await planejarCadastro(termo, lojas, nivel);
+    plano.avisosLogin = [];
+    if (dry) return plano;
+    if (plano.bloqueios.length) throw erro(409, "Duplicidade de CNPJ: " + plano.bloqueios.join(" "));
+    if (plano.divergencias.length && !confirmarCnpj) throw Object.assign(erro(409, "Há troca de CNPJ de loja existente: confira e confirme. " + plano.divergencias.map(d => `${d.loja}: ${d.de} → ${d.para}`).join("; ")), { divergencias: plano.divergencias });
+    const agora = D.now().toISOString();
+    for (const a of plano.atualizadas) {
+        await D.patch(`/comercial_revendas_bmax?id=eq.${enc(a.id)}`, { ...a.depois, editado_em: agora, editado_por: `${ator}:${termo.id}` });
+        await D.patch(`/comercial_bmax_termo_lojas?id=eq.${enc(a.loja_termo_id)}`, { cadastro_atualizado_em: agora, classe_depois: a.depois.classe || null });
+        if (a.userId) {
+            try { await D.sincronizarLogin(a.userId, { cep: a.depois.cep, cidade: a.depois.cidade, estado: a.depois.estado, ...(a.cnpjMudou ? { cnpj: a.depois.cnpj } : {}) }); }
+            catch (e) { plano.avisosLogin.push(`Login da loja ${a.loja} não sincronizado: ${e.message}`); }
         }
     }
-    if (!dry && resultado.atualizadas.length) D.invalidarCache();
-    return resultado;
+    if (plano.atualizadas.length) D.invalidarCache();
+    return plano;
 }
 
 // ─── Etapa 3: Boxer (admin) ──────────────────────────────────
@@ -361,13 +394,14 @@ async function boxerAprovar(termoId, admin, body = {}, ctx = {}) {
     if (termo.status !== "aguardando_boxer") throw erro(409, "Este termo não está aguardando a Boxer.");
     if ((await configBool("termos_aprovador_diferente")) && termo.emitido_por && termo.emitido_por === admin.email) throw erro(403, "Quem emitiu o termo não pode aprová-lo.");
     const chk = body.checklist || {};
-    const jaDiamante = termo.classe_antes === "Diamante";
+    const nivel = NIVEL[termo.programa];
+    const jaDiamante = lojas.length > 0 && lojas.every(l => l.classe_antes === "Diamante");
     if (termo.programa === "bpartner_diamante") {
         if (!chk.capacitacao || !chk.funcionario_dedicado) throw erro(400, "Confirme a capacitação do demonstrador e o funcionário dedicado.");
         if (jaDiamante && !chk.compra_realizada) throw erro(400, "Confirme que a compra das duas máquinas já foi realizada.");
     }
-    // 1) cadastro (idempotente) — se falhar, o termo continua aguardando e pode ser reexecutado
-    const cadastro = await aplicarCadastro(termo, lojas, { dry: body.simular === true });
+    // 1) cadastro (idempotente) — duplicidade ou troca de CNPJ não confirmada interrompem; o termo continua aguardando
+    const cadastro = await aplicarCadastro(termo, lojas, { dry: body.simular === true, confirmarCnpj: body.confirmarCnpj === true, nivel });
     if (body.simular === true) return { simulacao: true, cadastro };
 
     const agora = D.now();
@@ -375,7 +409,7 @@ async function boxerAprovar(termoId, admin, body = {}, ctx = {}) {
     const prazo = upgrade ? new Date(agora.getTime() + PRAZO_COMPRA_DIAS * 86400000).toISOString().slice(0, 10) : null;
     await D.post(`/comercial_bmax_termo_aprovacoes`, {
         termo_id: termo.id, etapa: "boxer", usuario_id: admin.id || null, usuario_email: admin.email, nome_aprovador: admin.nome || admin.email,
-        declaracao: "Aprovação final da Boxer Soldas.", detalhes: { checklist: chk, cadastro: { atualizadas: cadastro.atualizadas.length, pendentes: cadastro.pendentesCadastro.length } },
+        declaracao: "Aprovação final da Boxer Soldas.", detalhes: { checklist: chk, confirmouCnpj: body.confirmarCnpj === true, cadastro: { atualizadas: cadastro.atualizadas.length, pendentes: cadastro.pendentesCadastro.length } },
         ip_address: ctx.ip || null, user_agent: ctx.userAgent || null
     });
     const novoStatus = upgrade ? "aguardando_compra" : "aprovado";
@@ -383,7 +417,7 @@ async function boxerAprovar(termoId, admin, body = {}, ctx = {}) {
         status: novoStatus, compra_prazo_ate: prazo, aprovado_em: upgrade ? null : agora.toISOString(), atualizado_em: agora.toISOString()
     });
     await auditar(termo.id, "etapa_concluida", { email: admin.email, tipo: "admin" }, { etapa: "boxer", status: novoStatus, checklist: chk }, ctx.ip);
-    await auditar(termo.id, "cadastro_atualizado", { email: admin.email, tipo: "admin" }, { atualizadas: cadastro.atualizadas, pendentesCadastro: cadastro.pendentesCadastro, avisos: cadastro.avisos }, ctx.ip);
+    await auditar(termo.id, "cadastro_atualizado", { email: admin.email, tipo: "admin" }, { atualizadas: cadastro.atualizadas, pendentesCadastro: cadastro.pendentesCadastro, avisos: [...cadastro.avisos, ...cadastro.avisosLogin] }, ctx.ip);
 
     let comprovantePath = null;
     try {
@@ -496,6 +530,21 @@ async function urlComprovante(termoId, user) {
 }
 
 // ─── Integrações reais (substituídas nos testes) ─────────────
+// Espelho do cadastro no login do Portal: só cep/cidade/estado (e CNPJ confirmado), sem criar nem apagar nada.
+async function sincronizarLoginReal(userId, patch) {
+    const { Revenda, RevendaFilial } = require("../database");
+    const rev = await Revenda.findOne({ where: { user_id: userId } });
+    if (!rev) return;
+    const upd = { cep: patch.cep, cidade: patch.cidade, estado: patch.estado };
+    if (patch.cnpj && patch.cnpj !== rev.cnpj) {
+        const outro = await Revenda.findOne({ where: { cnpj: patch.cnpj } });
+        if (outro && outro.user_id !== userId) throw new Error("CNPJ já usado por outro login");
+        upd.cnpj = patch.cnpj;
+    }
+    await Revenda.update(upd, { where: { user_id: userId } });
+    await RevendaFilial.update({ cep: patch.cep, cidade: patch.cidade, estado: patch.estado }, { where: { user_id: userId, principal: true } });
+}
+
 async function consultarCepReal(cep) {
     const r = await fetch(`https://brasilapi.com.br/api/cep/v2/${soDigitos(cep)}`, { signal: AbortSignal.timeout(6000) });
     if (r.status === 404) return { naoEncontrado: true };
@@ -584,6 +633,6 @@ module.exports = {
     soDigitos, cnpjValido, cpfValido, cepValido, fmtCnpj, fmtCep, enderecoComposto, validarLoja, sha256, renderTexto, avaliarElegibilidade,
     // fluxo
     flagAtiva, setFlag, listarGrupos, previaEmissao, emitir, revendaConfirmar, testemunhar, boxerAprovar, confirmarCompra, cancelar,
-    aplicarCadastro, processarPrazos, listar, obter, minhas, urlComprovante, papelDoUsuario, consultarCepReal,
+    planejarCadastro, aplicarCadastro, cnpjEmOutraLoja, processarPrazos, listar, obter, minhas, urlComprovante, papelDoUsuario, consultarCepReal,
     __setDeps
 };

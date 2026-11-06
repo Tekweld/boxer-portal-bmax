@@ -28,20 +28,28 @@ describe("validações", () => {
 });
 
 describe("elegibilidade", () => {
-    const loja = (o) => ({ nome: "L", classe: "Ouro", estado: "PR", mesorregiao_ibge: "X", ...o });
-    it("Ouro exige classe Ouro", () => {
-        expect(T.avaliarElegibilidade({ programa: "bpartner_ouro", lojas: [loja()] }).ok).toBe(true);
-        expect(T.avaliarElegibilidade({ programa: "bpartner_ouro", lojas: [loja({ classe: "Prata" })] }).ok).toBe(false);
+    const loja = (o) => ({ nome: "L", classe: "Ouro", estado: "PR", ...o });
+    it("qualquer grupo pode receber qualquer programa (sem restrição de classe nem de estado)", () => {
+        for (const programa of ["bpartner_prata", "bpartner_ouro", "bpartner_diamante"]) {
+            for (const classe of ["Prata", "Ouro", "Diamante", null]) {
+                for (const estado of ["PR", "SP"]) {
+                    expect(T.avaliarElegibilidade({ programa, lojas: [loja({ classe, estado })] }).ok).toBe(true);
+                }
+            }
+        }
     });
-    it("Diamante: Ouro ou já Diamante, fora de SP, mesma classe", () => {
-        expect(T.avaliarElegibilidade({ programa: "bpartner_diamante", lojas: [loja()] }).ok).toBe(true);
-        expect(T.avaliarElegibilidade({ programa: "bpartner_diamante", lojas: [loja({ classe: "Prata" })] }).ok).toBe(false);
-        expect(T.avaliarElegibilidade({ programa: "bpartner_diamante", lojas: [loja({ estado: "SP" })] }).ok).toBe(false);
-        expect(T.avaliarElegibilidade({ programa: "bpartner_diamante", lojas: [loja(), loja({ classe: "Diamante" })] }).ok).toBe(false);
+    it("classe diferente do programa vira aviso, não erro", () => {
+        const r = T.avaliarElegibilidade({ programa: "bpartner_ouro", lojas: [loja({ classe: "Prata" })] });
+        expect(r.ok).toBe(true);
+        expect(r.avisos.join(" ")).toMatch(/passam a Ouro/);
+        expect(T.avaliarElegibilidade({ programa: "bpartner_diamante", lojas: [loja()] }).avisos.join(" ")).toMatch(/depois da compra/);
     });
-    it("sem checagem de exclusividade por mesorregião", () => {
-        const r = T.avaliarElegibilidade({ programa: "bpartner_diamante", lojas: [loja()] });
-        expect(JSON.stringify(r)).not.toMatch(/exclusiv/i);
+    it("continua exigindo programa válido e ao menos uma loja", () => {
+        expect(T.avaliarElegibilidade({ programa: "x", lojas: [loja()] }).ok).toBe(false);
+        expect(T.avaliarElegibilidade({ programa: "bpartner_ouro", lojas: [] }).ok).toBe(false);
+    });
+    it("sem checagem de exclusividade nem de mesorregião", () => {
+        expect(JSON.stringify(T.avaliarElegibilidade({ programa: "bpartner_diamante", lojas: [loja()] }))).not.toMatch(/exclusiv|mesorregi/i);
     });
 });
 
@@ -94,7 +102,7 @@ function criarBanco(seed) {
 }
 
 describe("fluxo completo do termo", () => {
-    let banco, notificados, hoje;
+    let banco, notificados, hoje, logins;
     const LOJA1 = { id: "loja-1", nome: "Casa A", cnpj: "11222333000181", cep: "87069013", endereco: null, cidade: "Maringa", estado: "PR", classe: "Ouro", grupo: "Casa X", rep: "Hugo", ativo: true, user_id: 36, mesorregiao_ibge: null, lat: 1, lng: 1 };
     const LOJA2 = { id: "loja-2", nome: "Casa B", cnpj: "72295793000124", cep: "86010-190", endereco: "Av. Duque", cidade: "Londrina", estado: "PR", classe: "Ouro", grupo: "Casa X", rep: "Hugo", ativo: true, user_id: null, mesorregiao_ibge: null, lat: 2, lng: 2 };
     const admin = { id: 1, email: "andre@boxer.com", nome: "Andre", username: "andre@boxer.com", role: "adm" };
@@ -107,16 +115,16 @@ describe("fluxo completo do termo", () => {
         banco = criarBanco({
             comercial_bmax_config: [{ id: "c1", chave: "termos_ativo", valor: "true" }],
             comercial_revendas_bmax: [{ ...LOJA1 }, { ...LOJA2 }],
-            comercial_bmax_cobertura: [{ cidade: "Maringá", estado: "PR", mesorregiao: "Norte Central Paranaense" }, { cidade: "Londrina", estado: "PR", mesorregiao: "Norte Central Paranaense" }],
             comercial_bmax_conteudos_programa: [{ id: "cont-d", programa: "bpartner_diamante", tema: "termo_adesao", versao: 1, ativo: true, corpo: { titulo: "T", clausulas: [{ titulo: "Objeto", texto: "{{grupo}} {{nivel}}{{lojas}}" }] } },
+                { id: "cont-p", programa: "bpartner_prata", tema: "termo_adesao", versao: 1, ativo: true, corpo: { titulo: "T", clausulas: [{ titulo: "Objeto", texto: "{{grupo}} {{nivel}}{{lojas}}" }] } },
                 { id: "cont-o", programa: "bpartner_ouro", tema: "termo_adesao", versao: 1, ativo: true, corpo: { titulo: "T", clausulas: [{ titulo: "Objeto", texto: "{{grupo}} {{nivel}}{{lojas}}" }] } }]
         });
-        notificados = []; hoje = new Date("2026-11-10T12:00:00Z");
+        notificados = []; logins = []; hoje = new Date("2026-11-10T12:00:00Z");
         T.__setDeps({
             ...banco, now: () => hoje,
             resolverRepresentante: async () => ({ userId: 50, username: "hugo@x.com", email: "hugo@x.com" }),
             consultarCep: async () => ({ estado: "PR", cidade: "Maringá" }),
-            geocode: async () => ({ lat: -23.4, lng: -51.9 }),
+            geocode: async () => ({ lat: -23.4, lng: -51.9 }), sincronizarLogin: async (u, p) => { logins.push([u, p]); },
             notificar: async (ev) => { notificados.push(ev); },
             gerarComprovante: async () => Buffer.from("pdf"), guardarComprovante: async (id) => `2026/${id}/comprovante.pdf`, invalidarCache: () => {}
         });
@@ -163,7 +171,8 @@ describe("fluxo completo do termo", () => {
         expect(c1.cep).toBe("87030121");
         expect(c1.endereco).toBe("Avenida Colombo, 4738 - Zona 07");
         expect(c1.lat).toBe(-23.4);
-        expect(c1.mesorregiao_ibge).toBe("Norte Central Paranaense");
+        expect(c1.mesorregiao_ibge).toBeNull();   // mesorregião não faz parte do termo
+        expect(logins).toEqual([[36, { cep: "87030121", cidade: "Maringá", estado: "PR" }]]); // espelho do login (só a loja com login), sem trocar CNPJ
         expect(c1.nome).toBe("Casa A");           // nome nunca muda
         expect(c1.classe).toBe("Ouro");           // Ouro não muda de classe
         expect(banco.tabelas.comercial_bmax_termos[0].comprovante_path).toContain("comprovante.pdf");
@@ -219,6 +228,55 @@ describe("fluxo completo do termo", () => {
         await expect(T.emitir({ grupo: "Casa X", programa: "bpartner_ouro" }, admin)).rejects.toThrow(/em andamento/);
         await T.cancelar(t.id, admin, "teste");
         await expect(T.emitir({ grupo: "Casa X", programa: "bpartner_ouro" }, admin)).resolves.toBeTruthy();
+    });
+
+    it("duplicidade: CNPJ de outra loja do cadastro é recusado na etapa da revenda", async () => {
+        const termo = await T.emitir({ grupo: "Casa X", programa: "bpartner_ouro" }, admin);
+        const lojas = banco.tabelas.comercial_bmax_termo_lojas;
+        banco.tabelas.comercial_revendas_bmax.push({ id: "outra", nome: "Outra Revenda", cnpj: "11444777000161", grupo: "Outro", ativo: true, classe: "Prata" });
+        await expect(T.revendaConfirmar(termo.id, revUser, dadosRevenda([lojaInfo(lojas[0].id, "11444777000161"), lojaInfo(lojas[1].id, "72295793000124")]))).rejects.toThrow(/já está cadastrado na loja "Outra Revenda"/);
+        expect(banco.tabelas.comercial_bmax_termos[0].status).toBe("aguardando_revenda");
+    });
+
+    it("troca de CNPJ de loja existente só com confirmação explícita do admin; login sincroniza com o novo CNPJ", async () => {
+        const termo = await T.emitir({ grupo: "Casa X", programa: "bpartner_ouro" }, admin);
+        const lojas = banco.tabelas.comercial_bmax_termo_lojas;
+        await T.revendaConfirmar(termo.id, revUser, dadosRevenda([lojaInfo(lojas[0].id, "11444777000161"), lojaInfo(lojas[1].id, "72295793000124")]));
+        await T.testemunhar(termo.id, repUser, { aceite: true });
+        const sim = await T.boxerAprovar(termo.id, admin, { simular: true });
+        expect(sim.cadastro.divergencias).toEqual([{ loja: "Casa A", campo: "cnpj", de: "11.222.333/0001-81", para: "11.444.777/0001-61" }]);
+        await expect(T.boxerAprovar(termo.id, admin, {})).rejects.toThrow(/troca de CNPJ/);
+        expect(banco.tabelas.comercial_revendas_bmax[0].cnpj).toBe("11222333000181");      // nada foi gravado
+        expect(banco.tabelas.comercial_bmax_termos[0].status).toBe("aguardando_boxer");
+        await T.boxerAprovar(termo.id, admin, { confirmarCnpj: true });
+        expect(banco.tabelas.comercial_revendas_bmax[0].cnpj).toBe("11444777000161");
+        expect(logins[0][1].cnpj).toBe("11444777000161");
+    });
+
+    it("termo Prata sobre lojas Ouro muda a classe na aprovação e registra classe_depois", async () => {
+        const termo = await T.emitir({ grupo: "Casa X", programa: "bpartner_prata" }, admin);
+        const lojas = banco.tabelas.comercial_bmax_termo_lojas;
+        await T.revendaConfirmar(termo.id, revUser, dadosRevenda([lojaInfo(lojas[0].id, "11222333000181"), lojaInfo(lojas[1].id, "72295793000124")]));
+        await T.testemunhar(termo.id, repUser, { aceite: true });
+        await T.boxerAprovar(termo.id, admin, {});
+        expect(banco.tabelas.comercial_revendas_bmax.every(l => l.classe === "Prata")).toBe(true);
+        expect(banco.tabelas.comercial_bmax_termo_lojas.every(l => l.classe_depois === "Prata")).toBe(true);
+    });
+
+    it("Diamante já Diamante não espera compra: exige o checklist da compra realizada", async () => {
+        banco.tabelas.comercial_revendas_bmax.forEach(l => { l.classe = "Diamante"; });
+        const termo = await T.emitir({ grupo: "Casa X", programa: "bpartner_diamante" }, admin);
+        const lojas = banco.tabelas.comercial_bmax_termo_lojas;
+        await T.revendaConfirmar(termo.id, revUser, dadosRevenda([lojaInfo(lojas[0].id, "11222333000181"), lojaInfo(lojas[1].id, "72295793000124")]));
+        await T.testemunhar(termo.id, repUser, { aceite: true });
+        await expect(T.boxerAprovar(termo.id, admin, { checklist: { capacitacao: true, funcionario_dedicado: true } })).rejects.toThrow(/compra das duas máquinas já foi realizada/);
+        const r = await T.boxerAprovar(termo.id, admin, { checklist: { capacitacao: true, funcionario_dedicado: true, compra_realizada: true } });
+        expect(r.status).toBe("aprovado");
+    });
+
+    it("grupo em SP também pode ser Diamante", async () => {
+        banco.tabelas.comercial_revendas_bmax.forEach(l => { l.estado = "SP"; });
+        await expect(T.emitir({ grupo: "Casa X", programa: "bpartner_diamante" }, admin)).resolves.toBeTruthy();
     });
 
     it("pendências: revenda do grupo e representante designado enxergam; outros não", async () => {
