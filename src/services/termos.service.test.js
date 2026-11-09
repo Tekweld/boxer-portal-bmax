@@ -279,6 +279,28 @@ describe("fluxo completo do termo", () => {
         await expect(T.emitir({ grupo: "Casa X", programa: "bpartner_diamante" }, admin)).resolves.toBeTruthy();
     });
 
+    it("loja SEM grupo é tratada como grupo de uma loja só: emite, aparece para o login dela e confirma", async () => {
+        banco.tabelas.comercial_revendas_bmax.push({ id: "solo", nome: "Solo Soldas", cnpj: "11444777000161", cep: "13874439", endereco: null, cidade: "Campinas", estado: "SP", classe: "Prata", grupo: null, rep: "Hugo", ativo: true, user_id: 77 });
+        const lista = await T.listarGrupos();
+        const solo = lista.find(g => g.chave === "loja:solo");
+        expect(solo).toMatchObject({ grupo: "Solo Soldas", unica: true, temLogin: true, lojas: 1 });
+        const termo = await T.emitir({ grupo: "loja:solo", programa: "bpartner_prata" }, admin);
+        expect(termo.grupo).toBe("Solo Soldas");
+        const soloUser = { id: 77, username: "solo@x.com", role: "revenda" };
+        expect((await T.minhas(soloUser)).map(x => x.id)).toEqual([termo.id]);
+        expect(await T.minhas({ id: 78, role: "revenda" })).toEqual([]);
+        const lj = banco.tabelas.comercial_bmax_termo_lojas.find(l => l.termo_id === termo.id);
+        const r = await T.revendaConfirmar(termo.id, soloUser, dadosRevenda([lojaInfo(lj.id, "11444777000161")]));
+        expect(r.status).toBe("aguardando_representante");
+    });
+
+    it("grupo sem nenhum login no Portal não pode receber termo (a revenda não conseguiria confirmar)", async () => {
+        banco.tabelas.comercial_revendas_bmax.forEach(l => { l.user_id = null; });
+        await expect(T.emitir({ grupo: "Casa X", programa: "bpartner_ouro" }, admin)).rejects.toThrow(/login no Portal/);
+        const prev = await T.previaEmissao("Casa X", "bpartner_ouro");
+        expect(prev.elegibilidade.ok).toBe(false);
+    });
+
     it("pendências: revenda do grupo e representante designado enxergam; outros não", async () => {
         banco.tabelas.comercial_revendas_bmax[0].user_id = 36;
         const t = await T.emitir({ grupo: "Casa X", programa: "bpartner_ouro" }, admin);

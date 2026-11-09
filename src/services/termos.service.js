@@ -182,29 +182,43 @@ async function lojasDoGrupo(grupo) {
     return rows(await D.get(`/comercial_revendas_bmax?grupo=eq.${enc(grupo)}&ativo=eq.true&select=*&order=nome.asc`));
 }
 
+// Grupo de lojas OU loja sem grupo (tratada como um grupo de uma loja só). A "chave" é o nome do grupo ou "loja:<id>".
+async function resolverGrupo(chave) {
+    const c = String(chave || "");
+    if (c.startsWith("loja:")) {
+        const l = rows(await D.get(`/comercial_revendas_bmax?id=eq.${enc(c.slice(5))}&ativo=eq.true&select=*`))[0];
+        return { nome: l ? limpa(l.nome) : "", lojas: l ? [l] : [] };
+    }
+    return { nome: c, lojas: await lojasDoGrupo(c) };
+}
+
 async function listarGrupos() {
-    const todas = rows(await D.get(`/comercial_revendas_bmax?ativo=eq.true&grupo=not.is.null&select=grupo,classe,estado,user_id`));
-    const m = new Map();
+    const todas = rows(await D.get(`/comercial_revendas_bmax?ativo=eq.true&select=id,nome,grupo,classe,estado,user_id`));
+    const m = new Map(); const unicas = [];
     for (const r of todas) {
-        const g = m.get(r.grupo) || { grupo: r.grupo, lojas: 0, classes: new Set(), temLogin: false };
+        if (!r.grupo) { unicas.push({ chave: "loja:" + r.id, grupo: limpa(r.nome), lojas: 1, classes: [r.classe || "-"], temLogin: !!r.user_id, unica: true }); continue; }
+        const g = m.get(r.grupo) || { chave: r.grupo, grupo: r.grupo, lojas: 0, classes: new Set(), temLogin: false, unica: false };
         g.lojas++; g.classes.add(r.classe || "-"); if (r.user_id) g.temLogin = true;
         m.set(r.grupo, g);
     }
-    return [...m.values()].map(g => ({ grupo: g.grupo, lojas: g.lojas, classes: [...g.classes], temLogin: g.temLogin })).sort((a, b) => a.grupo.localeCompare(b.grupo));
+    return [...m.values(), ...unicas].map(g => ({ ...g, classes: [...g.classes] })).sort((a, b) => a.grupo.localeCompare(b.grupo));
 }
 
-async function previaEmissao(grupo, programa, lojaIds) {
-    let lojas = await lojasDoGrupo(grupo);
+async function previaEmissao(chave, programa, lojaIds) {
+    const { nome, lojas: todas } = await resolverGrupo(chave);
+    let lojas = todas;
     if (Array.isArray(lojaIds) && lojaIds.length) lojas = lojas.filter(l => lojaIds.includes(l.id));
     const el = avaliarElegibilidade({ programa, lojas });
+    // Sem nenhum login no grupo a revenda não consegue confirmar (o convite por e-mail é a Fase 2)
+    if (lojas.length && !lojas.some(l => l.user_id)) { el.erros.push("Nenhuma loja deste grupo tem login no Portal: a revenda não conseguiria confirmar o termo."); el.ok = false; }
     const reps = [...new Set(lojas.map(l => limpa(l.rep)).filter(Boolean))];
-    return { lojas, elegibilidade: el, representantes: reps };
+    return { nomeGrupo: nome, lojas, elegibilidade: el, representantes: reps };
 }
 
-async function emitir({ grupo, programa, lojaIds, representante }, admin) {
+async function emitir({ grupo: chave, programa, lojaIds, representante }, admin) {
     if (!(await flagAtiva())) throw erro(409, "O recurso de termos está desligado (interruptor termos_ativo).");
     if (!NIVEL[programa]) throw erro(400, "Programa inválido.");
-    const { lojas, elegibilidade, representantes } = await previaEmissao(grupo, programa, lojaIds);
+    const { nomeGrupo: grupo, lojas, elegibilidade, representantes } = await previaEmissao(chave, programa, lojaIds);
     if (!elegibilidade.ok) throw erro(400, elegibilidade.erros.join(" "));
 
     const abertos = rows(await D.get(`/comercial_bmax_termos?grupo=eq.${enc(grupo)}&programa=eq.${enc(programa)}&status=in.(${STATUS_ABERTOS.join(",")})&select=id`));
@@ -507,11 +521,19 @@ async function minhas(user) {
         return rows(await D.get(`/comercial_bmax_termos?representante_user_id=eq.${Number(user.id)}&status=eq.aguardando_representante&select=id,grupo,programa,status,criado_em`));
     }
     if (user.role === "revenda") {
-        const meus = rows(await D.get(`/comercial_revendas_bmax?user_id=eq.${Number(user.id)}&select=grupo`));
+        const meus = rows(await D.get(`/comercial_revendas_bmax?user_id=eq.${Number(user.id)}&select=id,grupo`));
         const grupos = [...new Set(meus.map(m => m.grupo).filter(Boolean))];
-        if (!grupos.length) return [];
-        const lista = grupos.map(g => `"${String(g).replace(/"/g, '\\"')}"`).join(",");
-        return rows(await D.get(`/comercial_bmax_termos?grupo=in.(${enc(lista)})&status=eq.aguardando_revenda&select=id,grupo,programa,status,criado_em`));
+        const achados = new Map();
+        if (grupos.length) {
+            const lista = grupos.map(g => `"${String(g).replace(/"/g, '\\"')}"`).join(",");
+            rows(await D.get(`/comercial_bmax_termos?grupo=in.(${enc(lista)})&status=eq.aguardando_revenda&select=id,grupo,programa,status,criado_em`)).forEach(t => achados.set(t.id, t));
+        }
+        if (meus.length) { // revenda sem grupo (ou termo emitido só para a loja dela): acha pelas lojas do termo
+            const lojas = rows(await D.get(`/comercial_bmax_termo_lojas?revenda_id=in.(${meus.map(m => m.id).join(",")})&select=termo_id`));
+            const ids = [...new Set(lojas.map(l => l.termo_id))];
+            if (ids.length) rows(await D.get(`/comercial_bmax_termos?id=in.(${ids.join(",")})&status=eq.aguardando_revenda&select=id,grupo,programa,status,criado_em`)).forEach(t => achados.set(t.id, t));
+        }
+        return [...achados.values()];
     }
     return [];
 }
@@ -553,14 +575,21 @@ async function consultarCepReal(cep) {
     return { estado: d.state, cidade: d.city, bairro: d.neighborhood, logradouro: d.street };
 }
 
-async function resolverRepresentanteReal(nomeRd) {
+async function resolverRepresentanteReal(nomeInformado) {
+    // O cadastro de revendas guarda o NOME do representante (ex.: "Victor VLM"); o RD usa o alias ("Victor Lantyer") e o LOGIN do Portal
+    // hoje é o e-mail. getAliasMaps liga os três: rdToUsername devolve o nome canônico, usernameToRd o nome no RD e rdToEmail o e-mail.
     const { getAliasMaps } = require("./rd.leads.service");
     const { User } = require("../database");
     const maps = await getAliasMaps();
-    const username = maps.rdToUsername && maps.rdToUsername[nomeRd];
-    if (!username) return null;
-    const u = await User.findOne({ where: { username, role: "representante" } });
-    return u ? { userId: u.id, username, email: (maps.rdToEmail && maps.rdToEmail[nomeRd]) || (String(username).includes("@") ? username : null) } : null;
+    const nome = (maps.rdToUsername && maps.rdToUsername[nomeInformado]) || (maps.usernameToRd && maps.usernameToRd[nomeInformado] ? nomeInformado : null);
+    if (!nome) return null;
+    const rdName = maps.usernameToRd[nome];
+    const email = (maps.rdToEmail && maps.rdToEmail[rdName]) || null;
+    for (const username of [email, nome].filter(Boolean)) {
+        const u = await User.findOne({ where: { username, role: "representante" } });
+        if (u) return { userId: u.id, username: u.username, email: email || (String(u.username).includes("@") ? u.username : null), nome };
+    }
+    return null;
 }
 
 async function guardarComprovanteReal(termoId, pdfBuffer) {
@@ -632,7 +661,7 @@ module.exports = {
     // puras (testáveis)
     soDigitos, cnpjValido, cpfValido, cepValido, fmtCnpj, fmtCep, enderecoComposto, validarLoja, sha256, renderTexto, avaliarElegibilidade,
     // fluxo
-    flagAtiva, setFlag, listarGrupos, previaEmissao, emitir, revendaConfirmar, testemunhar, boxerAprovar, confirmarCompra, cancelar,
-    planejarCadastro, aplicarCadastro, cnpjEmOutraLoja, processarPrazos, listar, obter, minhas, urlComprovante, papelDoUsuario, consultarCepReal,
+    flagAtiva, setFlag, listarGrupos, resolverGrupo, previaEmissao, emitir, revendaConfirmar, testemunhar, boxerAprovar, confirmarCompra, cancelar,
+    planejarCadastro, aplicarCadastro, cnpjEmOutraLoja, processarPrazos, resolverRepresentanteReal, listar, obter, minhas, urlComprovante, papelDoUsuario, consultarCepReal,
     __setDeps
 };

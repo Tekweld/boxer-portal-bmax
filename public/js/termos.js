@@ -67,7 +67,7 @@ async function abrirEmissaoTermo() {
     try {
         const grupos = await tApi("/grupos");
         abrirModalTermo(`<h3>Novo termo de adesão BPartner</h3>
-          <div class="field"><label>Grupo</label><select id="emGrupo" style="width:100%">${grupos.map(g => `<option value="${esc(g.grupo)}">${esc(g.grupo)} — ${g.lojas} loja(s), ${esc(g.classes.join("/"))}${g.temLogin ? "" : " (sem login)"}</option>`).join("")}</select></div>
+          <div class="field"><label>Grupo</label><select id="emGrupo" style="width:100%">${grupos.map(g => `<option value="${esc(g.chave)}">${esc(g.grupo)} — ${g.unica ? "loja única" : g.lojas + " loja(s)"}, ${esc(g.classes.join("/"))}${g.temLogin ? "" : " (sem login)"}</option>`).join("")}</select></div>
           <div class="field"><label>Programa</label><select id="emPrograma" style="width:100%"><option value="bpartner_prata">Prata</option><option value="bpartner_ouro">Ouro</option><option value="bpartner_diamante">Diamante (upgrade)</option></select></div>
           <div class="form-actions" style="margin-top:12px"><button class="btn" onclick="fecharModalTermo()">Cancelar</button><button class="btn primary" onclick="conferirEmissaoTermo()">Conferir lojas e elegibilidade</button></div>
           <div id="emPrevia" style="margin-top:14px"></div>`);
