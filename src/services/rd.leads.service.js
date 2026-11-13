@@ -171,22 +171,39 @@ const LEADS_CACHE_TTL = 5 * 60 * 1000;
 
 const RD_MAX_PAGES = 200; // teto de segurança (200 * 200 = 40k deals) contra paginação inconsistente da API
 
-async function fetchAllDealsFromRD() {
-    if (_leadsCache.data && Date.now() - _leadsCache.ts < LEADS_CACHE_TTL) return _leadsCache.data;
+// O RD IGNORA `created_at_start` (achado 13/11/2026): com ele o Portal baixava o funil INTEIRO (4.716 cards, 24 páginas de ~2 s =
+// 55 a 78 s) e estourava o limite de 60 s da Vercel — a tela ficava sem nenhum card. O filtro que o RD respeita é o par
+// `created_at_period=true&start_date=&end_date=` (944 cards) e, para vendas FECHADAS depois da data de corte mesmo em cards criados
+// antes (ciclo longo de venda), `win=true&closed_at_period=true&start_date=&end_date=` (158 cards). As duas consultas rodam em paralelo.
+const DATA_CORTE_PORTAL = "2026-05-01";
 
-    let allDeals = [];
+async function fetchPaginado(filtros) {
+    let todos = [];
     let page = 1;
     while (page <= RD_MAX_PAGES) {
-        const json = await rdFetch(
-            `/deals?deal_pipeline_id=${RD_PIPELINE_INDUSTRIA}&created_at_start=2026-05-01&page=${page}&limit=200`
-        );
+        const json = await rdFetch(`/deals?deal_pipeline_id=${RD_PIPELINE_INDUSTRIA}&${filtros}&page=${page}&limit=200`);
         const deals = json.deals || [];
         if (deals.length === 0) break;
-        allDeals = allDeals.concat(deals);
+        todos = todos.concat(deals);
         if (!json.has_more) break;
         page++;
     }
-    if (page > RD_MAX_PAGES) logger.error({ message: "fetchAllDealsFromRD atingiu o teto de páginas — dados podem estar incompletos", maxPages: RD_MAX_PAGES });
+    if (page > RD_MAX_PAGES) logger.error({ message: "fetchPaginado atingiu o teto de páginas — dados podem estar incompletos", maxPages: RD_MAX_PAGES, filtros });
+    return todos;
+}
+
+async function fetchAllDealsFromRD() {
+    if (_leadsCache.data && Date.now() - _leadsCache.ts < LEADS_CACHE_TTL) return _leadsCache.data;
+
+    const fim = new Date(Date.now() + 86400000).toISOString().slice(0, 10); // amanhã: inclui tudo de hoje
+    const periodo = `start_date=${DATA_CORTE_PORTAL}&end_date=${fim}`;
+    const [criados, fechados] = await Promise.all([
+        fetchPaginado(`created_at_period=true&${periodo}`),
+        fetchPaginado(`win=true&closed_at_period=true&${periodo}`)
+    ]);
+    const porId = new Map();
+    for (const d of [...criados, ...fechados]) porId.set(d.id || d._id, d);
+    const allDeals = [...porId.values()];
     _leadsCache = { data: allDeals, ts: Date.now() };
     return allDeals;
 }
@@ -202,7 +219,9 @@ async function getLeads(username, role) {
     allDeals = allDeals.filter(d => {
         if (!d.deal_stage || excludeStages.has(d.deal_stage.id)) return false;
         const created = new Date(d.created_at);
-        return created >= cutoffDate;
+        if (created >= cutoffDate) return true;
+        // Venda FECHADA depois do corte em card criado antes (ciclo longo): entra no Portal e gera comissão
+        return d.win === true && !!d.closed_at && new Date(d.closed_at) >= cutoffDate;
     });
 
     // Fora do escopo BMax (consumíveis / produto fora da Tabela de Preços BMax):
