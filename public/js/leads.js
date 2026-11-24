@@ -120,7 +120,8 @@ function setupFilter() {
   sel.disabled = false;
   const invalidosRev = ["", "?????", "?", "Vazio", "N/D"];
   // revenda sem loja ativa no cadastro (ex.: inativa) não vira opção do filtro; os cards seguem em "Todas as revendas"
-  const revendas = uniq(data.filter(l => !l.revendaForaDoCadastro).map(l => l.revenda).filter(r => !invalidosRev.includes((r || "").trim()))).sort();
+  // O filtro é por GRUPO: lojas do mesmo grupo (ex.: as 4 Luitex) aparecem como uma opção só
+  const revendas = uniq(data.filter(l => !l.revendaForaDoCadastro).map(l => l.revendaGrupo || l.revenda).filter(r => !invalidosRev.includes((r || "").trim()))).sort();
 
   const optAll = document.createElement("option");
   optAll.value = "all";
@@ -175,7 +176,7 @@ function render() {
   // da Luitex (que só "funcionava" por um hack de substring hardcoded). Não
   // há nada a refiltrar: API_LEADS já É a lista certa.
   if (session.role !== "revenda" && rev !== "all") {
-    data = data.filter(l => normalizeText(l.revenda) === normalizeText(rev));
+    data = data.filter(l => normalizeText(l.revendaGrupo || l.revenda) === normalizeText(rev));
   }
 
   if (activeQuemFilter) {

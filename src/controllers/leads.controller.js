@@ -5,6 +5,7 @@ const { aplicarCaminhoVenda } = require("../services/caminhoVenda.service");
 const { AuditLog } = require("../services/audit.service");
 const andamento = require("../services/negociacaoStatus.service");
 const pciX = require("../services/pciX.service");
+const { nomeUnico } = require("../services/codigoUnico.service");
 const {
     RD_STAGE_VENDIDO,
     RD_STAGE_PERDIDO_REVENDA
@@ -37,11 +38,13 @@ async function anexarAndamento(cards) {
         const abertos = cards.filter(c => !c.fechado);
         const ids = abertos.map(c => String(c.id));
         const [mapa, prazos] = await Promise.all([andamento.ultimosPorDeal(ids), pciX.situacaoPorDeal(abertos.filter(c => pciX.ehPciX(c.pci)).map(c => String(c.id)))]);
-        if (!mapa.size && !prazos.size) return cards;
+        // Cashback e filtros são do GRUPO: cada card leva o nome do grupo da loja (ou o da própria revenda, se não tem grupo)
+        const grupoDe = new Map();
+        for (const nome of new Set(cards.map(c => c.revenda).filter(Boolean))) grupoDe.set(nome, await nomeUnico(nome, "revenda"));
         return cards.map(c => {
             const a = mapa.get(String(c.id)); const p = prazos.get(String(c.id));
-            if (!a && !p) return c;
-            return { ...c, ...(a ? { andamento: { tipo: a.tipo, status: a.status, motivo: a.motivo, observacao: a.observacao, usuario: a.usuario, em: a.criado_em } } : {}), ...(p ? { pcix: p } : {}) };
+            const revendaGrupo = grupoDe.get(c.revenda) || c.revenda;
+            return { ...c, revendaGrupo, ...(a ? { andamento: { tipo: a.tipo, status: a.status, motivo: a.motivo, observacao: a.observacao, usuario: a.usuario, em: a.criado_em } } : {}), ...(p ? { pcix: p } : {}) };
         });
     } catch (e) { logger.warn({ message: "anexarAndamento falhou", error: e.message }); return cards; }
 }
