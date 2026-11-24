@@ -700,7 +700,8 @@ app.get("/api/cron/pci12a-prazo", async (req, res) => {
 
         for (const d of em12a) {
             const dealId = d.id || d._id;
-            let p = prazos.get(dealId);
+            // Lead migrado para o Pipefy: o controle dos 60 dias foi gravado com o id do RD — reaproveita (senão o prazo recomeçaria hoje)
+            let p = prazos.get(dealId) || (d.rd_deal_id ? prazos.get(d.rd_deal_id) : null);
             if (!p) {
                 // 12a anterior a esta regra: usa a data da escolha no log de auditoria; sem
                 // registro, começa a contar hoje (a revenda não é penalizada por falta de dado).
@@ -721,8 +722,8 @@ app.get("/api/cron/pci12a-prazo", async (req, res) => {
                 // Confirma que o RD de fato moveu (etapa do funil BMAX) antes de dar como arquivado.
                 const depois = await getDealById(dealId);
                 if (depois?.deal_stage?.id !== RD_STAGE_PERDIDO) throw new Error("RD não confirmou a mudança para Prazo Vencido");
-                await marcarArquivado12a(dealId);
-                await require("./services/pci12Desfecho.service").registrarResultado12a(dealId, "vencido", "robo");
+                await marcarArquivado12a(p.deal_id);
+                await require("./services/pci12Desfecho.service").registrarResultado12a(p.deal_id, "vencido", "robo");
                 resultado.arquivados++;
             } catch (e) {
                 resultado.erros++;
@@ -812,30 +813,6 @@ app.get("/api/cron/pipefy-unificar-revendas", async (req, res) => {
         if (!PIPES.includes(pipe)) return res.status(400).json({ error: "informe ?pipe= um de: " + PIPES.join(" | ") });
         res.json({ ok: true, ...(await unificarPipe(pipe, { aplicar: req.query.aplicar === "1" })) });
     } catch (err) { res.status(500).json({ error: err.message }); }
-});
-
-// TEMPORÁRIA (24/11/2026): mapa id do Pipefy -> id do RD dos leads que têm crédito de comissão com id numérico (só leitura).
-app.get("/api/cron/pipefy-mapa-ids", async (req, res) => {
-    const secret = req.headers["authorization"];
-    if (!(process.env.TEMP_UNIFICAR_KEY && secret === `Bearer ${process.env.TEMP_UNIFICAR_KEY}`)) return res.status(401).json({ error: "unauthorized" });
-    try {
-        const { QueryTypes } = require("sequelize");
-        const ids = new Set((await require("./database").sequelize.query(`SELECT DISTINCT lead_id FROM bmax_transacoes WHERE lead_id ~ '^[0-9]+$'`, { type: QueryTypes.SELECT })).map(r => r.lead_id));
-        const { getLeads } = require("./services/rd.leads.service");
-        const deals = await getLeads("admin", "adm");
-        const mapa = {}; const semRd = [];
-        for (const d of deals) { const id = String(d.id || d._id); if (!ids.has(id)) continue; if (d.rd_deal_id) mapa[id] = d.rd_deal_id; else semRd.push(id); }
-        const ausentes = [...ids].filter(i => !(i in mapa) && !semRd.includes(i));
-        res.json({ ok: true, total: ids.size, mapa, semRd, ausentes });
-    } catch (err) { res.status(500).json({ error: err.message }); }
-});
-
-// TEMPORÁRIA (24/11/2026): simula o robô de comissões SEM gravar nada, para conferir que não duplica após a virada para o Pipefy.
-app.get("/api/cron/temp-recalc-dry", async (req, res) => {
-    const secret = req.headers["authorization"];
-    if (!(process.env.TEMP_UNIFICAR_KEY && secret === `Bearer ${process.env.TEMP_UNIFICAR_KEY}`)) return res.status(401).json({ error: "unauthorized" });
-    try { res.json(await require("./services/comissao.service").recalcularComissoes({ dryRun: true })); }
-    catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 // Vigia diário dos robôs: avisa por e-mail se algum não teve sucesso dentro do prazo
