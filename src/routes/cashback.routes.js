@@ -38,12 +38,12 @@ router.get("/saldo", authenticate, authorize(["revenda", "representante", "adm"]
         if (req.user.role === "adm") {
             const alvo = await revendaConsultadaPeloAdmin(req);
             if (!alvo) return res.json({ revenda: null, saldo: 0 });
-            return res.json({ revenda: alvo.revenda, saldo: await getSaldoGrupo(alvo.revenda, alvo.grupo) });
+            return res.json({ revenda: alvo.grupo || alvo.revenda, saldo: await getSaldoGrupo(alvo.revenda, alvo.grupo) });
         }
         const revenda = req.user.name;
         const grupo = req.user.grupo || null;
         const saldo = await getSaldoGrupo(revenda, grupo);
-        res.json({ revenda, saldo });
+        res.json({ revenda: grupo || revenda, saldo });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
@@ -61,13 +61,13 @@ router.get("/extrato", authenticate, authorize(["revenda", "representante", "adm
             if (!alvo) return res.json({ revenda: null, saldo: 0, transacoes: [] });
             const saldo = await getSaldoGrupo(alvo.revenda, alvo.grupo);
             const transacoes = await anexarNomeLead(await getExtratoGrupo(alvo.revenda, alvo.grupo));
-            return res.json({ revenda: alvo.revenda, saldo, transacoes });
+            return res.json({ revenda: alvo.grupo || alvo.revenda, saldo, transacoes });
         }
         const revenda = req.user.name;
         const grupo = req.user.grupo || null;
         const saldo = await getSaldoGrupo(revenda, grupo);
         const transacoes = await anexarNomeLead(await getExtratoGrupo(revenda, grupo));
-        res.json({ revenda, saldo, transacoes });
+        res.json({ revenda: grupo || revenda, saldo, transacoes });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
@@ -84,7 +84,7 @@ router.get("/saques", authenticate, async (req, res) => {
             const alvo = await revendaConsultadaPeloAdmin(req);
             if (alvo) {
                 const nomes = alvo.grupo
-                    ? new Set(await getGrupoRevendas(alvo.grupo))
+                    ? new Set([...(await getGrupoRevendas(alvo.grupo)), alvo.grupo])
                     : new Set([alvo.revenda]);
                 saques = saques.filter(s => nomes.has(s.revenda));
             }

@@ -86,6 +86,9 @@ async function nomeUnico(nome, tipoAgente = "revenda") {
         if (tipoAgente !== "revenda" || !nome) return nome;
         const c = await codigoDe(nome, "revenda"); const cc = await carregar();
         if (c.grupo_id && cc.grupoNome.get(c.grupo_id)) return cc.grupoNome.get(c.grupo_id);
+        // Cashback é do GRUPO (24/11/2026): loja que pertence a um grupo usa a carteira do grupo
+        const gid = c.revenda_id && cc.lojaGrupo.get(c.revenda_id);
+        if (gid && cc.grupoNome.get(gid)) return cc.grupoNome.get(gid);
         if (c.revenda_id && cc.lojaNome.get(c.revenda_id)) return cc.lojaNome.get(c.revenda_id);
     } catch (_) { /* segue com o nome original */ }
     return nome;

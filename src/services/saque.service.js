@@ -1,7 +1,7 @@
 const { sequelize } = require("../database");
 const { QueryTypes } = require("sequelize");
 const { getSaldo, getSaldoGrupo, debitarCashback, debitarCashbackGrupo } = require("./saldo.service");
-const { codigoDe } = require("./codigoUnico.service");
+const { codigoDe, nomeUnico } = require("./codigoUnico.service");
 
 function gerarCodigoCheque() {
     const ano = new Date().getFullYear();
@@ -17,6 +17,7 @@ async function grupoDoLogin(revenda) {
 
 async function solicitarSaque(revenda, representante, valor, tipoUso, grupo = null) {
     grupo = grupo || await grupoDoLogin(revenda);
+    revenda = grupo || await nomeUnico(revenda, "revenda");   // o saque é do GRUPO (carteira única)
     const saldo = grupo ? await getSaldoGrupo(revenda, grupo) : await getSaldo(revenda);
     if (valor > saldo) {
         throw new Error(`Saldo insuficiente. Disponivel: R$ ${saldo.toFixed(2)}`);
@@ -94,6 +95,8 @@ async function marcarUtilizado(saqueId) {
 }
 
 async function listarSaques(revenda, representante, role, repRevendas) {
+    if (role === "revenda") revenda = await nomeUnico(revenda, "revenda");
+    if (role === "representante" && repRevendas && repRevendas.length) repRevendas = [...new Set([...repRevendas, ...(await Promise.all(repRevendas.map(n => nomeUnico(n, "revenda"))))])];
     let where = "";
     const replacements = {};
 
