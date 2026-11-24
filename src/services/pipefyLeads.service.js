@@ -216,8 +216,13 @@ function cardParaDealFake(card, pipeNome = "BMAX") {
     const dataFechamentoRd = campoDataFechamentoRd ? valorPorCampoId[campoDataFechamentoRd] : null;
     const closedAt = paraDataIso(dataFechamentoRd) || null;
 
+    // Id da MESMA negociação no RD ("ID no RD CRM", preenchido nos cards migrados): o robô de comissões usa os dois ids para nunca
+    // creditar duas vezes a mesma venda (23-24/11/2026: a virada para o Pipefy duplicou os créditos porque o lead_id mudou).
+    const campoIdRd = campos["ID no RD CRM"];
+    const rdDealId = campoIdRd ? (valorPorCampoId[campoIdRd] || null) : null;
     return {
         id: card.id,
+        rd_deal_id: rdDealId ? String(rdDealId).trim() : null,
         name: card.title,
         deal_custom_fields: dealCustomFields,
         deal_stage: { id: etapaRd, name: faseNome },

@@ -1,7 +1,7 @@
 const { sequelize } = require("../database");
 const { QueryTypes } = require("sequelize");
 const { REVENDA_SEM_CREDITO } = require("../config/constants");
-const { codigoDe, codigosDoGrupo } = require("./codigoUnico.service");
+const { codigoDe, codigosDoGrupo, nomeUnico } = require("./codigoUnico.service");
 const SEM_ID = "00000000-0000-0000-0000-000000000000"; // lista vazia segura para IN (...)
 
 // `tipoAgente` default 'revenda' preserva 100% o comportamento anterior para todo
@@ -19,6 +19,7 @@ async function getSaldo(nome, tipoAgente = 'revenda') {
 }
 
 async function upsertSaldo(nome, novoSaldo, tipoAgente = 'revenda') {
+    nome = await nomeUnico(nome, tipoAgente);
     // Código único gravado ao lado do nome (etapa 4); se não resolver, mantém o código que a carteira já tinha.
     const cod = await codigoDe(nome, tipoAgente);
     await sequelize.query(
@@ -40,6 +41,7 @@ async function upsertSaldo(nome, novoSaldo, tipoAgente = 'revenda') {
 // (default {}) pra não quebrar nenhum chamador existente.
 async function creditarCashback(nome, valor, descricao, leadId, tipoAgente = 'revenda', detalhes = {}) {
     const { pci = null, classePreco = null, comissaoPct = null } = detalhes;
+    nome = await nomeUnico(nome, tipoAgente);   // carteira única por revenda, mesmo se o card trouxer o nome antigo (Pipefy/ZEN)
     const saldoAtual = await getSaldo(nome, tipoAgente);
     const novoSaldo = Number((saldoAtual + valor).toFixed(2));
     // Expiração de 180 dias é regra do cashback-produto da revenda (resgatável em
@@ -59,6 +61,7 @@ async function creditarCashback(nome, valor, descricao, leadId, tipoAgente = 're
 }
 
 async function debitarCashback(nome, valor, descricao, saqueId, tipoAgente = 'revenda') {
+    nome = await nomeUnico(nome, tipoAgente);
     const saldoAtual = await getSaldo(nome, tipoAgente);
     const novoSaldo = Number((saldoAtual - valor).toFixed(2));
 

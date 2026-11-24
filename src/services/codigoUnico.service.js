@@ -8,7 +8,7 @@ const { logger } = require("../logger");
 //   e o robô de conferência avisa.
 const norm = s => String(s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").trim().toLowerCase().replace(/\s+/g, " ");
 const TTL_MS = 2 * 60 * 1000, MIN_RECARGA_MS = 20 * 1000;
-let cache = { ts: 0, rev: new Map(), rep: new Map(), grp: new Map(), lojasDoGrupo: new Map(), lojaGrupo: new Map() };
+let cache = { ts: 0, rev: new Map(), rep: new Map(), grp: new Map(), lojasDoGrupo: new Map(), lojaGrupo: new Map(), lojaNome: new Map(), grupoNome: new Map() };
 
 async function carregar(forcar = false) {
     if (!forcar && cache.ts && Date.now() - cache.ts < TTL_MS) return cache;
@@ -18,8 +18,9 @@ async function carregar(forcar = false) {
         sbSistemasService("/comercial_representantes_bmax?select=id,nome,rd_alias"),
         sbSistemasService("/comercial_bmax_grupos?select=id,nome")
     ]);
-    const rev = new Map(), rep = new Map(), grp = new Map(), lojasDoGrupo = new Map(), lojaGrupo = new Map();
-    for (const g of (Array.isArray(grupos) ? grupos : [])) grp.set(norm(g.nome), g.id);
+    const rev = new Map(), rep = new Map(), grp = new Map(), lojasDoGrupo = new Map(), lojaGrupo = new Map(), lojaNome = new Map(), grupoNome = new Map();
+    for (const g of (Array.isArray(grupos) ? grupos : [])) { grp.set(norm(g.nome), g.id); grupoNome.set(g.id, g.nome); }
+    for (const l of (Array.isArray(lojas) ? lojas : [])) lojaNome.set(l.id, String(l.nome_rd || l.nome || "").trim());
     for (const l of (Array.isArray(lojas) ? lojas : [])) if (l.grupo_id) { const a = lojasDoGrupo.get(l.grupo_id) || []; a.push(l.id); lojasDoGrupo.set(l.grupo_id, a); lojaGrupo.set(l.id, l.grupo_id); }
     for (const l of (Array.isArray(lojas) ? lojas : [])) for (const n of [l.nome_rd, l.nome]) { const k = norm(n); if (k && !rev.has(k)) rev.set(k, { entidade: "revenda", id: l.id }); }
     for (const a of (Array.isArray(apel) ? apel : [])) {
@@ -39,7 +40,7 @@ async function carregar(forcar = false) {
     }
     for (const [x, ent] of variantes) if (ent.ids.size === 1) rev.set(x, ent.val);
     for (const r of (Array.isArray(reps) ? reps : [])) for (const n of [r.nome, r.rd_alias]) { const k = norm(n); if (k && !rep.has(k)) rep.set(k, r.id); }
-    cache = { ts: Date.now(), rev, rep, grp, lojasDoGrupo, lojaGrupo };
+    cache = { ts: Date.now(), rev, rep, grp, lojasDoGrupo, lojaGrupo, lojaNome, grupoNome };
     return cache;
 }
 
@@ -78,6 +79,18 @@ async function estruturaGrupos() {
     catch (e) { return { lojasDoGrupo: new Map(), lojaGrupo: new Map() }; }
 }
 
-function limparCache() { cache = { ts: 0, rev: new Map(), rep: new Map(), grp: new Map(), lojasDoGrupo: new Map(), lojaGrupo: new Map() }; }
+// Nome ÚNICO canônico de uma revenda (nome_rd da loja, ou nome do grupo quando o apelido é do grupo). Usado para que a carteira de
+// cashback tenha SEMPRE o mesmo nome, venha o card do RD ou do Pipefy com o nome antigo. Não resolve -> devolve o nome como veio.
+async function nomeUnico(nome, tipoAgente = "revenda") {
+    try {
+        if (tipoAgente !== "revenda" || !nome) return nome;
+        const c = await codigoDe(nome, "revenda"); const cc = await carregar();
+        if (c.grupo_id && cc.grupoNome.get(c.grupo_id)) return cc.grupoNome.get(c.grupo_id);
+        if (c.revenda_id && cc.lojaNome.get(c.revenda_id)) return cc.lojaNome.get(c.revenda_id);
+    } catch (_) { /* segue com o nome original */ }
+    return nome;
+}
 
-module.exports = { codigoDe, codigosDoGrupo, estruturaGrupos, limparCache, norm };
+function limparCache() { cache = { ts: 0, rev: new Map(), rep: new Map(), grp: new Map(), lojasDoGrupo: new Map(), lojaGrupo: new Map(), lojaNome: new Map(), grupoNome: new Map() }; }
+
+module.exports = { codigoDe, codigosDoGrupo, estruturaGrupos, nomeUnico, limparCache, norm };

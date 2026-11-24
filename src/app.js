@@ -814,6 +814,22 @@ app.get("/api/cron/pipefy-unificar-revendas", async (req, res) => {
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// TEMPORÁRIA (24/11/2026): mapa id do Pipefy -> id do RD dos leads que têm crédito de comissão com id numérico (só leitura).
+app.get("/api/cron/pipefy-mapa-ids", async (req, res) => {
+    const secret = req.headers["authorization"];
+    if (!(process.env.TEMP_UNIFICAR_KEY && secret === `Bearer ${process.env.TEMP_UNIFICAR_KEY}`)) return res.status(401).json({ error: "unauthorized" });
+    try {
+        const { QueryTypes } = require("sequelize");
+        const ids = new Set((await require("./database").sequelize.query(`SELECT DISTINCT lead_id FROM bmax_transacoes WHERE lead_id ~ '^[0-9]+$'`, { type: QueryTypes.SELECT })).map(r => r.lead_id));
+        const { getLeads } = require("./services/rd.leads.service");
+        const deals = await getLeads("admin", "adm");
+        const mapa = {}; const semRd = [];
+        for (const d of deals) { const id = String(d.id || d._id); if (!ids.has(id)) continue; if (d.rd_deal_id) mapa[id] = d.rd_deal_id; else semRd.push(id); }
+        const ausentes = [...ids].filter(i => !(i in mapa) && !semRd.includes(i));
+        res.json({ ok: true, total: ids.size, mapa, semRd, ausentes });
+    } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 // Vigia diário dos robôs: avisa por e-mail se algum não teve sucesso dentro do prazo
 app.get("/api/cron/vigia-robos", async (req, res) => {
     const secret = req.headers["authorization"];

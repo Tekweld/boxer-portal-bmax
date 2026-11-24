@@ -26,15 +26,17 @@ async function recalcularComissoes() {
         { type: QueryTypes.SELECT }
     );
     const creditoAtual = {};
-    for (const r of existentes) creditoAtual[`${r.lead_id}::${r.tipo_agente}`] = { valor: Number(r.total_credito), nome: r.nome };
+    // SOMA por lead+agente (o mesmo lead pode ter linhas sob nomes diferentes da carteira): atribuir só a última subcontava e gerava crédito duplicado
+    for (const r of existentes) { const k = `${r.lead_id}::${r.tipo_agente}`; const a = creditoAtual[k] || { valor: 0, nome: r.nome }; a.valor += Number(r.total_credito); creditoAtual[k] = a; }
 
     let ajustados = 0, erros = 0, faltandoDado = 0;
     const detalhes = [];
 
-    async function ajustar(dealId, tipoAgente, nome, correto, pciLabel, classePreco, comissaoPct) {
-        const chave = `${dealId}::${tipoAgente}`;
-        const atualInfo = creditoAtual[chave];
-        const atual = atualInfo ? atualInfo.valor : 0;
+    async function ajustar(dealId, tipoAgente, nome, correto, pciLabel, classePreco, comissaoPct, rdDealId = null) {
+        // O mesmo lead pode ter créditos sob o id do RD (antigo) e sob o id do Pipefy: conta os dois, nunca credita de novo a mesma venda
+        const infoPipefy = creditoAtual[`${dealId}::${tipoAgente}`];
+        const infoRd = rdDealId && rdDealId !== dealId ? creditoAtual[`${rdDealId}::${tipoAgente}`] : null;
+        const atual = (infoPipefy ? infoPipefy.valor : 0) + (infoRd ? infoRd.valor : 0);
         const diff = Number((correto - atual).toFixed(2));
         if (Math.abs(diff) < 0.01) return;
 
@@ -49,6 +51,7 @@ async function recalcularComissoes() {
 
     for (const deal of vendidos) {
         const dealId = deal.id || deal._id;
+        const rdDealId = deal.rd_deal_id || null;
         const revenda = getCustomField(deal, "REVENDA/LOJA") || "";
         const representante = getCustomField(deal, "REPRESENTANTE") || "";
         const responsavelRd = (deal.user && deal.user.name) || "";
@@ -65,13 +68,13 @@ async function recalcularComissoes() {
             // Caio Tito foram parar numa conta fantasma "Sem Revenda" e depois
             // vazaram pro saldo de OUTRO representante via getRepRevendas).
             if (revenda && !REVENDA_SEM_CREDITO.includes(revenda)) {
-                await ajustar(dealId, "revenda", revenda, comissoes.revenda ? comissoes.revenda.valor : 0, pci, classePreco, comissoes.revenda ? comissoes.revenda.comissaoPct : null);
+                await ajustar(dealId, "revenda", revenda, comissoes.revenda ? comissoes.revenda.valor : 0, pci, classePreco, comissoes.revenda ? comissoes.revenda.comissaoPct : null, rdDealId);
             }
             if (comissoes.representante) {
-                await ajustar(dealId, "representante", comissoes.representante.nome, comissoes.representante.valor, pci, classePreco, comissoes.representante.comissaoPct);
+                await ajustar(dealId, "representante", comissoes.representante.nome, comissoes.representante.valor, pci, classePreco, comissoes.representante.comissaoPct, rdDealId);
             }
             if (comissoes.vendedorInterno) {
-                await ajustar(dealId, "vendedor_interno", comissoes.vendedorInterno.nome, comissoes.vendedorInterno.valor, pci, classePreco, comissoes.vendedorInterno.comissaoPct);
+                await ajustar(dealId, "vendedor_interno", comissoes.vendedorInterno.nome, comissoes.vendedorInterno.valor, pci, classePreco, comissoes.vendedorInterno.comissaoPct, rdDealId);
             }
         } catch (err) {
             erros++;
