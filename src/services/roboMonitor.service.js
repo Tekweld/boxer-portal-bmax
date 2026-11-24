@@ -1,6 +1,6 @@
 const { sequelize } = require("../database");
 const { QueryTypes } = require("sequelize");
-const { alertarAdminErro } = require("./email.service");
+const { alertarAdminErro, sendEmail } = require("./email.service");
 const { logger } = require("../logger");
 
 // Monitor dos robôs (rotas /api/cron/*): grava cada execução (bmax_robo_execucoes) e AVISA O ADMIN POR E-MAIL quando um robô falha
@@ -12,6 +12,35 @@ const ESPERADOS = {
     "pci12a-prazo": 30, "pci12-followup": 30, "recalcular-comissoes": 30, "termos-prazos": 30,
     "expirar-cashback": 30, "sync-consulta-lead": 30, "sync-revenda-rep-rd": 30, "status-x-etapa": 30, "pcix-prazo": 30
 };
+
+// Crédito de comissão em volume anormal (incidente de 24/11/2026: a virada para o Pipefy duplicou 213 créditos, R$ 114 mil).
+// Dias normais têm no máximo ~22 créditos; o limite avisa antes de alguém sacar sobre saldo inflado. Só vai para os ADMINS, por e-mail.
+const LIM_CREDITOS_24H = 40, LIM_VALOR_24H = 25000, REAVISO_HORAS = 12;
+async function emailsDosAdmins() {
+    const rows = await sequelize.query(`SELECT username FROM "Users" WHERE role = 'adm' AND username LIKE '%@%'`, { type: QueryTypes.SELECT }).catch(() => []);
+    return [...new Set([...rows.map(r => String(r.username).trim().toLowerCase()), process.env.EMAIL_FALLBACK && String(process.env.EMAIL_FALLBACK).trim().toLowerCase()].filter(e => e && e.includes("@")))];
+}
+async function verificarCreditosAnormais() {
+    const porTipo = await sequelize.query(
+        `SELECT tipo_agente, count(*)::int n, COALESCE(sum(valor),0)::float v FROM bmax_transacoes WHERE tipo = 'credito' AND criado_em > now() - interval '24 hours' GROUP BY 1`, { type: QueryTypes.SELECT });
+    const n = porTipo.reduce((s, x) => s + x.n, 0), v = porTipo.reduce((s, x) => s + x.v, 0);
+    if (n <= LIM_CREDITOS_24H && v <= LIM_VALOR_24H) return { anormal: false, creditos: n, valor: v };
+    const recente = await sequelize.query(`SELECT 1 FROM bmax_robo_execucoes WHERE robo = 'alerta-creditos' AND alertado_em > now() - make_interval(hours => :h) LIMIT 1`, { replacements: { h: REAVISO_HORAS }, type: QueryTypes.SELECT });
+    if (recente.length) return { anormal: true, creditos: n, valor: v, jaAvisado: true };
+    const top = await sequelize.query(`SELECT tipo_agente, revenda, count(*)::int n, sum(valor)::float v FROM bmax_transacoes WHERE tipo = 'credito' AND criado_em > now() - interval '24 hours' GROUP BY 1,2 ORDER BY v DESC LIMIT 10`, { type: QueryTypes.SELECT });
+    const brl = x => "R$ " + Number(x).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const html = `<div style="font-family:Arial,sans-serif;max-width:640px;margin:0 auto;padding:20px">
+        <h2 style="color:#e30613">⚠️ Volume anormal de créditos de comissão</h2>
+        <p>Nas últimas 24 horas o Portal lançou <strong>${n} créditos</strong> (<strong>${brl(v)}</strong>). O normal é no máximo ~${LIM_CREDITOS_24H} créditos e ${brl(LIM_VALOR_24H)} por dia.</p>
+        <p>Pode ser uma venda grande legítima, mas já aconteceu de o robô de comissões creditar a mesma venda duas vezes (mudança de id do card). <strong>Confira antes de aprovar saques.</strong></p>
+        <ul>${porTipo.map(x => `<li>${x.tipo_agente}: ${x.n} créditos, ${brl(x.v)}</li>`).join("")}</ul>
+        <p><strong>Maiores carteiras:</strong></p><ul>${top.map(x => `<li>${x.tipo_agente} · ${x.revenda}: ${x.n} créditos, ${brl(x.v)}</li>`).join("")}</ul>
+        <p style="font-size:12px;color:#666">Aviso automático do Portal BMAX, enviado só aos administradores. Reaviso no máximo a cada ${REAVISO_HORAS}h.</p></div>`;
+    const destinos = await emailsDosAdmins();
+    const ok = destinos.length ? await sendEmail(destinos, "BMAX - ALERTA: volume anormal de créditos de comissão", html).catch(() => false) : false;
+    await sequelize.query(`INSERT INTO bmax_robo_execucoes (robo, ok, erro, alertado_em) VALUES ('alerta-creditos', true, :msg, now())`, { replacements: { msg: `${n} créditos / ${brl(v)} em 24h; e-mail ${ok === false ? "NÃO enviado" : "enviado"}` }, type: QueryTypes.INSERT });
+    return { anormal: true, creditos: n, valor: v, avisados: ok === false ? 0 : destinos.length };
+}
 
 function resultadoRuim(status, body) {
     if (status >= 400) return true;
@@ -37,7 +66,11 @@ async function registrar({ robo, duracaoMs, status, ok, body }) {
             { replacements: { robo, duracaoMs, status, ok, erro }, type: QueryTypes.INSERT }
         );
     });
-    if (ok) { if (robo !== "vigia-robos") await verificarVigia().catch(() => {}); return; }
+    if (ok) {
+        if (robo !== "vigia-robos") await verificarVigia().catch(() => {});
+        if (["recalcular-comissoes", "cashback-nf", "vigia-robos"].includes(robo)) await verificarCreditosAnormais().catch(e => logger.error({ message: "verificarCreditosAnormais falhou", error: e.message }));
+        return;
+    }
     // Avisa na 1ª falha e repete no máximo 1x por dia enquanto continuar falhando
     const recente = await sequelize.query(
         `SELECT 1 FROM bmax_robo_execucoes WHERE robo = :robo AND alertado_em > now() - interval '24 hours' LIMIT 1`,
@@ -122,4 +155,4 @@ async function vigiar() {
     return { ok: problemas.length === 0, problemas };
 }
 
-module.exports = { cronTracker, vigiar, ESPERADOS };
+module.exports = { cronTracker, vigiar, verificarCreditosAnormais, ESPERADOS };
