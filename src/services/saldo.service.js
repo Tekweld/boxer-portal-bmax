@@ -164,6 +164,34 @@ async function getSaldoGrupo(revenda, grupo) {
     return Number(rows[0].total);
 }
 
+// Carteiras de revenda com saldo positivo do grupo (mesma regra de leitura do getSaldoGrupo), a da loja que pede primeiro, depois as maiores
+async function carteirasDoGrupo(revenda, grupo) {
+    const revendas = await getGrupoRevendas(grupo);
+    const cg = await codigosDoGrupo(grupo);
+    return sequelize.query(
+        `SELECT revenda, saldo::float AS saldo FROM bmax_saldo
+         WHERE tipo_agente = 'revenda' AND saldo > 0 AND (revenda IN (:revendas) OR grupo_id = :grupoId OR revenda_id IN (:lojaIds))
+         ORDER BY (revenda = :primeira) DESC, saldo DESC`,
+        { replacements: { revendas: revendas.length ? revendas : [SEM_ID], grupoId: cg.grupoId, lojaIds: cg.lojaIds.length ? cg.lojaIds : [SEM_ID], primeira: revenda }, type: QueryTypes.SELECT }
+    );
+}
+
+// Débito de saque de GRUPO: o saldo que a revenda vê é a soma das lojas do grupo, então o saque sai das carteiras em ordem (nenhuma fica negativa).
+// Devolve as partes debitadas. Lança erro se a soma das carteiras com saldo não cobre o valor.
+async function debitarCashbackGrupo(revenda, grupo, valor, descricao, saqueId) {
+    const carteiras = await carteirasDoGrupo(revenda, grupo);
+    const disponivel = carteiras.reduce((s, c) => s + c.saldo, 0);
+    if (valor > disponivel + 0.005) throw new Error(`Saldo insuficiente. Disponivel: R$ ${disponivel.toFixed(2)}`);
+    let restante = Number(valor.toFixed(2)); const partes = [];
+    for (const c of carteiras) {
+        if (restante <= 0.004) break;
+        const parte = Number(Math.min(restante, c.saldo).toFixed(2));
+        await debitarCashback(c.revenda, parte, descricao, saqueId);
+        partes.push({ carteira: c.revenda, valor: parte }); restante = Number((restante - parte).toFixed(2));
+    }
+    return partes;
+}
+
 async function getExtratoGrupo(revenda, grupo) {
     if (!grupo) return getExtrato(revenda);
     const revendas = await getGrupoRevendas(grupo);
@@ -359,4 +387,4 @@ async function getExtratoTipoAgente(tipoAgente, mesAno) {
     );
 }
 
-module.exports = { anexarNomeLead, getGrupoRevendas, getSaldo, getSaldoGrupo, upsertSaldo, creditarCashback, debitarCashback, getExtrato, getExtratoGrupo, getExpirandoEm, processarExpirados, getCreditosProximosVencimento, getCreditosProximosVencimentoGrupo, getRepRevendas, getSaldoRep, getExtratoRep, getCreditosExpirandoRep, getCreditosPorLeads, listarAgentes, getExtratoPorAgente, getExtratoTipoAgente };
+module.exports = { anexarNomeLead, getGrupoRevendas, carteirasDoGrupo, debitarCashbackGrupo, getSaldo, getSaldoGrupo, upsertSaldo, creditarCashback, debitarCashback, getExtrato, getExtratoGrupo, getExpirandoEm, processarExpirados, getCreditosProximosVencimento, getCreditosProximosVencimentoGrupo, getRepRevendas, getSaldoRep, getExtratoRep, getCreditosExpirandoRep, getCreditosPorLeads, listarAgentes, getExtratoPorAgente, getExtratoTipoAgente };

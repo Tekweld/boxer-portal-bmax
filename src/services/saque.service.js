@@ -1,6 +1,6 @@
 const { sequelize } = require("../database");
 const { QueryTypes } = require("sequelize");
-const { getSaldo, debitarCashback } = require("./saldo.service");
+const { getSaldo, getSaldoGrupo, debitarCashback, debitarCashbackGrupo } = require("./saldo.service");
 const { codigoDe } = require("./codigoUnico.service");
 
 function gerarCodigoCheque() {
@@ -9,8 +9,15 @@ function gerarCodigoCheque() {
     return `BMAX-${ano}-${rand}`;
 }
 
-async function solicitarSaque(revenda, representante, valor, tipoUso) {
-    const saldo = await getSaldo(revenda);
+// Grupo do login da revenda (o saldo que ela vê é a soma das lojas do grupo; o saque precisa usar a mesma base)
+async function grupoDoLogin(revenda) {
+    const rows = await sequelize.query(`SELECT grupo FROM "Revendas" WHERE name = :revenda AND grupo IS NOT NULL AND grupo <> '' LIMIT 1`, { replacements: { revenda }, type: QueryTypes.SELECT });
+    return rows.length ? rows[0].grupo : null;
+}
+
+async function solicitarSaque(revenda, representante, valor, tipoUso, grupo = null) {
+    grupo = grupo || await grupoDoLogin(revenda);
+    const saldo = grupo ? await getSaldoGrupo(revenda, grupo) : await getSaldo(revenda);
     if (valor > saldo) {
         throw new Error(`Saldo insuficiente. Disponivel: R$ ${saldo.toFixed(2)}`);
     }
@@ -43,8 +50,9 @@ async function aprovarSaque(saqueId, representante) {
 
     if (saque.status !== "pendente") throw new Error(`Saque ja esta ${saque.status}`);
 
-    const saldo = await getSaldo(saque.revenda);
-    if (saque.valor > saldo) throw new Error(`Saldo insuficiente. Disponivel: R$ ${saldo.toFixed(2)}`);
+    const grupo = await grupoDoLogin(saque.revenda);
+    const saldo = grupo ? await getSaldoGrupo(saque.revenda, grupo) : await getSaldo(saque.revenda);
+    if (Number(saque.valor) > saldo + 0.005) throw new Error(`Saldo insuficiente. Disponivel: R$ ${saldo.toFixed(2)}`);
 
     const codigo = gerarCodigoCheque();
     const expiraEm = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
@@ -56,7 +64,8 @@ async function aprovarSaque(saqueId, representante) {
     );
 
     const tipoLabel = saque.tipo_uso === "desconto" ? "Desconto 5%" : "Bonificacao 10%";
-    await debitarCashback(saque.revenda, saque.valor, `Saque ${codigo} (${tipoLabel})`, saqueId);
+    if (grupo) await debitarCashbackGrupo(saque.revenda, grupo, Number(saque.valor), `Saque ${codigo} (${tipoLabel})`, saqueId);
+    else await debitarCashback(saque.revenda, saque.valor, `Saque ${codigo} (${tipoLabel})`, saqueId);
 
     return { ...saque, status: "aprovado", codigo_cheque: codigo, expira_em: expiraEm };
 }

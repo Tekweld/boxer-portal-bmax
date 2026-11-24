@@ -12,7 +12,7 @@ const { logger } = require("../logger");
 // só lança a DIFERENÇA entre o que já existe e o valor correto — chamar de novo
 // sem nada ter mudado não duplica nada. Usada tanto pelo botão manual
 // (POST /api/cashback/recalcular) quanto pelo cron automático.
-async function recalcularComissoes() {
+async function recalcularComissoes({ dryRun = false } = {}) {
     const allDeals = await getLeads("admin", "adm");
     const vendaStages = new Set([RD_STAGE_VENDIDO, RD_STAGE_VENDA_EFETIVADA, RD_STAGE_ENTREGA_TECNICA]);
     const vendidos = allDeals.filter(d => {
@@ -39,6 +39,7 @@ async function recalcularComissoes() {
         const atual = (infoPipefy ? infoPipefy.valor : 0) + (infoRd ? infoRd.valor : 0);
         const diff = Number((correto - atual).toFixed(2));
         if (Math.abs(diff) < 0.01) return;
+        if (dryRun) { ajustados++; detalhes.push({ dealId, tipoAgente, nome, anterior: atual, correto, diff, dryRun: true }); return; }
 
         if (diff > 0) {
             await creditarCashback(nome, diff, `Ajuste comissão ${dealId} — ${pciLabel}`, dealId, tipoAgente, { pci: pciLabel, classePreco, comissaoPct });

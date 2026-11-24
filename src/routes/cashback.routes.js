@@ -114,7 +114,7 @@ router.post("/saques", authenticate, authorize(["revenda"]), sensitiveActionRate
             }
         } catch (e) { logger.error({ message: "Erro ao buscar representante do saque", error: e.message }); }
 
-        const result = await solicitarSaque(req.user.name, representante, Number(valor), tipo_uso);
+        const result = await solicitarSaque(req.user.name, representante, Number(valor), tipo_uso, req.user.grupo || null);
         res.json({ ok: true, saque: result });
     } catch (err) {
         res.status(400).json({ error: err.message });

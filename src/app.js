@@ -830,6 +830,14 @@ app.get("/api/cron/pipefy-mapa-ids", async (req, res) => {
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// TEMPORÁRIA (24/11/2026): simula o robô de comissões SEM gravar nada, para conferir que não duplica após a virada para o Pipefy.
+app.get("/api/cron/temp-recalc-dry", async (req, res) => {
+    const secret = req.headers["authorization"];
+    if (!(process.env.TEMP_UNIFICAR_KEY && secret === `Bearer ${process.env.TEMP_UNIFICAR_KEY}`)) return res.status(401).json({ error: "unauthorized" });
+    try { res.json(await require("./services/comissao.service").recalcularComissoes({ dryRun: true })); }
+    catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 // Vigia diário dos robôs: avisa por e-mail se algum não teve sucesso dentro do prazo
 app.get("/api/cron/vigia-robos", async (req, res) => {
     const secret = req.headers["authorization"];
