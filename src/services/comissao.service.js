@@ -121,8 +121,8 @@ async function auditarComissoes() {
     const resultado = [];
     for (const deal of vendidos) {
         const dealId = deal.id || deal._id;
-        const creditos = porLead[dealId];
-        if (!creditos || !creditos.length) continue; // ainda não creditado — fora do escopo da auditoria
+        const creditos = [...(porLead[dealId] || []), ...((deal.rd_deal_id && deal.rd_deal_id !== dealId && porLead[deal.rd_deal_id]) || [])];   // créditos sob o id do Pipefy e/ou do RD
+        if (!creditos.length) continue; // ainda não creditado — fora do escopo da auditoria
 
         const pciAtual = (getCustomField(deal, "PERFIL PCI") || "").replace(/\s/g, "").toUpperCase();
         const classeAtual = (getCustomField(deal, "CLASSE DE PREÇO") || "").replace(/\D/g, "");

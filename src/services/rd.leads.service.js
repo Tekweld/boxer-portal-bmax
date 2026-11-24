@@ -1113,6 +1113,7 @@ async function mapDealToCard(deal, role, creditosMap) {
         datatarefa,
         oportunidadedevendas,
         responsavelRd,
+        rdDealId: deal.rd_deal_id || null,
         quemVende,
         contatoNome,
         contatoTelefone
@@ -1399,7 +1400,7 @@ async function getNomesDeLeads(ids) {
     try {
         const deals = await fetchAllDealsFromRD();
         const porId = new Map();
-        for (const d of deals) porId.set(String(d.id || d._id), d.name);
+        for (const d of deals) { porId.set(String(d.id || d._id), d.name); if (d.rd_deal_id) porId.set(String(d.rd_deal_id), d.name); }   // créditos antigos guardam o id do RD
         for (const id of unicos) if (porId.has(id)) mapa[id] = porId.get(id);
     } catch (e) {
         logger.error({ message: "getNomesDeLeads: falha ao carregar deals do RD", error: e.message });

@@ -21,14 +21,15 @@ function desfechoDoCard(d) {
 }
 
 // Grava o desfecho do lead no controle (não faz nada se o lead não está no controle de 60 dias ou se já está igual)
-async function registrarResultado12a(dealId, resultado, origem) {
+async function registrarResultado12a(dealId, resultado, origem, outrosIds = []) {
+    const ids = [String(dealId), ...outrosIds.filter(Boolean).map(String)];
     await sequelize.query(
         `UPDATE bmax_pci12a_prazo
             SET resultado = CAST(:resultado AS text),
                 resultado_em = CASE WHEN CAST(:resultado AS text) IS NULL THEN NULL ELSE now() END,
                 resultado_origem = :origem
-          WHERE deal_id = :dealId AND resultado IS DISTINCT FROM CAST(:resultado AS text)`,
-        { replacements: { dealId, resultado: resultado || null, origem }, type: QueryTypes.UPDATE }
+          WHERE deal_id IN (:ids) AND resultado IS DISTINCT FROM CAST(:resultado AS text)`,
+        { replacements: { ids, resultado: resultado || null, origem }, type: QueryTypes.UPDATE }
     );
 }
 

@@ -256,7 +256,7 @@ async function updateLeadResultado(req, res) {
         }
         try { await invalidateLeadsCache(); } catch (_) {}
         // Desfecho gravado no Portal (controle do PCI12a) — não faz nada se o lead não é 12a
-        try { await require("../services/pci12Desfecho.service").registrarResultado12a(dealId, resultadoNormalizado, "portal"); }
+        try { await require("../services/pci12Desfecho.service").registrarResultado12a(dealId, resultadoNormalizado, "portal", [leadAlvo && leadAlvo.rdDealId]); }
         catch (e) { logger.error({ message: "Falha ao gravar desfecho do 12a", dealId, error: e.message }); }
 
         return res.json(result);

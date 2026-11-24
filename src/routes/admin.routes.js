@@ -1506,7 +1506,7 @@ router.get("/comissoes/extrato", authenticate, authorize(["adm"]), async (req, r
         if (!TIPOS_AGENTE[tipo]) return res.status(400).json({ error: "tipo inválido" });
         if (!nome) return res.status(400).json({ error: "nome é obrigatório" });
         const extrato = await anexarNomeLead(await getExtratoPorAgente(tipo, nome, mes || null));
-        const dealMap = new Map((await getLeads("admin", "adm")).map(d => [d.id || d._id, d]));
+        const dealMap = new Map(); for (const d of await getLeads("admin", "adm")) { dealMap.set(d.id || d._id, d); if (d.rd_deal_id) dealMap.set(d.rd_deal_id, d); }   // lead_id antigo = id do RD
         await enriquecerNfEPct(tipo, extrato, dealMap);
         res.json(extrato);
     } catch (err) {
@@ -1535,7 +1535,7 @@ router.get("/comissoes/exportar", authenticate, authorize(["adm"]), async (req, 
         // lead_id) — busca uma vez (lista já cacheada por getLeads) e monta um mapa
         // pra enriquecer as linhas do Excel, igual pros 3 tipos de agente.
         const allDeals = await getLeads("admin", "adm");
-        const dealMap = new Map(allDeals.map(d => [d.id || d._id, d]));
+        const dealMap = new Map(); for (const d of allDeals) { dealMap.set(d.id || d._id, d); if (d.rd_deal_id) dealMap.set(d.rd_deal_id, d); }
 
         const wb = XLSX.utils.book_new();
         const resumo = [];

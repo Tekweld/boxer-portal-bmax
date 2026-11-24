@@ -70,7 +70,7 @@ async function montarResumoDiario({ hoje = new Date() } = {}) {
         const novos = meus.filter(d => new Date(d.created_at) >= new Date(hoje - umDia) && !pci12.includes(d)).length;
         const leads12a = meus.filter(d => pciNorm(d) === "PCI12A" && !FINAIS.has(d.deal_stage?.id) && d.win !== true && d.win !== false);
         const leads12aSemResultado = leads12a.filter(d => {
-            const ini = assumidoEm.get(d.id || d._id);
+            const ini = assumidoEm.get(d.id || d._id) || (d.rd_deal_id && assumidoEm.get(d.rd_deal_id));
             return ini && MARCOS_12A.includes(Math.floor((hoje - ini) / umDia));
         }).length;
         const grupoParam = (u.grupo && gruposMap[u.grupo]) ? u.grupo : null;

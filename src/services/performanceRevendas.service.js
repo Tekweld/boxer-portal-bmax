@@ -70,9 +70,14 @@ async function calcularPerformance({ de = null, ate = null } = {}) {
             { type: QueryTypes.SELECT })
     ]);
 
-    const arquivados = new Set(prazo12a.filter(p => p.arquivado_em).map(p => String(p.deal_id)));
+    // Id canônico = id do Pipefy. Os controles (tracking, prazo 12a, auditoria) foram gravados com o id do RD: converte pelo rd_deal_id do card,
+    // senão o mesmo lead entra duas vezes (id do RD no controle + id do Pipefy no card) e o PCI12 sai inflado.
+    const rd2p = new Map();
+    for (const d of [...leadsInd, ...leadsBmax]) if (d && d.rd_deal_id) rd2p.set(String(d.rd_deal_id), String(d.id || d._id));
+    const canon = id => { const s = String(id); return rd2p.get(s) || s; };
+    const arquivados = new Set(prazo12a.filter(p => p.arquivado_em).map(p => canon(p.deal_id)));
     // Desfecho gravado no Portal (controle do 12a) vale mais que a inferência pela etapa do RD
-    const desfecho12a = new Map(prazo12a.filter(p => p.resultado).map(p => [String(p.deal_id), p.resultado]));
+    const desfecho12a = new Map(prazo12a.filter(p => p.resultado).map(p => [canon(p.deal_id), p.resultado]));
     const sitLead = d => {
         const r = desfecho12a.get(String(d.id || d._id));
         if (r === "vendido" && Number(d.amount_total || 0) > 0) return "venda";
@@ -172,9 +177,9 @@ async function calcularPerformance({ de = null, ate = null } = {}) {
     for (const s of saldos) if (!SEM_REVENDA.has(norm(s.nome))) garantir(s.nome).saldo += Number(s.saldo || 0);
 
     // ── PCI12 ──
-    const trk = new Map(tracking.map(t => [t.deal_id, t]));
-    const esc12a = new Map(escolhas.map(e => [e.deal_id, e]));
-    const p12a = new Map(prazo12a.map(p => [p.deal_id, p]));
+    const trk = new Map(tracking.map(t => [canon(t.deal_id), t]));
+    const esc12a = new Map(escolhas.map(e => [canon(e.deal_id), e]));
+    const p12a = new Map(prazo12a.map(p => [canon(p.deal_id), p]));
     const universo = new Set([...trk.keys(), ...esc12a.keys(), ...p12a.keys()]);
     for (const [id, d] of porId) { const p = (getCustomField(d, "PERFIL PCI") || "").trim(); if (p === "PCI 12a" || p === "PCI 12b" || p === "PCI 12") universo.add(id); }
 
