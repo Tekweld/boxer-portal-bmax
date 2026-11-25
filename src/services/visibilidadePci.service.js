@@ -6,8 +6,13 @@
 // Admin e funcionário veem tudo. Esta é a ÚNICA fonte da regra: painel, exportação, resumo de WhatsApp e o agente auditor usam este módulo.
 const norm = p => String(p || "").replace(/\s/g, "").toUpperCase();
 const SEM_PCI = new Set(["", "SEMPCI", "N/D", "?????"]);
-const REVENDA_VE = new Set(["PCI6", "PCI9", "PCI12", "PCI12A", "PCI12B", "PCI13", "PCI14", "PCI15", "PCIX"]);
-const REP_VE = new Set([...REVENDA_VE, "PCI2", "PCI3", "PCI5", "PCI8", "PCI11"]);
+// PCI 3 (lead Boxer de venda de Robô) a revenda VÊ por transparência (25/11/2026), mas ele NÃO gera cashback para ela.
+const REVENDA_VE = new Set(["PCI3", "PCI6", "PCI9", "PCI12", "PCI12A", "PCI12B", "PCI13", "PCI14", "PCI15", "PCIX"]);
+const REP_VE = new Set([...REVENDA_VE, "PCI2", "PCI5", "PCI8", "PCI11"]);
+// A COMISSÃO é decidida pelo PCI (não por quem aparece no card): só estes PCIs geram cashback para a revenda (política PCI x Classe).
+const REVENDA_RECEBE_COMISSAO = new Set(["PCI6", "PCI9", "PCI12B", "PCI13", "PCI14", "PCI15"]);
+const semCashbackParaRevenda = pci => norm(pci) === "PCI3";   // visível, mas sinalizado: "lead Boxer, não gera cashback"
+
 
 function podeVerPci(role, pci) {
     if (role === "revenda") return REVENDA_VE.has(norm(pci));          // sem PCI fica de fora
@@ -15,4 +20,4 @@ function podeVerPci(role, pci) {
     return true;                                                       // admin / funcionário
 }
 
-module.exports = { podeVerPci, REVENDA_VE, REP_VE, norm };
+module.exports = { podeVerPci, REVENDA_VE, REP_VE, REVENDA_RECEBE_COMISSAO, semCashbackParaRevenda, norm };

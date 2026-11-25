@@ -359,6 +359,7 @@ const CAMPOS_CARD_LISTAGEM = `
     updated_at
     pipe { id name }
     current_phase { id name }
+    labels { name }
     fields { field { id } name value }
     assignees { id name email }`;
 

@@ -24,3 +24,16 @@ test("lead novo (sem crédito sob nenhum dos dois ids) é creditado uma vez", as
     await recalcularComissoes();
     expect(saldo.creditarCashback).toHaveBeenCalledTimes(1);
 });
+
+test("PCI que não contempla a revenda (ex.: PCI 3) não credita para a revenda, mesmo com o nome dela no card", async () => {
+    saldo.creditarCashback.mockClear();
+    rd.getLeads.mockResolvedValue([{ id: "9001", deal_stage: { id: RD_STAGE_VENDA_EFETIVADA }, amount_total: 50000 }]);
+    rd.getCustomField.mockImplementation((d, c) => ({ "REVENDA/LOJA": "Eletro Solda", "REPRESENTANTE": "Victor VLM", "PERFIL PCI": "PCI 3", "CLASSE DE PREÇO": "6" })[c] || "");
+    cashback.calcularComissoes.mockResolvedValue({ revenda: { valor: 123, comissaoPct: 3 }, representante: { nome: "Victor VLM", valor: 500, comissaoPct: 1 } });
+    sequelize.query.mockResolvedValue([]);
+    const { recalcularComissoes } = require("./comissao.service");
+    await recalcularComissoes();
+    const agentes = saldo.creditarCashback.mock.calls.map(c => c[4]);
+    expect(agentes).not.toContain("revenda");
+    expect(agentes).toContain("representante");
+});

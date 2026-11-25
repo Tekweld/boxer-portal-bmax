@@ -236,6 +236,8 @@ async function fetchAllDealsFromRD() {
 // O Portal principal (getLeads) NÃO lê este funil; o módulo Performance de Revendas lê, só para leitura.
 let _bmaxCache = { data: null, ts: 0 };
 async function fetchDealsBmaxInterno() {
+    // Pipefy: o funil BMAX são os cards com a etiqueta "RD: BMAX" do pipe único
+    if (CRM_PROVIDER === "pipefy") return (await fetchAllDealsFromRD()).filter(ehFunilBmax);
     if (_bmaxCache.data && Date.now() - _bmaxCache.ts < LEADS_CACHE_TTL) return _bmaxCache.data;
     const fim = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
     const todos = await fetchPaginado(`created_at_period=true&start_date=${DATA_CORTE_PORTAL}&end_date=${fim}`, RD_PIPELINE_BMAX_INTERNO);
@@ -243,8 +245,21 @@ async function fetchDealsBmaxInterno() {
     return todos;
 }
 
+// FUNIL DO PORTAL (25/11/2026). No RD o painel, o robô de comissões e o cashback só liam o funil INDÚSTRIA; os funis BMAX (negociações criadas
+// pela revenda), SDR e Revenda nunca apareciam no painel nem geravam comissão (todos os 255 créditos do razão são de cards "RD: Indústria").
+// No Pipefy os funis viraram ETIQUETAS do pipe único: o card com etiqueta de outro funil (e sem "RD: Indústria") fica FORA do painel e da comissão.
+// Cards sem nenhuma etiqueta "RD:" (criados direto no Pipefy) continuam dentro.
+const ETIQUETAS_FORA_DO_PORTAL = ["RD: BMAX", "RD: SDR", "RD: Revenda"];
+function ehFunilPortal(d) {
+    const e = d && d.etiquetas; if (!Array.isArray(e) || !e.length) return true;
+    if (e.includes("RD: Indústria")) return true;
+    return !e.some(x => ETIQUETAS_FORA_DO_PORTAL.includes(x));
+}
+const ehFunilBmax = d => !!(d && Array.isArray(d.etiquetas) && d.etiquetas.includes("RD: BMAX") && !d.etiquetas.includes("RD: Indústria"));
+
 async function getLeads(username, role) {
     let allDeals = await fetchAllDealsFromRD();
+    allDeals = allDeals.filter(ehFunilPortal);
 
     const excludeStages = new Set([
         RD_STAGE_EXCLUIDO,
@@ -1126,6 +1141,7 @@ async function mapDealToCard(deal, role, creditosMap, creditosRepMap) {
         cashback,
         cashbackFaltando,
         cashbackPendente,
+        semCashbackRevenda: (role === "revenda" || role === "adm" || role === "representante") && pci === "PCI3",
         cashbackRevenda,
         cashbackRevendaFaltando,
         tarefa,
@@ -1451,6 +1467,7 @@ module.exports = {
     getNomesDeLeads,
     fetchAllDealsFromRD,
     fetchDealsBmaxInterno,
+    ehFunilPortal,
     getInfoDeLeads,
     getLeads,
     buildLeadsCards,

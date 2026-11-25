@@ -3,6 +3,7 @@ const { sequelize } = require("../database");
 const { getLeads, getCustomField } = require("./rd.leads.service");
 const { calcularComissoes } = require("./cashback.service");
 const { creditarCashback, debitarCashback } = require("./saldo.service");
+const { REVENDA_RECEBE_COMISSAO } = require("./visibilidadePci.service");
 const { RD_STAGE_VENDIDO, RD_STAGE_VENDA_EFETIVADA, RD_STAGE_ENTREGA_TECNICA, REVENDA_SEM_CREDITO } = require("../config/constants");
 const { logger } = require("../logger");
 
@@ -68,7 +69,9 @@ async function recalcularComissoes({ dryRun = false } = {}) {
             // não pertence a ninguém (achado 21/09/2026: R$587,48 de uma venda do
             // Caio Tito foram parar numa conta fantasma "Sem Revenda" e depois
             // vazaram pro saldo de OUTRO representante via getRepRevendas).
-            if (revenda && !REVENDA_SEM_CREDITO.includes(revenda)) {
+            // O PCI manda: se o PCI não contempla a revenda, NUNCA credita para ela, mesmo com o nome da revenda preenchido no card
+            const pciSemEspaco = String(pci || "").replace(/\s/g, "").toUpperCase();
+            if (revenda && !REVENDA_SEM_CREDITO.includes(revenda) && REVENDA_RECEBE_COMISSAO.has(pciSemEspaco)) {
                 await ajustar(dealId, "revenda", revenda, comissoes.revenda ? comissoes.revenda.valor : 0, pci, classePreco, comissoes.revenda ? comissoes.revenda.comissaoPct : null, rdDealId);
             }
             if (comissoes.representante) {

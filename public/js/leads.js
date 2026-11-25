@@ -360,6 +360,7 @@ function renderGrid(data) {
     el.innerHTML = `
       ${pcixCard ? `<div class="pcix-tag">Produto não BMax${l.pcix && !l.fechado ? (l.pcix.vencido ? ` &bull; prazo vencido (${l.pcix.dias} dias)` : ` &bull; ${l.pcix.restantes} dia${l.pcix.restantes === 1 ? "" : "s"} restante${l.pcix.restantes === 1 ? "" : "s"}`) : ""}</div>` : ""}
       ${l.quemVende && !l.fechado ? `<div class="quem-tag quem-${l.quemVende}">${QUEM_ROTULO[l.quemVende]}</div>` : ""}
+      ${l.semCashbackRevenda ? `<div class="quem-tag quem-indefinido" title="Lead da Boxer para venda de Robô, na região da revenda. Mostrado por transparência: não gera cashback para a revenda.">Lead Boxer · venda de Robô · sem cashback para a revenda</div>` : ""}
       <div class="lead-top">
         <div class="lead-title">
           <h4 title="${esc(l.nome)}">${esc(l.nome)}</h4>
@@ -378,7 +379,7 @@ function renderGrid(data) {
       ${l.prazo48hExpirou ? `<div style="font-size:11px;color:var(--muted);margin:-4px 0 6px;">Prazo de 48h úteis expirou — seguiu como Boxer vende</div>` : ""}
       <div class="lead-foot">
         <span style="font-size:11px;color:var(--muted);font-weight:800;">${esc(l.criadoem)}</span>
-        <div class="${cbClass}" ${l.cashbackFaltando && !cb ? 'title="Dados pendentes no card (PCI e/ou Classe de preço): a comissão só aparece depois de preenchidos"' : (l.cashbackPendente && !cb ? 'title="Venda concluída: o crédito entra no extrato na próxima apuração do robô"' : "")}>${l.cashbackFaltando && !cb ? "—" : (l.cashbackPendente && !cb ? "a creditar" : "R$ " + cb.toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2}))}</div>
+        <div class="${cbClass}" ${l.cashbackFaltando && !cb ? 'title="Dados pendentes no card (PCI e/ou Classe de preço): a comissão só aparece depois de preenchidos"' : (l.cashbackPendente && !cb ? 'title="Venda concluída: o crédito entra no extrato na próxima apuração do robô"' : "")}>${l.semCashbackRevenda ? "sem cashback" : l.cashbackFaltando && !cb ? "—" : (l.cashbackPendente && !cb ? "a creditar" : "R$ " + cb.toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2}))}</div>
       </div>
       ${((session.role === "revenda" && (normalizePci(l.pci) === "PCI12A" || pcixCard)) || (session.role === "adm" && pcixCard)) && !l.fechado ? `
       <div class="lead-resultado" data-id="${esc(l.id)}">

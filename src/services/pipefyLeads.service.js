@@ -222,6 +222,7 @@ function cardParaDealFake(card, pipeNome = "BMAX") {
     const rdDealId = campoIdRd ? (valorPorCampoId[campoIdRd] || null) : null;
     return {
         id: card.id,
+        etiquetas: (card.labels || []).map(l => l.name),   // "RD: Indústria" / "RD: BMAX" / "RD: SDR" / "RD: Revenda" = funil de origem no RD
         rd_deal_id: rdDealId ? String(rdDealId).trim() : null,
         name: card.title,
         deal_custom_fields: dealCustomFields,
