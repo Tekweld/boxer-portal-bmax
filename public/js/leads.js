@@ -218,7 +218,10 @@ function render() {
   }
   $("statVendas").textContent = vendas.length;
 
-  if (session.role !== "revenda") {
+  if (session.role === "adm") {
+    // Admin: o Cashback Total é o SALDO CREDITADO do extrato (mesma fonte da aba Extrato de Comissões e da tela da revenda), não uma estimativa
+    atualizarCashbackAdmin(rev);
+  } else if (session.role !== "revenda") {
     const cashbackTotal = data.reduce((total, card) => total + (card.cashback || 0), 0);
     const cashValEl = $("statCashbackVal");
     cashValEl.textContent = `R$ ${cashbackTotal.toLocaleString("pt-BR", {minimumFractionDigits:2, maximumFractionDigits:2})}`;
@@ -411,6 +414,22 @@ function renderGrid(data) {
     `;
     grid.appendChild(el);
   });
+}
+
+// Saldo creditado (extrato) da revenda/grupo selecionado no filtro, ou de todas
+let _cashAdminChave = null;
+async function atualizarCashbackAdmin(rev) {
+  const el = $("statCashbackVal"); if (!el) return;
+  const chave = rev || "all"; if (_cashAdminChave === chave) return; _cashAdminChave = chave;
+  const box = $("statCashback"); if (box) box.title = "Saldo creditado no extrato (igual à aba Extrato de Comissões e à tela da revenda)";
+  try {
+    const qs = chave === "all" ? "todas=1" : "revenda=" + encodeURIComponent(chave);
+    const res = await fetch(`${API_URL}/cashback/saldo?${qs}`, { headers: { Authorization: `Bearer ${localStorage.getItem("token")}` } });
+    if (!res.ok) throw new Error("saldo");
+    const d = await res.json(); const v = Number(d.saldo || 0);
+    if (_cashAdminChave !== chave) return;
+    el.textContent = `R$ ${v.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`; el.className = v > 0 ? "cashback-positive" : "";
+  } catch (_) { _cashAdminChave = null; el.textContent = "R$ —"; }
 }
 
 // ── Quem vende nos PCI 13/14/15 (tag + filtro) ──

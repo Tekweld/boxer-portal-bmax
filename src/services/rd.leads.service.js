@@ -1352,7 +1352,8 @@ async function buildLeadsCards(role, identifier, grupo) {
 
     const leads = await getLeads(identifier, role, grupo);
     const leadIds = leads.map(d => d.id || d._id).filter(Boolean);
-    const creditosMap = await getCreditosPorLeads(leadIds);
+    const aliasRd = {}; for (const d of leads) if (d.rd_deal_id) aliasRd[String(d.id || d._id)] = String(d.rd_deal_id);
+    const creditosMap = await getCreditosPorLeads(leadIds, aliasRd);
 
     // Leads cujo prazo de 48h (PCI12) expirou e viraram 12b sozinhos: o card mostra um
     // aviso discreto, sem pedir ação da revenda.
@@ -1393,14 +1394,19 @@ async function buildLeadsCards(role, identifier, grupo) {
 // painel. Usa a lista já cacheada (inclui perdidos/excluídos, que os cards
 // escondem mas que podem ter crédito) e, pros ids que ficaram de fora (deal
 // anterior ao corte de criação ou removido da lista), busca individual com teto.
-async function getNomesDeLeads(ids) {
+// Nome do lead + id do card atual (Pipefy) para cada id recebido (id do RD OU do Pipefy)
+async function getInfoDeLeads(ids) {
+    const info = {}; const nomes = await getNomesDeLeads(ids, info); return { nomes, info };
+}
+
+async function getNomesDeLeads(ids, infoOut = null) {
     const unicos = [...new Set((ids || []).filter(Boolean).map(String))];
     const mapa = {};
     if (!unicos.length) return mapa;
     try {
         const deals = await fetchAllDealsFromRD();
         const porId = new Map();
-        for (const d of deals) { porId.set(String(d.id || d._id), d.name); if (d.rd_deal_id) porId.set(String(d.rd_deal_id), d.name); }   // créditos antigos guardam o id do RD
+        for (const d of deals) { porId.set(String(d.id || d._id), d.name); if (d.rd_deal_id) porId.set(String(d.rd_deal_id), d.name); if (infoOut) { infoOut[String(d.id || d._id)] = String(d.id || d._id); if (d.rd_deal_id) infoOut[String(d.rd_deal_id)] = String(d.id || d._id); } }   // créditos antigos guardam o id do RD
         for (const id of unicos) if (porId.has(id)) mapa[id] = porId.get(id);
     } catch (e) {
         logger.error({ message: "getNomesDeLeads: falha ao carregar deals do RD", error: e.message });
@@ -1409,7 +1415,7 @@ async function getNomesDeLeads(ids) {
     await Promise.all(faltando.map(async id => {
         try {
             const d = await getDealById(id);
-            if (d && d.name) mapa[id] = d.name;
+            if (d && d.name) { mapa[id] = d.name; if (infoOut) infoOut[id] = String(d.id || d._id || id); }
         } catch (_) { /* deal removido no RD — fica sem nome */ }
     }));
     return mapa;
@@ -1425,6 +1431,7 @@ module.exports = {
     getNomesDeLeads,
     fetchAllDealsFromRD,
     fetchDealsBmaxInterno,
+    getInfoDeLeads,
     getLeads,
     buildLeadsCards,
     buscarLead,

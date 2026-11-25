@@ -2110,17 +2110,17 @@ function renderExtratoAgenteTable(nome, linhas) {
             <div><span style="color:var(--muted);font-size:12px">Líquido</span><div style="font-weight:700">R$ ${(totalCredito - totalDebito).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</div></div>
         </div>
         <table class="extrato-table">
-            <thead><tr><th>Data</th><th>Tipo</th><th>Valor</th><th>Lead (RD)</th><th>NF (ZEN)</th><th>% Comissão</th><th>Descrição</th><th>Saldo após</th></tr></thead>
+            <thead><tr><th>Data</th><th>Tipo</th><th>Valor</th><th>Negociação (cliente)</th><th>NF (ZEN)</th><th>% Comissão</th><th>Descrição</th><th>Saldo após</th></tr></thead>
             <tbody>
                 ${linhas.map(l => `
                     <tr>
                         <td>${l.criado_em ? new Date(l.criado_em).toLocaleDateString("pt-BR") : "?????"}</td>
                         <td style="color:${l.tipo === "credito" ? "#16a34a" : "#e30613"}">${l.tipo === "credito" ? "Crédito" : "Débito"}</td>
                         <td>R$ ${Number(l.valor).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</td>
-                        <td>${esc(l.lead_id || "?????")}</td>
+                        <td>${l.lead_id ? `<strong>${esc(l.lead_nome || "Negociação não localizada")}</strong>${l.lead_card_id && /^\d+$/.test(String(l.lead_card_id)) ? ` <a href="https://app.pipefy.com/open-cards/${esc(l.lead_card_id)}" target="_blank" rel="noopener" title="Abrir o card no Pipefy">abrir card ↗</a>` : ""}<div style="font-size:10px;color:#718096">${esc(l.lead_card_id || l.lead_id)}</div>` : "—"}</td>
                         <td title="${l.nf && l.nf[0] === "~" ? "Nota mais próxima do valor do card — não bate exatamente" : "NF de saída do ZEN pelo CNPJ do card"}">${l.nf ? esc(l.nf) : "—"}</td>
                         <td title="${l.pct_estimado ? "Lançamento antigo: % recalculado pela matriz atual (PCI × Classe)" : "% gravado no lançamento (PCI × Classe de Preço)"}">${l.pct_exibicao !== undefined ? (l.pct_exibicao * 100).toLocaleString("pt-BR", { maximumFractionDigits: 2 }) + "%" + (l.pct_estimado ? "*" : "") + `<div style="font-size:11px;color:var(--muted)">${esc((l.pci || "").replace(/^PCI/i, "PCI ") || "")}${l.classe_exibicao ? " · Classe " + esc(l.classe_exibicao) : ""}</div>` : "—"}</td>
-                        <td>${esc(l.descricao || "?????")}</td>
+                        <td>${esc(String(l.descricao || "?????").split(String(l.lead_id || "\u0000")).join("").replace(/\s+/g, " ").replace(/^(Venda|Ajuste comissão)\s*—\s*/, "$1 — ").trim())}</td>
                         <td>${l.saldo_apos !== null && l.saldo_apos !== undefined ? "R$ " + Number(l.saldo_apos).toLocaleString("pt-BR", { minimumFractionDigits: 2 }) : "?????"}</td>
                     </tr>
                 `).join("")}

@@ -314,16 +314,23 @@ async function getCreditosExpirandoRep(username) {
 // Escopado a tipo_agente='revenda': o card do lead mostra o cashback da REVENDA
 // especificamente, não deve somar junto a comissão de representante/vendedor
 // interno creditada pro mesmo lead_id.
-async function getCreditosPorLeads(leadIds) {
+// `aliasRd`: { idDoPipefy: idDoRd } — créditos antigos foram lançados sob o id do RD; o card do Pipefy soma os dois
+async function getCreditosPorLeads(leadIds, aliasRd = {}) {
     if (!leadIds.length) return {};
+    const todos = [...new Set([...leadIds, ...Object.values(aliasRd).filter(Boolean)].map(String))];
     const rows = await sequelize.query(
         `SELECT lead_id, SUM(valor) as total FROM bmax_transacoes
          WHERE tipo = 'credito' AND tipo_agente = 'revenda' AND lead_id IN (:leadIds)
          GROUP BY lead_id`,
-        { replacements: { leadIds }, type: QueryTypes.SELECT }
+        { replacements: { leadIds: todos }, type: QueryTypes.SELECT }
     );
+    const bruto = {};
+    for (const r of rows) bruto[r.lead_id] = Number(r.total);
     const map = {};
-    for (const r of rows) map[r.lead_id] = Number(r.total);
+    for (const id of leadIds) {
+        const a = bruto[id], b = aliasRd[id] ? bruto[aliasRd[id]] : undefined;
+        if (a !== undefined || b !== undefined) map[id] = Number(((a || 0) + (b || 0)).toFixed(2));
+    }
     return map;
 }
 
@@ -333,9 +340,9 @@ async function anexarNomeLead(rows) {
     if (!rows || !rows.length) return rows;
     const ids = rows.map(r => r.lead_id).filter(Boolean);
     if (!ids.length) return rows;
-    const { getNomesDeLeads } = require("./rd.leads.service");
-    const nomes = await getNomesDeLeads(ids);
-    for (const r of rows) r.lead_nome = r.lead_id ? (nomes[String(r.lead_id)] || null) : null;
+    const { getInfoDeLeads } = require("./rd.leads.service");
+    const { nomes, info } = await getInfoDeLeads(ids);
+    for (const r of rows) { r.lead_nome = r.lead_id ? (nomes[String(r.lead_id)] || null) : null; r.lead_card_id = r.lead_id ? (info[String(r.lead_id)] || null) : null; }
     return rows;
 }
 

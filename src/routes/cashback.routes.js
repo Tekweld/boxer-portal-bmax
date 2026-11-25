@@ -36,6 +36,10 @@ router.get("/saldo", authenticate, authorize(["revenda", "representante", "adm"]
             return res.json({ revenda: req.user.username, saldo });
         }
         if (req.user.role === "adm") {
+            if (req.query.todas === "1") {
+                const [r] = await sequelize.query(`SELECT COALESCE(SUM(saldo),0)::float AS total FROM bmax_saldo WHERE tipo_agente = 'revenda'`, { type: QueryTypes.SELECT });
+                return res.json({ revenda: "todas", saldo: Number(r.total) });
+            }
             const alvo = await revendaConsultadaPeloAdmin(req);
             if (!alvo) return res.json({ revenda: null, saldo: 0 });
             return res.json({ revenda: alvo.grupo || alvo.revenda, saldo: await getSaldoGrupo(alvo.revenda, alvo.grupo) });
