@@ -1,4 +1,4 @@
-const { lerPlanilhaCashback, resolverComissao, isExcecaoRepresentante } = require("./cashback.service");
+const { lerPlanilhaCashback, resolverComissao, isExcecaoRepresentante, calcularComissoes } = require("./cashback.service");
 const {
     RD_PIPELINE_INDUSTRIA,
     RD_PIPELINE_BMAX_INTERNO,
@@ -1041,16 +1041,27 @@ async function mapDealToCard(deal, role, creditosMap, creditosRepMap) {
         if (role === "revenda" || role === "adm") {
             const c = creditado(creditosMap);
             cashback = c === null ? 0 : c;
-            if (c === null && valorTotal > 0) cashbackPendente = true;
-            if (c === null && (await resolverComissao(pci, "Revenda", classeCashback)) === null) cashbackFaltando = true;
+            if (c === null && valorTotal > 0) {
+                // Mesmo critério do robô de comissões: se falta dado (PCI/Classe/regra) ele não credita -> o card não mostra valor (dados pendentes);
+                // se a política dá 0 (ex.: PCI 12a) é R$ 0,00; se é calculável, aguarda a próxima apuração do robô ("a creditar")
+                try {
+                    const r = await calcularComissoes({ valorTotal, pci, classePreco: classeCashback, representante, responsavelRd: responsavelRdCard });
+                    if (r.faltando) cashbackFaltando = true;
+                    else if (r.revenda && r.revenda.valor > 0) cashbackPendente = true;
+                } catch (_) { cashbackFaltando = true; }
+            }
         } else if (role === "representante") {
             const excecao = isExcecaoRepresentante(representante, responsavelRdCard);
             const cRep = creditado(creditosRepMap), cRev = creditado(creditosMap);
             cashback = cRep === null ? 0 : cRep;
             cashbackRevenda = cRev === null ? 0 : cRev;
-            if (cRep === null && valorTotal > 0) cashbackPendente = true;
-            if (cRep === null && (await resolverComissao(pci, excecao ? "RepExcecao" : "Rep", classeCashback)) === null) cashbackFaltando = true;
-            if (cRev === null && (await resolverComissao(pci, "Revenda", classeCashback)) === null) cashbackRevendaFaltando = true;
+            if (cRep === null && valorTotal > 0) {
+                try {
+                    const r = await calcularComissoes({ valorTotal, pci, classePreco: classeCashback, representante, responsavelRd: responsavelRdCard });
+                    if (r.faltando) { cashbackFaltando = true; cashbackRevendaFaltando = true; }
+                    else if (r.representante && r.representante.valor > 0) cashbackPendente = true;
+                } catch (_) { cashbackFaltando = true; }
+            }
         }
     }
 

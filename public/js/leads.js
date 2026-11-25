@@ -378,7 +378,7 @@ function renderGrid(data) {
       ${l.prazo48hExpirou ? `<div style="font-size:11px;color:var(--muted);margin:-4px 0 6px;">Prazo de 48h úteis expirou — seguiu como Boxer vende</div>` : ""}
       <div class="lead-foot">
         <span style="font-size:11px;color:var(--muted);font-weight:800;">${esc(l.criadoem)}</span>
-        <div class="${cbClass}" ${l.cashbackPendente && !cb ? 'title="Venda concluída: o crédito entra no extrato na próxima apuração do robô"' : ""}>${l.cashbackPendente && !cb ? "a creditar" : "R$ " + cb.toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2})}</div>
+        <div class="${cbClass}" ${l.cashbackFaltando && !cb ? 'title="Dados pendentes no card (PCI e/ou Classe de preço): a comissão só aparece depois de preenchidos"' : (l.cashbackPendente && !cb ? 'title="Venda concluída: o crédito entra no extrato na próxima apuração do robô"' : "")}>${l.cashbackFaltando && !cb ? "—" : (l.cashbackPendente && !cb ? "a creditar" : "R$ " + cb.toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2}))}</div>
       </div>
       ${((session.role === "revenda" && (normalizePci(l.pci) === "PCI12A" || pcixCard)) || (session.role === "adm" && pcixCard)) && !l.fechado ? `
       <div class="lead-resultado" data-id="${esc(l.id)}">
