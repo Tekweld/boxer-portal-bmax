@@ -2,19 +2,91 @@ const { sequelize } = require("../database");
 const { QueryTypes } = require("sequelize");
 const { sendEmail } = require("./email.service");
 const { ESPERADOS, LIM_CREDITOS_24H, LIM_VALOR_24H } = require("./roboMonitor.service");
+const A = require("./auditorCards.service");
+const C = require("../config/constants");
 const { logger } = require("../logger");
 
-// AUDITOR DIÁRIO (25/11/2026). Regra do André: o auditor SÓ AVISA, nunca corrige nada. As checagens apenas leem; a única coisa que
-// ele grava são as duas tabelas dele (bmax_auditoria_achados e bmax_auditoria_execucoes). O e-mail vai só para EMAIL_AUDITOR e só
-// quando há achado novo ou um achado antigo que venceu o lembrete semanal. Um achado continua "aberto" até uma rodada não o
-// encontrar mais; checagem que falhou ao rodar NUNCA marca seus achados como resolvidos.
+// AUDITOR DIÁRIO (25/11/2026). Regra do André: o auditor SÓ AVISA, nunca corrige nada. As checagens apenas leem; a única coisa que ele
+// grava são as tabelas dele (bmax_auditoria_*). O e-mail vai só para EMAIL_AUDITOR e só quando há achado novo ou um achado antigo que
+// venceu o lembrete semanal. Um achado continua "aberto" até uma rodada não o encontrar mais; checagem que falhou ao rodar NUNCA marca
+// seus achados como resolvidos.
 
 const REAVISO_DIAS = 7;
+const DIAS_MUDANCA_ABERTA = 3;      // uma mudança de PCI/produto/classe fica "aberta" por 3 dias e some sozinha
+const LIMITE_LINHAS_EMAIL = 12;     // por tipo de checagem; o resto fica na aba Auditor diário
 const TOLERANCIA_SALDO = 0.01;
-const ROTULO_GRUPO = { dinheiro: "Dinheiro (razão e créditos)", cards: "Cards e ids", prazos: "Prazos", pessoas: "Cadastro e pessoas", robos: "Robôs" };
+const ROTULO_GRUPO = { dinheiro: "Dinheiro (razão e créditos)", cards: "Cards e ids", prazos: "Prazos e cobrança", pessoas: "Cadastro e pessoas", robos: "Robôs" };
 
 const brl = x => "R$ " + Number(x).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const hojeBRT = () => new Date().toLocaleDateString("sv-SE", { timeZone: "America/Sao_Paulo" });
+const linkCard = id => (/^\d+$/.test(String(id)) ? `https://app.pipefy.com/open-cards/${id}` : null);
+const VENDA = new Set([C.RD_STAGE_VENDIDO, C.RD_STAGE_VENDA_EFETIVADA, C.RD_STAGE_ENTREGA_TECNICA]);
+
+// ─── Contexto: tudo que as checagens leem de fora (CRM e banco). Em teste é substituído por dados falsos. ──────────────────
+
+function lerCard(deal, get) {
+    return {
+        id: String(deal.id || deal._id || ""), rdId: deal.rd_deal_id ? String(deal.rd_deal_id) : null, nome: deal.name || "",
+        pci: get(deal, "PERFIL PCI"), segmento: get(deal, "SEGMENTO DE PRODUTO"), classe: get(deal, "CLASSE DE PREÇO"),
+        revenda: get(deal, "REVENDA/LOJA"), representante: get(deal, "REPRESENTANTE"), maquina: get(deal, "MÁQUINA DE INTERESSE"),
+        valor: Number(deal.amount_total || 0), etapaId: deal.deal_stage ? deal.deal_stage.id : null, criadoEm: deal.created_at || null, deal,
+    };
+}
+
+function criarContexto({ dryRun }) {
+    let cache = null;
+    return {
+        dryRun, avisos: [],
+        async cards() {
+            if (!cache) {
+                const rd = require("./rd.leads.service");
+                cache = (await rd.getLeads("admin", "adm")).map(d => lerCard(d, rd.getCustomField));
+            }
+            return cache;
+        },
+        desfechoDoCard: d => require("./pci12Desfecho.service").desfechoDoCard(d),
+        db: {
+            async snapshot() {
+                const rows = await sequelize.query(`SELECT card_id, pci, produto, classe FROM bmax_auditoria_cards_ultimo`, { type: QueryTypes.SELECT });
+                return new Map(rows.map(r => [r.card_id, r]));
+            },
+            async creditados() {
+                const rows = await sequelize.query(`SELECT DISTINCT lead_id FROM bmax_transacoes WHERE tipo = 'credito' AND lead_id IS NOT NULL`, { type: QueryTypes.SELECT });
+                return new Set(rows.map(r => String(r.lead_id)));
+            },
+            async mudancasRecentes() {
+                return sequelize.query(
+                    `SELECT id, card_id, campo, valor_antes, valor_depois, nome, revenda, severidade, detectado_em FROM bmax_auditoria_card_mudancas
+                      WHERE detectado_em > now() - make_interval(days => :d) ORDER BY detectado_em DESC`, { replacements: { d: DIAS_MUDANCA_ABERTA }, type: QueryTypes.SELECT });
+            },
+            // grava as mudanças e atualiza o retrato (só as linhas novas ou alteradas) na mesma transação
+            async gravar(mudancas, linhas) {
+                await sequelize.transaction(async (transaction) => {
+                    for (const m of mudancas) {
+                        await sequelize.query(
+                            `INSERT INTO bmax_auditoria_card_mudancas (card_id, campo, valor_antes, valor_depois, nome, revenda, severidade)
+                             VALUES (:card_id, :campo, :antes, :depois, :nome, :revenda, :severidade)`, { replacements: m, type: QueryTypes.INSERT, transaction });
+                    }
+                    for (let i = 0; i < linhas.length; i += 400) {
+                        const p = linhas.slice(i, i + 400);
+                        await sequelize.query(
+                            `INSERT INTO bmax_auditoria_cards_ultimo (card_id, pci, produto, classe, nome, revenda)
+                             SELECT * FROM unnest(ARRAY[:ids]::text[], ARRAY[:pcis]::text[], ARRAY[:produtos]::text[], ARRAY[:classes]::text[], ARRAY[:nomes]::text[], ARRAY[:revendas]::text[])
+                             ON CONFLICT (card_id) DO UPDATE SET pci = EXCLUDED.pci, produto = EXCLUDED.produto, classe = EXCLUDED.classe,
+                                nome = EXCLUDED.nome, revenda = EXCLUDED.revenda, atualizado_em = now()`,
+                            { replacements: { ids: p.map(x => x.card_id), pcis: p.map(x => x.pci), produtos: p.map(x => x.produto), classes: p.map(x => x.classe), nomes: p.map(x => x.nome), revendas: p.map(x => x.revenda) }, type: QueryTypes.INSERT, transaction });
+                    }
+                });
+            },
+            async prazos12a(ids) {
+                if (!ids.length) return new Map();
+                const rows = await sequelize.query(`SELECT deal_id, assumido_em, resultado FROM bmax_pci12a_prazo WHERE deal_id IN (:ids)`, { replacements: { ids }, type: QueryTypes.SELECT });
+                return new Map(rows.map(r => [String(r.deal_id), r]));
+            },
+            async andamentos(ids) { return require("./negociacaoStatus.service").ultimosPorDeal(ids); },
+        },
+    };
+}
 
 // ─── Checagens (cada uma devolve uma lista de achados; só lê) ─────────────────────────────────────────────
 
@@ -100,11 +172,120 @@ async function checarRobos() {
     return achados;
 }
 
+// Venda concluída (Vendido / Venda Efetivada / Entrega Técnica, valor > 0) com PCI, produto, classe, revenda ou representante em branco.
+// Sem PCI e Classe a comissão não é creditada; os demais atrapalham relatório e cobrança.
+async function checarVendaSemDados(ctx) {
+    const achados = [];
+    for (const c of await ctx.cards()) {
+        if (!VENDA.has(c.etapaId) || !(c.valor > 0)) continue;
+        const faltando = A.camposFaltandoNaVenda(c);
+        if (!faltando.length) continue;
+        const bloqueiaComissao = faltando.includes("PCI") || faltando.includes("Classe de preço");
+        achados.push({
+            chave: `venda_sem_dados:${c.id}`, grupo: "cards", checagem: "venda_sem_dados", severidade: bloqueiaComissao ? "alta" : "media",
+            titulo: `Venda "${c.nome}" (${String(c.revenda).trim() || "sem revenda"}, ${brl(c.valor)}) sem: ${faltando.join(", ")}`,
+            detalhe: { card: c.id, nome: c.nome, revenda: c.revenda, representante: c.representante, valor: c.valor, faltando },
+            link: linkCard(c.id),
+            acao: bloqueiaComissao ? "Preencher no card. Sem PCI e Classe de preço a comissão não é creditada." : "Preencher no card para o relatório e a cobrança ficarem completos.",
+        });
+    }
+    return achados;
+}
+
+// PCI que não combina com o produto do card (Robô = PCI 1,2,3,13; Laser = 4,5,6,14; Máquinas = 7 a 12b e 15). Segmento do card manda;
+// sem segmento, usa o texto da "Máquina de interesse" só como indício (gravidade baixa).
+async function checarPciXProduto(ctx) {
+    const achados = [];
+    for (const c of await ctx.cards()) {
+        const r = A.pciIncompativelComProduto(c);
+        if (!r) continue;
+        const pciTxt = A.pciKey(c.pci);
+        achados.push({
+            chave: `pci_x_produto:${c.id}`, grupo: "cards", checagem: "pci_x_produto", severidade: r.origem === "segmento" ? "media" : "baixa",
+            titulo: `"${c.nome}" (${String(c.revenda).trim() || "sem revenda"}): ${pciTxt} é de ${A.ROTULO_PRODUTO[r.esperado]}, mas ${r.origem === "segmento" ? "o produto do card" : "a máquina de interesse"} indica ${A.ROTULO_PRODUTO[r.encontrado]}`,
+            detalhe: { card: c.id, nome: c.nome, pci: pciTxt, esperado: r.esperado, encontrado: r.encontrado, origem: r.origem, maquina: c.maquina },
+            link: linkCard(c.id),
+            acao: "Conferir se o PCI ou o produto está errado e corrigir no card.",
+        });
+    }
+    return achados;
+}
+
+// Mudança de PCI, produto ou classe em relação ao último retrato. A 1ª rodada só grava a linha de base. Preencher campo vazio e a decisão
+// PCI12 -> 12a/12b não contam. Gravidade: alta se a venda já foi creditada (a comissão pode ter ficado errada), média se vendida, baixa se aberta.
+async function checarMudancasCampos(ctx) {
+    let snapshot;
+    try {
+        snapshot = await ctx.db.snapshot();
+    } catch (e) {
+        if (!ctx.dryRun) throw e;
+        ctx.avisos.push("Checagem de mudanças de PCI/produto/classe: as tabelas do auditor ainda não existem, então nada foi comparado.");
+        return [];
+    }
+    const cards = await ctx.cards();
+    const linhas = cards.map(c => ({ card_id: c.id, pci: A.pciKey(c.pci), produto: A.produtoKey(c.segmento), classe: A.classeKey(c.classe), nome: c.nome, revenda: String(c.revenda || "").trim() }));
+    if (snapshot.size === 0) {
+        if (!ctx.dryRun) await ctx.db.gravar([], linhas);
+        ctx.avisos.push("Primeira rodada da checagem de mudanças: " + (ctx.dryRun ? "seria gravada" : "foi gravada") + " a linha de base de " + linhas.length + " cards. Mudanças só aparecem a partir da próxima rodada.");
+        return [];
+    }
+    const creditados = await ctx.db.creditados();
+    const novasMudancas = [], paraGravar = [];
+    for (let i = 0; i < cards.length; i++) {
+        const c = cards[i], l = linhas[i], antes = snapshot.get(l.card_id);
+        if (!antes) { paraGravar.push(l); continue; }                     // card novo no escopo: só entra no retrato
+        const mudou = A.diffCampos({ pci: antes.pci, produto: antes.produto, classe: antes.classe }, l);
+        if (!mudou.length) continue;
+        const creditado = creditados.has(c.id) || (c.rdId && creditados.has(c.rdId));
+        const severidade = creditado ? "alta" : VENDA.has(c.etapaId) ? "media" : "baixa";
+        for (const m of mudou) novasMudancas.push({ card_id: l.card_id, campo: m.campo, antes: m.de, depois: m.para, nome: l.nome, revenda: l.revenda, severidade });
+        paraGravar.push(l);
+    }
+    if (!ctx.dryRun && (novasMudancas.length || paraGravar.length)) await ctx.db.gravar(novasMudancas, paraGravar);
+
+    const recentes = (await ctx.db.mudancasRecentes()).map(r => ({ ...r, antes: r.valor_antes, depois: r.valor_depois }));
+    const emMemoria = ctx.dryRun ? novasMudancas.map(m => ({ ...m, id: `novo:${m.card_id}:${m.campo}` })) : [];
+    return [...recentes, ...emMemoria].map(m => ({
+        chave: `mudanca:${m.id}`, grupo: "cards", checagem: "mudanca_campos", severidade: m.severidade || "baixa",
+        titulo: `"${m.nome}" (${m.revenda || "sem revenda"}): ${A.ROTULO_CAMPO[m.campo]} mudou de ${A.mostrarValor(m.campo, m.antes)} para ${A.mostrarValor(m.campo, m.depois)}${m.severidade === "alta" ? " (venda já creditada)" : ""}`,
+        detalhe: { card: m.card_id, campo: m.campo, antes: m.antes, depois: m.depois },
+        link: linkCard(m.card_id),
+        acao: m.severidade === "alta" ? "Conferir no Extrato de Comissões se a comissão já creditada continua correta e se a mudança foi intencional." : "Conferir se a mudança foi intencional.",
+    }));
+}
+
+// PCI12a em aberto sem resposta da revenda (nenhum andamento no Portal, ou último status Pendente/Sem retorno), por revenda e representante,
+// para a cobrança. Casa os dois ids do card (Pipefy e RD): os controles antigos guardam o id do RD.
+async function checarPci12aSemResposta(ctx) {
+    const cards = (await ctx.cards()).filter(c => A.pciKey(c.pci) === "PCI12A" && !ctx.desfechoDoCard(c.deal));
+    if (!cards.length) return [];
+    const ids = [...new Set(cards.flatMap(c => [c.id, c.rdId]).filter(Boolean))];
+    const [prazos, andamentos] = await Promise.all([ctx.db.prazos12a(ids), ctx.db.andamentos(ids)]);
+    const agora = Date.now(), semResposta = [];
+    for (const c of cards) {
+        const prazo = prazos.get(c.id) || (c.rdId && prazos.get(c.rdId));
+        if (prazo && prazo.resultado) continue;                                   // já tem desfecho no Portal
+        if (!A.semRespostaDaRevenda(andamentos.get(c.id) || (c.rdId && andamentos.get(c.rdId)) || null)) continue;
+        const desde = prazo && prazo.assumido_em ? new Date(prazo.assumido_em) : c.criadoEm ? new Date(c.criadoEm) : null;
+        semResposta.push({ id: c.id, nome: c.nome, revenda: c.revenda, representante: c.representante, dias: desde ? Math.max(0, Math.floor((agora - desde.getTime()) / 86400000)) : 0 });
+    }
+    return A.agruparSemResposta(semResposta).map(g => ({
+        chave: `pci12a_sem_resposta:${g.revenda}`, grupo: "prazos", checagem: "pci12a_sem_resposta", severidade: g.maisAntigoDias >= 50 ? "alta" : "media",
+        titulo: `${g.revenda}: ${g.total} card(s) PCI12a sem resposta (o mais antigo há ${g.maisAntigoDias} dias) · rep.: ${Object.entries(g.representantes).map(([r, n]) => `${r} (${n})`).join(", ")}`,
+        detalhe: { revenda: g.revenda, total: g.total, maisAntigoDias: g.maisAntigoDias, representantes: g.representantes, cards: g.cards },
+        acao: "Cobrar a revenda (e avisar o representante) para registrar o andamento no Portal. O prazo do PCI12a é de 60 dias.",
+    }));
+}
+
 // `cobre`: os tipos de achado (campo `checagem`) que esta função consegue dar como resolvidos quando roda sem erro e não os encontra mais.
 const CHECAGENS = [
     { id: "saldo_vs_razao", grupo: "dinheiro", cobre: ["saldo_vs_razao"], roda: checarSaldoVsRazao },
     { id: "creditos_anormais", grupo: "dinheiro", cobre: ["creditos_anormais"], roda: checarCreditosAnormais },
     { id: "robos", grupo: "robos", cobre: ["robo_sem_sucesso", "robo_ultima_falhou"], roda: checarRobos },
+    { id: "venda_sem_dados", grupo: "cards", cobre: ["venda_sem_dados"], roda: checarVendaSemDados },
+    { id: "pci_x_produto", grupo: "cards", cobre: ["pci_x_produto"], roda: checarPciXProduto },
+    { id: "mudancas_campos", grupo: "cards", cobre: ["mudanca_campos"], roda: checarMudancasCampos },
+    { id: "pci12a_sem_resposta", grupo: "prazos", cobre: ["pci12a_sem_resposta"], roda: checarPci12aSemResposta },
 ];
 
 // ─── Comparação com o que já estava aberto (função pura, testada sem banco) ───────────────────────────────
@@ -133,20 +314,44 @@ function reconciliar(atuais, abertos, checagensOk, agora = new Date(), reavisoDi
 const esc = s => String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 const COR_SEV = { alta: "#e30613", media: "#e8890c", baixa: "#6b7280" };
 
-function montarEmail({ novos, lembretes, resolvidos, abertosTotal }) {
+// Cobrança do PCI12a: quem cobrar e de quem. Uma lista por representante (revendas dele) e outra por revenda.
+function blocoCobranca12a(achados) {
+    if (!achados.length) return "";
+    const totalCards = achados.reduce((s, a) => s + (a.detalhe.total || 0), 0);
+    const porRep = {};
+    for (const a of achados) for (const [rep, n] of Object.entries(a.detalhe.representantes || {})) (porRep[rep] = porRep[rep] || []).push({ revenda: a.detalhe.revenda, n, dias: a.detalhe.maisAntigoDias });
+    const lista = Object.entries(porRep).sort((x, y) => y[1].reduce((s, r) => s + r.n, 0) - x[1].reduce((s, r) => s + r.n, 0));
+    return `<h3 style="margin:18px 0 6px">Cobrança: PCI12a sem resposta (${totalCards} cards em ${achados.length} revenda(s))</h3>
+        <p style="margin:0 0 6px;color:#555;font-size:13px">Cards em que a revenda assumiu a venda e ainda não registrou andamento no Portal (ou deixou "Pendente"/"Sem retorno").</p>
+        <p style="margin:10px 0 4px;color:#1d327b"><strong>Por representante</strong></p><ul style="margin:0;padding-left:18px">${lista.map(([rep, rs]) =>
+            `<li style="margin-bottom:6px"><strong>${esc(rep)}</strong>: ${rs.reduce((s, r) => s + r.n, 0)} card(s) · ${rs.map(r => `${esc(r.revenda)} (${r.n})`).join(", ")}</li>`).join("")}</ul>
+        <p style="margin:10px 0 4px;color:#1d327b"><strong>Por revenda</strong></p><ul style="margin:0;padding-left:18px">${achados.map(a =>
+            `<li style="margin-bottom:4px"><strong>${esc(a.detalhe.revenda)}</strong>: ${a.detalhe.total} card(s), o mais antigo há ${a.detalhe.maisAntigoDias} dias${a.detalhe.maisAntigoDias >= 50 ? ' <span style="color:#e30613">(perto dos 60 dias)</span>' : ""}</li>`).join("")}</ul>`;
+}
+
+function montarEmail({ novos, lembretes, resolvidos, abertosTotal, atuais = [] }) {
     const bloco = (titulo, lista) => {
         if (!lista.length) return "";
         const porGrupo = {};
         for (const a of lista) (porGrupo[a.grupo] = porGrupo[a.grupo] || []).push(a);
-        return `<h3 style="margin:18px 0 6px">${esc(titulo)} (${lista.length})</h3>` + Object.entries(porGrupo).map(([g, itens]) =>
-            `<p style="margin:10px 0 4px;color:#1d327b"><strong>${esc(ROTULO_GRUPO[g] || g)}</strong></p><ul style="margin:0;padding-left:18px">${itens.map(a =>
-                `<li style="margin-bottom:8px"><span style="color:${COR_SEV[a.severidade] || "#6b7280"};font-weight:bold">${esc((a.severidade || "").toUpperCase())}</span> ${esc(a.titulo)}${a.acao ? `<br><span style="color:#555;font-size:13px">O que fazer: ${esc(a.acao)}</span>` : ""}${a.link ? `<br><a href="${esc(a.link)}">abrir</a>` : ""}</li>`).join("")}</ul>`).join("");
+        return `<h3 style="margin:18px 0 6px">${esc(titulo)} (${lista.length})</h3>` + Object.entries(porGrupo).map(([g, itens]) => {
+            const porTipo = {};
+            for (const a of itens) (porTipo[a.checagem] = porTipo[a.checagem] || []).push(a);
+            const linhas = Object.values(porTipo).map(grupoTipo => {
+                const visiveis = grupoTipo.slice(0, LIMITE_LINHAS_EMAIL), resto = grupoTipo.length - visiveis.length;
+                return visiveis.map(a => `<li style="margin-bottom:8px"><span style="color:${COR_SEV[a.severidade] || "#6b7280"};font-weight:bold">${esc((a.severidade || "").toUpperCase())}</span> ${esc(a.titulo)}${a.acao ? `<br><span style="color:#555;font-size:13px">O que fazer: ${esc(a.acao)}</span>` : ""}${a.link ? `<br><a href="${esc(a.link)}">abrir</a>` : ""}</li>`).join("")
+                    + (resto > 0 ? `<li style="color:#555;margin-bottom:8px">... e mais ${resto} do mesmo tipo. Veja todos em Gestão &gt; Auditor diário.</li>` : "");
+            }).join("");
+            return `<p style="margin:10px 0 4px;color:#1d327b"><strong>${esc(ROTULO_GRUPO[g] || g)}</strong></p><ul style="margin:0;padding-left:18px">${linhas}</ul>`;
+        }).join("");
     };
+    const ehCobranca = a => a.checagem === "pci12a_sem_resposta";
+    const avisarCobranca = [...novos, ...lembretes].some(ehCobranca);
     const assunto = `BMAX - Auditor diário: ${novos.length} novo(s), ${abertosTotal} em aberto`;
     const html = `<div style="font-family:Arial,sans-serif;max-width:680px;margin:0 auto;padding:20px">
         <h2 style="color:#1d327b;margin-bottom:4px">Auditor diário do BMAX</h2>
         <p style="margin-top:0;color:#555">${novos.length} achado(s) novo(s) · ${lembretes.length} lembrete(s) semanal(is) · ${resolvidos.length} resolvido(s) desde a última rodada · ${abertosTotal} em aberto no total.</p>
-        ${bloco("Novos", novos)}${bloco("Continuam abertos (lembrete semanal)", lembretes)}${bloco("Resolvidos desde a última rodada", resolvidos.map(r => ({ grupo: r.grupo, severidade: "baixa", titulo: r.titulo })))}
+        ${bloco("Novos", novos.filter(a => !ehCobranca(a)))}${bloco("Continuam abertos (lembrete semanal)", lembretes.filter(a => !ehCobranca(a)))}${avisarCobranca ? blocoCobranca12a(atuais.filter(ehCobranca)) : ""}${bloco("Resolvidos desde a última rodada", resolvidos.map(r => ({ grupo: r.grupo, checagem: r.checagem, severidade: "baixa", titulo: r.titulo })))}
         <p style="font-size:12px;color:#666;margin-top:24px">Aviso automático do Portal BMAX. O auditor só lê e avisa: nunca corrige nada. Detalhes em Gestão &gt; Auditor diário.</p></div>`;
     return { assunto, html };
 }
@@ -156,13 +361,14 @@ function montarEmail({ novos, lembretes, resolvidos, abertosTotal }) {
 // dryRun: roda as checagens e devolve o resultado, sem gravar nada e sem enviar e-mail.
 async function rodarAuditoria({ rodada = "manual", dryRun = false } = {}) {
     const t0 = Date.now();
+    const ctx = criarContexto({ dryRun });
     const atuais = [], checagensOk = [], tempos = [];
     let erros = 0;
 
     for (const c of CHECAGENS) {
         const c0 = Date.now();
         try {
-            const achados = await c.roda();
+            const achados = await c.roda(ctx);
             achados.forEach(a => atuais.push(a));
             checagensOk.push(...c.cobre, `auditor_checagem_falhou:${c.id}`);
             tempos.push({ id: c.id, ms: Date.now() - c0, achados: achados.length });
@@ -184,14 +390,14 @@ async function rodarAuditoria({ rodada = "manual", dryRun = false } = {}) {
     const resumo = {
         ok: erros === 0, rodada, dryRun, duracaoMs: 0, checagens: tempos,
         total: atuais.length, novos: r.novos.length, persistentes: r.persistentes.length, resolvidos: r.resolvidos.length,
-        lembretes: r.lembretes.length, avisados: 0, emailEnviado: false,
+        lembretes: r.lembretes.length, avisados: 0, emailEnviado: false, avisos: ctx.avisos,
     };
     if (dryRun) {
         resumo.duracaoMs = Date.now() - t0;
         resumo.achados = atuais;
         resumo.resolvidosLista = r.resolvidos.map(x => x.chave);
         resumo.emailSeriaEnviado = r.paraAvisar.length > 0;
-        if (tabelasAusentes) resumo.aviso = "tabelas do auditor ainda não existem: tudo aparece como novo";
+        if (tabelasAusentes) resumo.avisos.push("As tabelas do auditor ainda não existem: tudo aparece como novo.");
         return resumo;
     }
 
@@ -219,7 +425,7 @@ async function rodarAuditoria({ rodada = "manual", dryRun = false } = {}) {
             resumo.erroEmail = "EMAIL_AUDITOR não configurado: há achados para avisar e nenhum e-mail foi enviado";
             logger.error({ message: resumo.erroEmail });
         } else {
-            const { assunto, html } = montarEmail({ novos: r.novos, lembretes: r.lembretes, resolvidos: r.resolvidos, abertosTotal: atuais.length });
+            const { assunto, html } = montarEmail({ novos: r.novos, lembretes: r.lembretes, resolvidos: r.resolvidos, abertosTotal: atuais.length, atuais });
             const enviado = await sendEmail(destino, assunto, html).catch(() => false);
             if (enviado === false) {
                 erros++;
@@ -239,9 +445,12 @@ async function rodarAuditoria({ rodada = "manual", dryRun = false } = {}) {
     await sequelize.query(
         `INSERT INTO bmax_auditoria_execucoes (rodada, duracao_ms, total_achados, novos, resolvidos, avisados, email_enviado, resumo, erro)
          VALUES (:rodada, :ms, :total, :novos, :resolvidos, :avisados, :email, CAST(:resumo AS jsonb), :erro)`,
-        { replacements: { rodada, ms: resumo.duracaoMs, total: resumo.total, novos: resumo.novos, resolvidos: resumo.resolvidos, avisados: resumo.avisados, email: resumo.emailEnviado, resumo: JSON.stringify({ checagens: tempos }), erro: resumo.erroEmail || null }, type: QueryTypes.INSERT }
+        { replacements: { rodada, ms: resumo.duracaoMs, total: resumo.total, novos: resumo.novos, resolvidos: resumo.resolvidos, avisados: resumo.avisados, email: resumo.emailEnviado, resumo: JSON.stringify({ checagens: tempos, avisos: ctx.avisos }), erro: resumo.erroEmail || null }, type: QueryTypes.INSERT }
     );
     return resumo;
 }
 
-module.exports = { rodarAuditoria, reconciliar, montarEmail, CHECAGENS, REAVISO_DIAS };
+module.exports = {
+    rodarAuditoria, reconciliar, montarEmail, CHECAGENS, REAVISO_DIAS,
+    checarVendaSemDados, checarPciXProduto, checarMudancasCampos, checarPci12aSemResposta,
+};

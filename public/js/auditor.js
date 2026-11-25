@@ -59,7 +59,7 @@ async function simularAuditor() {
         const tempos = (r.checagens || []).map(c => `${esc(c.id)}: ${c.erro ? `<span style="color:#e30613">falhou (${esc(c.erro)})</span>` : `${c.achados} achado(s)`} em ${c.ms} ms`).join(" · ");
         el.innerHTML = `<div style="border:1px solid var(--line);border-radius:8px;padding:12px;margin-bottom:14px">
             <strong>Simulação (nada foi gravado nem enviado):</strong> ${r.total} achado(s) agora em ${(r.duracaoMs / 1000).toFixed(1)} s.
-            <div style="color:var(--muted);font-size:12px;margin:4px 0 8px">${tempos}${r.aviso ? `<br>${esc(r.aviso)}` : ""}</div>
+            <div style="color:var(--muted);font-size:12px;margin:4px 0 8px">${tempos}${(r.avisos || []).map(a => `<br>${esc(a)}`).join("")}</div>
             ${auditorTabela(r.achados || [], false)}</div>`;
     } catch (e) {
         toast(e.message || "Erro ao simular", "error");

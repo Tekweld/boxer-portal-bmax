@@ -75,6 +75,87 @@ describe("e-mail do auditor", () => {
     });
 });
 
+describe("checagens de cards (com contexto falso)", () => {
+    const C = require("../config/constants");
+    const { checarVendaSemDados, checarPciXProduto, checarMudancasCampos, checarPci12aSemResposta } = require("./auditor.service");
+    const card = (o = {}) => ({ id: "100", rdId: null, nome: "Card", pci: "PCI 6", segmento: "Laser", classe: "Classe 3", revenda: "Luitex", representante: "Victor", maquina: "", valor: 1000, etapaId: C.RD_STAGE_VENDIDO, criadoEm: null, deal: {}, ...o });
+    const ctxCom = (cards, db = {}, extra = {}) => ({ dryRun: false, avisos: [], cards: async () => cards, db, desfechoDoCard: () => null, ...extra });
+
+    test("venda sem PCI e classe vira achado ALTO; venda completa e card aberto não", async () => {
+        const r = await checarVendaSemDados(ctxCom([card({ id: "1", pci: "Sem PCI", classe: "" }), card({ id: "2" }), card({ id: "3", pci: "", etapaId: "outra" })]));
+        expect(r).toHaveLength(1);
+        expect(r[0]).toMatchObject({ chave: "venda_sem_dados:1", severidade: "alta" });
+        expect(r[0].titulo).toContain("PCI, Classe de preço");
+    });
+
+    test("só revenda faltando: gravidade média", async () => {
+        const r = await checarVendaSemDados(ctxCom([card({ id: "1", revenda: "?????" })]));
+        expect(r[0].severidade).toBe("media");
+    });
+
+    test("PCI x produto: acusa incompatível e ignora o que combina", async () => {
+        const r = await checarPciXProduto(ctxCom([card({ id: "1", pci: "PCI 13", segmento: "Laser" }), card({ id: "2" })]));
+        expect(r.map(a => a.chave)).toEqual(["pci_x_produto:1"]);
+        expect(r[0].severidade).toBe("media");
+    });
+
+    test("mudanças: 1ª rodada só grava a linha de base e não acusa nada", async () => {
+        const gravar = jest.fn();
+        const r = await checarMudancasCampos(ctxCom([card({ id: "1" })], { snapshot: async () => new Map(), gravar }));
+        expect(r).toEqual([]);
+        expect(gravar).toHaveBeenCalledWith([], [expect.objectContaining({ card_id: "1", pci: "PCI6" })]);
+    });
+
+    test("mudanças: PCI trocado em venda já creditada é ALTO e grava a mudança", async () => {
+        const gravar = jest.fn();
+        const db = {
+            snapshot: async () => new Map([["1", { card_id: "1", pci: "PCI9", produto: "laser", classe: "3" }]]),
+            creditados: async () => new Set(["1"]), gravar, mudancasRecentes: async () => [],
+        };
+        await checarMudancasCampos(ctxCom([card({ id: "1" })], db));
+        const mud = gravar.mock.calls[0][0];
+        expect(mud).toEqual([expect.objectContaining({ card_id: "1", campo: "pci", antes: "PCI9", depois: "PCI6", severidade: "alta" })]);
+    });
+
+    test("mudanças: sem alteração não grava nem acusa", async () => {
+        const gravar = jest.fn();
+        const db = { snapshot: async () => new Map([["1", { card_id: "1", pci: "PCI6", produto: "laser", classe: "3" }]]), creditados: async () => new Set(), gravar, mudancasRecentes: async () => [] };
+        expect(await checarMudancasCampos(ctxCom([card({ id: "1" })], db))).toEqual([]);
+        expect(gravar).not.toHaveBeenCalled();
+    });
+
+    test("mudanças em simulação: não grava nada, mas mostra a mudança", async () => {
+        const gravar = jest.fn();
+        const db = { snapshot: async () => new Map([["1", { card_id: "1", pci: "PCI9", produto: "laser", classe: "3" }]]), creditados: async () => new Set(), gravar, mudancasRecentes: async () => [] };
+        const r = await checarMudancasCampos(ctxCom([card({ id: "1" })], db, { dryRun: true }));
+        expect(gravar).not.toHaveBeenCalled();
+        expect(r).toHaveLength(1);
+    });
+
+    test("PCI12a sem resposta: agrupa por revenda, casa os dois ids e ignora quem já respondeu ou tem desfecho", async () => {
+        const c = (o) => card({ pci: "PCI 12a", etapaId: "x", ...o });
+        const cards = [c({ id: "1", rdId: "rd1" }), c({ id: "2" }), c({ id: "3", rdId: "rd3" }), c({ id: "4" })];
+        const db = {
+            prazos12a: async () => new Map([["rd1", { assumido_em: new Date(Date.now() - 40 * 86400000) }], ["4", { resultado: "venda" }]]),
+            andamentos: async () => new Map([["rd3", { tipo: "status", status: "Em contato" }]]),
+        };
+        const r = await checarPci12aSemResposta(ctxCom(cards, db));
+        expect(r).toHaveLength(1);
+        expect(r[0].detalhe).toMatchObject({ revenda: "Luitex", total: 2, maisAntigoDias: 40 });
+    });
+
+    test("e-mail traz o bloco de cobrança por representante e por revenda, e corta listas longas", () => {
+        const cobranca = { chave: "p:Luitex", grupo: "prazos", checagem: "pci12a_sem_resposta", severidade: "media", titulo: "Luitex",
+            detalhe: { revenda: "Luitex", total: 3, maisAntigoDias: 55, representantes: { Victor: 2, Caio: 1 } } };
+        const muitos = Array.from({ length: 20 }, (_, i) => ach(`v${i}`, "venda_sem_dados", { grupo: "cards" }));
+        const { html } = montarEmail({ novos: [cobranca, ...muitos], lembretes: [], resolvidos: [], abertosTotal: 21, atuais: [cobranca] });
+        expect(html).toContain("Por representante");
+        expect(html).toContain("Victor</strong>: 2 card(s)");
+        expect(html).toContain("perto dos 60 dias");
+        expect(html).toContain("e mais 8 do mesmo tipo");
+    });
+});
+
 describe("registro das checagens", () => {
     test("cada checagem declara o que cobre e ids são únicos", () => {
         const ids = CHECAGENS.map(c => c.id);
