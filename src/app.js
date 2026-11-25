@@ -815,25 +815,6 @@ app.get("/api/cron/pipefy-unificar-revendas", async (req, res) => {
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// TEMPORÁRIA (25/11/2026): diagnóstico SOMENTE LEITURA de cards duplicados entre pipes/funis (vendas com o mesmo CNPJ).
-app.get("/api/cron/temp-diag-duplicados", async (req, res) => {
-    const secret = req.headers["authorization"];
-    if (!(process.env.TEMP_UNIFICAR_KEY && secret === `Bearer ${process.env.TEMP_UNIFICAR_KEY}`)) return res.status(401).json({ error: "unauthorized" });
-    try {
-        const { getLeads, getCustomField, fetchAllDealsFromRD, fetchDealsBmaxInterno } = require("./services/rd.leads.service");
-        const { PIPEFY_PIPES_PORTAL } = require("./config/pipefyConstants");
-        const [ind, bmax] = await Promise.all([fetchAllDealsFromRD(), fetchDealsBmaxInterno()]);
-        const dig = s => String(s || "").replace(/\D/g, "");
-        const venda = d => d.win === true || /venda efetiva/i.test(((d.deal_stage || {}).name || ""));
-        const linhas = [...ind.map(d => ({ origem: "leadsInd(getLeads/Pipefy)", d })), ...bmax.map(d => ({ origem: "leadsBmax(fetchDealsBmaxInterno)", d }))].filter(x => venda(x.d));
-        const porCnpj = {};
-        for (const x of linhas) { const k = dig(getCustomField(x.d, "CNPJ")); if (!k) continue; (porCnpj[k] = porCnpj[k] || []).push(x); }
-        const dups = Object.values(porCnpj).filter(a => a.length > 1).map(a => a.map(x => ({ o: x.origem, id: x.d.id || x.d._id, rd: x.d.rd_deal_id || null, n: x.d.name, fase: (x.d.deal_stage || {}).name, v: x.d.amount_total, rev: getCustomField(x.d, "REVENDA/LOJA") })));
-        const perf = await require("./services/performanceRevendas.service").calcularPerformance({});
-        res.json({ ok: true, performance: { pci12_recebidos: perf.linhas.reduce((a, l) => a + (l.pci12_recebidos || 0), 0), vendas: perf.linhas.reduce((a, l) => a + (l.vendas || 0), 0), duplicados_ignorados: perf.duplicados_ignorados }, pipesPortal: PIPEFY_PIPES_PORTAL, totalInd: ind.length, totalBmax: bmax.length, vendasInd: linhas.filter(x => x.origem.startsWith("leadsInd")).length, vendasBmax: linhas.filter(x => x.origem.startsWith("leadsBmax")).length, gruposDuplicados: dups.length, exemplos: dups.slice(0, 15) });
-    } catch (err) { res.status(500).json({ error: err.message }); }
-});
-
 // Vigia diário dos robôs: avisa por e-mail se algum não teve sucesso dentro do prazo
 app.get("/api/cron/vigia-robos", async (req, res) => {
     const secret = req.headers["authorization"];
