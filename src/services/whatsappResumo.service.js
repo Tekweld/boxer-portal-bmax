@@ -65,7 +65,8 @@ async function montarResumoDiario({ hoje = new Date() } = {}) {
         // Só revenda ativa no programa recebe aviso
         if (!ativa) { resultado.push({ ...base, itens: null, mensagens: [], enviaria: false, bloqueio: "revenda não está ativa no programa" }); continue; }
 
-        const meus = deals.filter(d => conjunto.has(trim(getCustomField(d, "REVENDA/LOJA"))) && !REVENDA_SEM_CREDITO.includes(trim(getCustomField(d, "REVENDA/LOJA"))));
+        const { podeVerPci } = require("./visibilidadePci.service");
+        const meus = deals.filter(d => conjunto.has(trim(getCustomField(d, "REVENDA/LOJA"))) && !REVENDA_SEM_CREDITO.includes(trim(getCustomField(d, "REVENDA/LOJA"))) && podeVerPci("revenda", getCustomField(d, "PERFIL PCI")));
         const pci12 = meus.filter(d => pciNorm(d) === "PCI12" && !FINAIS.has(d.deal_stage?.id));
         const novos = meus.filter(d => new Date(d.created_at) >= new Date(hoje - umDia) && !pci12.includes(d)).length;
         const leads12a = meus.filter(d => pciNorm(d) === "PCI12A" && !FINAIS.has(d.deal_stage?.id) && d.win !== true && d.win !== false);

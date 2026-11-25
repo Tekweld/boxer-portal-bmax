@@ -318,6 +318,12 @@ async function getLeads(username, role) {
         });
     }
 
+    // Visibilidade por PCI (planilha mestre): revenda e representante só veem os PCIs que a regra permite (ver visibilidadePci.service.js)
+    if (role === "revenda" || role === "representante") {
+        const { podeVerPci } = require("./visibilidadePci.service");
+        allDeals = allDeals.filter(d => podeVerPci(role, getCustomField(d, "PERFIL PCI")));
+    }
+
     return allDeals;
 }
 
