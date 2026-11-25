@@ -256,6 +256,7 @@ hoje. Detalhes completos em `PIPEFY_PENDENCIAS.md`.
 - **`public/js/*.js` são referenciados com `?v=N`** em `index.html` — editar o JS sem subir o `N` faz o navegador continuar servindo a versão cacheada antiga, mesmo com o arquivo novo já publicado (já causou "corrigi mas não aparece" 2x). Sempre bumpar no mesmo commit.
 - **`git push origin main` dispara deploy automático em produção** (integração GitHub↔Vercel) — não existe "só commitar local com segurança"; qualquer push posterior leva junto todo commit ainda não enviado, mesmo commits que não deveriam ir ao ar ainda.
 - **Filtro de revenda multi-loja no frontend** (`leads.js`) chegou a refiltrar `API_LEADS` por igualdade exata de nome, duplicando (mal) o que o backend já faz certo via `bmax_grupos` — só "funcionava" pra Luitex por um hack de substring hardcoded. Removido; o backend já entrega a lista certa pro papel `revenda`, o front não deveria refiltrar de novo.
+- **Cache do Pipefy no banco e a leitura completa de ~139 s (25/11/2026)** — a leitura completa do pipe CRM BOXER SOLDAS (~7.700 cards) leva ~139 s e a Vercel mata a função em 60 s. Quando a consulta ao Pipefy ganhou o campo de etiquetas e o painel passou a filtrar por "RD: Indústria", o cache antigo não tinha etiquetas e o painel ficou com 0 leads por horas, sem erro visível. Regra: ao mudar a consulta (`CAMPOS_CARD_LISTAGEM`) ou filtrar por campo novo, refazer o cache (`bmax_pipefy_cache_cards`/`bmax_pipefy_cache_estado`) localmente com o token de administrador, ANTES de publicar, e depois fazer um deploy para reiniciar as instâncias. Detalhe no `.claude/memory/feedback_bmax_cache_pipefy_preaquecer.md`.
 - **`resend.service.js` é código morto** — duplica `email.service.js` quase byte a byte, nunca é importado em lugar nenhum. Candidato a remoção numa limpeza futura.
 - **E-mails de "Nova Negociação"** (`negociacao.service.js`) ainda usam `getRepresentativeEmailByName()` puro, sem o fallback `rdToEmail` que foi adicionado em 17/09/2026 pros e-mails de caminho PCI12 — mesma classe de bug (username hoje é e-mail, não nome) pode estar afetando esse fluxo também; não verificado/corrigido ainda.
 
@@ -282,6 +283,8 @@ Código: `src/services/orcamento.service.js`; `createNote` em `rd.leads.service.
 | `/api/cron/sync-consulta-lead` | 12:00, 17:00, 21:00 | Pré-computa índice de "Consulta de Lead" (evita timeout de 60s calculando na hora) |
 | `/api/cron/recalcular-comissoes` | 12:00, 15:00, 18:00, 21:00 | Reconcilia saldo real vs regra de comissão atual |
 | `/api/cron/pci12-followup` | 10:00, 13:00, 17:00, 20:00 (= 07h, 10h, 14h, 17h Brasília, desde 14/10/2026) | Lembrete 24h úteis + 12b automático 48h úteis dos PCI12 pendentes — NÃO conta prazo de card cuja revenda não tem login (zera o relógio) |
+| `/api/cron/auditor?rodada=manha` | 09:00 (= 06h Brasília, desde 25/11/2026) | Auditor diário: roda as checagens, grava achados e avisa o André por e-mail só quando há achado novo. NUNCA corrige nada (ver seção "Auditor diário") |
+| `/api/cron/auditor?rodada=tarde` | 16:00 (= 13h Brasília, desde 25/11/2026) | Segunda rodada do auditor diário |
 
 **Prazos sem fim de semana (14/10/2026):** os prazos de 24h/48h do PCI12 pendente contam só segunda a sexta (horário de Brasília), via `src/services/prazoUtil.service.js` (`horasUteisEntre`). Sábado e domingo não contam; **feriados não são descontados**. O prazo de 60 dias do PCI12a **continua em dias corridos**. `detectado_em`/`assumido_em` são `timestamp without time zone` gravados em UTC pelo `now()` do Postgres e lidos em UTC pela Vercel — ao rodar scripts locais em UTC-3 o valor lido aparece 3h adiantado (só leitura local; use `TZ=UTC`).
 
@@ -427,3 +430,14 @@ Detalhe completo em `Documentação/Registro_Mudancas_Portal_BMax_23-25-11-2026.
 - **Cards:** campos novos `andamento`, `pcix`, `quemVende`, `revendaGrupo`, `rdDealId`.
 - **Pipefy:** mapeamento Vendido/Perdido da revenda → fases do CRM BOXER SOLDAS em `pipefyConstants.PREFERENCIA_ETAPA_RD_PARA_FASE`; "PCI X" em `PIPEFY_PCI_OPCOES`; `updatePhaseField` com `label: String!`.
 - **Token de administrador do Pipefy** (`PIPEFY_TOKEN_ADMIN`) só no `.env` local; scripts em `scripts/codigo-unico/pipefy_*.js`.
+
+## Auditor diário (25/11/2026)
+
+Agente que confere o Portal 2x por dia (06h e 13h Brasília, `/api/cron/auditor?rodada=manha|tarde`) e avisa o André por e-mail. **Só lê e avisa: não corrige nada.** Escreve apenas nas próprias tabelas (`bmax_auditoria_achados`, `bmax_auditoria_execucoes`, `bmax_auditoria_cards_ultimo`, `bmax_auditoria_card_mudancas`; DDL em `scripts/create-auditor-tables.js`).
+
+- **E-mail:** só para `EMAIL_AUDITOR` (variável da Vercel), só com achado novo ou lembrete semanal. Temas em ordem fixa: saldo, créditos anormais, checagens/rodadas do auditor, robôs, vendas com dados faltando, mudanças de PCI/produto/classe, PCI x produto, cobrança do PCI12a por representante e revenda (com link dos cards). Máximo de 12 linhas por tema no e-mail; o resto fica na aba.
+- **Aba Gestão > Auditor diário:** achados abertos e resolvidos, últimas execuções e "Rodar simulação agora" (não grava nada e não envia e-mail). Rotas admin: `GET /api/auditor/achados`, `GET /api/auditor/execucoes`, `POST /api/auditor/simular`.
+- **Checagens:** saldo x razão; créditos anormais em 24h; robôs sem sucesso ou com última execução falha; venda sem PCI/produto/classe/revenda/representante; PCI incompatível com o produto; mudança de PCI/produto/classe entre rodadas; PCI12a sem resposta da revenda (casa os dois ids, Pipefy e RD); rodada do auditor que não aconteceu. Checagem que falha ao rodar vira achado e nunca resolve os achados dela.
+- **Arquivos:** `src/services/auditor.service.js`, `src/services/auditorCards.service.js` (regras puras), `src/routes/auditor.routes.js`, `public/js/auditor.js`.
+- **Pendente:** colocar `auditor` em `ESPERADOS` (`roboMonitor.service.js`) depois da primeira rodada real bem-sucedida; ampliar as checagens (cards duplicados, ids órfãos, status x etapa, etiqueta ausente, prazos parados, cadastro de pessoas).
+

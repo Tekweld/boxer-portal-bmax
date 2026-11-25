@@ -37,7 +37,12 @@ Detalhe completo (não copiar para cá, ler lá): `DOCUMENTACAO_TECNICA.md` (§6
 - Lição de teste: regressão de CSP/UI é invisível a curl/API. Teste feature de tela clicando de verdade no navegador.
 
 ## Pendências atuais (Registro 23–25/11 §6; lá estão completas)
-Agente auditor diário (2x/dia, corrige o seguro, alerta só o André) é o próximo trabalho; conferir Performance em produção (caso Rosman/Aldesoldas); juntar cards duplicados no Pipefy; ligar "Motivo de perda" ao campo do Pipefy; decidir representantes Joyce/Cristina/SANTOS; Ayrton virar admin do pipe ou trocar `PIPEFY_TOKEN`; etapa 6 do código único (aposentar `bmax_grupos`); rodar auditoria de PCI/classe das comissões.
+Agente auditor diário JÁ PUBLICADO em 25/11 (só lê e avisa, não corrige; ver [[project-bmax-auditor-diario]]); falta conferir a 1a rodada real (26/11), colocá-lo em ESPERADOS e ampliar as checagens; conferir Performance em produção (caso Rosman/Aldesoldas); juntar cards duplicados no Pipefy; ligar "Motivo de perda" ao campo do Pipefy; decidir representantes Joyce/Cristina/SANTOS; Ayrton virar admin do pipe ou trocar `PIPEFY_TOKEN`; etapa 6 do código único (aposentar `bmax_grupos`); rodar auditoria de PCI/classe das comissões.
 
 ## Documentação
 `DOCUMENTACAO_TECNICA.md` §7 foi reconferida contra o código em 25/11 e corrigida (card sem estimativa, dedup no robô pelos dois ids, expiração só da revenda, PCIs que geram comissão, etapas consideradas venda). Regra para não defasar de novo: ao mudar uma regra já descrita, corrija a seção original; a seção "Atualização" no fim só registra o histórico.
+
+## Auditor diário e incidente do cache (25/11)
+- Auditor publicado: crons 06h e 13h Brasília, e-mail só ao André, aba Gestão > Auditor diário. Detalhe em [[project-bmax-auditor-diario]].
+- Incidente: painel com 0 leads por ~3h depois do deploy das etiquetas (cache do Pipefy sem etiquetas; leitura completa de 139 s não cabe nos 60 s da Vercel). Corrigido refazendo o cache localmente + deploy vazio. Ver [[feedback-bmax-cache-pipefy-preaquecer]].
+- Em 25/11 a Vercel pulou crons da janela 11h-13h UTC (`pci12a-prazo`, `pcix-prazo`, `sync-consulta-lead`, `recalcular-comissoes`). Causa não confirmada; conferir de novo depois da janela de 26/11.

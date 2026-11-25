@@ -1,6 +1,8 @@
 ## BMax — arquivos que existem NESTE repo (leia primeiro o estado de 25/11)
 
 - [project_bmax_estado_2026_11_25.md](project_bmax_estado_2026_11_25.md) — **ESTADO REAL em 25/11/2026 (fonte de verdade)**: Pipefy em produção, funil por etiqueta "RD: Indústria", cashback = só o razão (nunca estimativa), PCI manda na comissão, PCI12/PCI X, pendências. Vence qualquer memória de set/out.
+- [project_bmax_auditor_diario.md](project_bmax_auditor_diario.md) — Auditor diário (publicado 25/11/2026): só lê e avisa o André por e-mail, 2x/dia; 8 checagens, tabelas, crons e o que falta
+- [feedback_bmax_cache_pipefy_preaquecer.md](feedback_bmax_cache_pipefy_preaquecer.md) — Mudou a consulta/filtro do Pipefy? Refazer o cache no banco LOCALMENTE antes (leitura completa = 139 s > 60 s da Vercel; incidente do painel vazio 25/11)
 - [feedback_portal_bmax_logica.md](feedback_portal_bmax_logica.md) — Portal BMax: PCI12 (48h→12b, 60d 12a→Prazo Vencido), escopo consumíveis, vínculo rep/RD, nomes de revenda/grupos, sem migration tooling, 504 em varredura; 28/10: PCI 13/14/15 pelo produto + "quem atende", nome único da revenda, travas CNPJ/nome+cidade
 - [project_bmax_portal.md](project_bmax_portal.md) — Portal BMax: Vercel+Supabase+RD V1 (visão geral até 05/11; o CRM agora é Pipefy, ver estado 25/11)
 - [project_bmax_motor.md](project_bmax_motor.md) — BMax Motor PCI: 16 PCIs, Diamante operacional, somente-leitura em cadastro (RLS), só o Portal escreve
@@ -59,6 +61,8 @@ Este bloco veio de uma cópia do índice pessoal. Os links não abrem a partir d
 - Portal BMax: o CRM é o **Pipefy** desde 23/11/2026 (`CRM_PROVIDER=pipefy`); id do card tem DOIS valores (Pipefy e `rd_deal_id`) e todo cálculo precisa casar pelos dois
 - Portal BMax: só cards com etiqueta "RD: Indústria" entram no painel, na comissão, na exportação e no WhatsApp
 - Portal BMax: nunca mostrar estimativa de cashback — só o que está no razão
+- Portal BMax: o auditor diário SÓ LÊ E AVISA; nunca corrige saldo, card ou qualquer dado de negócio
+- Portal BMax: leitura completa do pipe do Pipefy (~139 s) estoura os 60 s da Vercel; ao mudar a consulta ou um filtro por campo novo, refazer o cache no banco localmente ANTES de publicar (senão o painel mostra 0 leads)
 - Portal BMax: `git push` = deploy automático em produção (Vercel+GitHub)
 - Portal BMax: editar `public/js/*.js` sem bumpar `?v=` em `index.html` = navegador serve versão antiga em cache
 - Portal BMax: sem migration tooling — mudar model Sequelize NUNCA muda o Postgres real sozinho (já quebrou 2x); aplicar DDL junto com o deploy
