@@ -815,6 +815,24 @@ app.get("/api/cron/vigia-robos", async (req, res) => {
     }
 });
 
+// Auditor diário (25/11/2026): confere dinheiro, cards, prazos, cadastro e robôs, e avisa o André por e-mail (EMAIL_AUDITOR) SÓ quando há
+// achado. Nunca corrige nada. ?dry=1 = simulação (não grava, não envia e-mail e não entra no monitor dos robôs); ?rodada=manha|tarde.
+app.get("/api/cron/auditor", async (req, res) => {
+    const secret = req.headers["authorization"];
+    const valido = secret === `Bearer ${process.env.CRON_SECRET}` ||
+        (process.env.CRON_TRIGGER_KEY && secret === `Bearer ${process.env.CRON_TRIGGER_KEY}`);
+    if (!valido) return res.status(401).json({ error: "unauthorized" });
+    try {
+        const rodada = ["manha", "tarde"].includes(req.query.rodada) ? req.query.rodada : "manual";
+        res.json(await require("./services/auditor.service").rodarAuditoria({ rodada, dryRun: req.query.dry === "1" }));
+    } catch (err) {
+        logger.error({ message: "Erro no auditor diário", error: err.message, stack: err.stack });
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.use("/api/auditor", require("./routes/auditor.routes"));
+
 app.use(errorMiddleware);
 
 module.exports = app;

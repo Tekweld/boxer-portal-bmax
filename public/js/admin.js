@@ -831,6 +831,7 @@ function showAdminTab(tab, el) {
     document.getElementById("admin-" + tab).classList.remove("hidden");
     el.classList.add("active");
     if (tab === "logs") initAuditLogs();
+    if (tab === "auditor") carregarAuditor();
     if (tab === "acessos") loadAcessos();
     if (tab === "whatsapp") loadWhatsAppPrevia();
     if (tab === "cobertura" && !COB_DATA.length) { loadCobertura().then(() => renderCobertura()); }

@@ -155,4 +155,4 @@ async function vigiar() {
     return { ok: problemas.length === 0, problemas };
 }
 
-module.exports = { cronTracker, vigiar, verificarCreditosAnormais, ESPERADOS };
+module.exports = { cronTracker, vigiar, verificarCreditosAnormais, ESPERADOS, LIM_CREDITOS_24H, LIM_VALOR_24H };

@@ -462,6 +462,7 @@
       <div class="admin-tab" onclick="showAdminTab('usuarios',this)">Usuarios</div>
       <div class="admin-tab" onclick="showAdminTab('acessos',this)">Acessos</div>
       <div class="admin-tab" onclick="showAdminTab('whatsapp',this)">WhatsApp</div>
+      <div class="admin-tab" onclick="showAdminTab('auditor',this)">Auditor diário</div>
       <div class="admin-tab" onclick="showAdminTab('logs',this)">Logs de Auditoria</div>
       <div class="admin-tab" onclick="showAdminTab('ajuda',this)">Ajuda</div>
     </div>
@@ -629,6 +630,22 @@
         </div>
         <div id="acessosBody"></div>
       </div>
+      <div class="admin-tab-content hidden" id="admin-auditor">
+        <p style="color:var(--muted);font-size:13px;margin-bottom:12px">O auditor confere duas vezes por dia o dinheiro (saldos e créditos), os robôs e, nas próximas etapas, cards, prazos e cadastro. <strong>Ele só lê e avisa: nunca corrige nada.</strong> O e-mail só sai quando há achado novo, e cada achado fica aberto aqui até o auditor deixar de encontrá-lo. (Quem fez o quê no Portal fica na aba "Logs de Auditoria".)</p>
+        <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;align-items:center">
+          <select id="auditorEstado" onchange="carregarAuditor()" style="max-width:180px">
+            <option value="abertos">Achados abertos</option>
+            <option value="resolvidos">Resolvidos (últimos 100)</option>
+          </select>
+          <button class="btn" onclick="carregarAuditor()">Atualizar</button>
+          <button class="btn" id="btnAuditorSimular" onclick="simularAuditor()">Rodar simulação agora</button>
+          <span style="color:var(--muted);font-size:12px">A simulação não grava nada e não envia e-mail.</span>
+        </div>
+        <div id="auditorSimulacaoBody"></div>
+        <div id="auditorAchadosBody"></div>
+        <h4 style="margin:22px 0 8px">Últimas execuções</h4>
+        <div id="auditorExecucoesBody"></div>
+      </div>
       <div class="admin-tab-content hidden" id="admin-logs">
         <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
           <input class="search" id="adminLogFilter" placeholder="Buscar acao..." oninput="renderAuditLogs()" style="max-width:250px">
@@ -717,7 +734,8 @@
   <script src="js/negociacoes.js?v=25"></script>
   <script src="js/cadastro.js?v=16"></script>
   <script src="js/cashback.js?v=22"></script>
-  <script src="js/admin.js?v=43"></script>
+  <script src="js/admin.js?v=44"></script>
+  <script src="js/auditor.js?v=1"></script>
   <script src="js/termos.js?v=7"></script>
   <script src="js/performance.js?v=11"></script>
   <script src="js/perdas.js?v=2"></script>
