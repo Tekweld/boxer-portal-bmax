@@ -41,6 +41,7 @@ const {
     findContatoPorEmail,
     getCard,
     getCardComments,
+    getPipeLabels,
     getTableRecord,
     getStartFormFields,
     moveCardToPhase,
@@ -798,16 +799,19 @@ async function getLeadByCnpjPipefy(cnpj) {
 // (campo "Funil" do formulário) — decide pelo role real (negociacao.role,
 // setado pelo controller a partir do token), nunca por algo vindo do body
 // pra quem não pode escolher (Tarefa 5/6, bmax_pipefy_correcoes_adendo.md).
+// REGRA (André, 25/11/2026): hoje só existe o pipe CRM BOXER SOLDAS; os funis do RD viraram ETIQUETAS. Nova Negociação:
+//   - a REVENDA vende sozinha (BOX>REV, "blindagem")            -> etiqueta "RD: BMAX"      (antigo funil BMAX-Interno do RD; fora do painel e da comissão)
+//   - a BOXER atende (BOX+REV>IND, ou lead Indústria/PCI 12)    -> etiqueta "RD: Indústria" (entra no painel e gera comissão pela política)
+// O Portal só considera cards com a etiqueta "RD: Indústria".
 function escolherPipeDaNegociacao(negociacao) {
     const podeEscolherFunil = negociacao.role === "adm" || negociacao.role === "representante";
     const quisIndustria = podeEscolherFunil && negociacao.funil === "industria";
-    return quisIndustria
-        ? { nomePipe: "CRM BOXER SOLDAS", nomeFaseInicial: "Lead" }
-        : { nomePipe: "BMAX", nomeFaseInicial: "Leads Revenda" };
+    const boxerAtende = quisIndustria || negociacao.atendimento === "boxer" || negociacao.caminho === "BOX+REV>IND";
+    return { nomePipe: "CRM BOXER SOLDAS", nomeFaseInicial: "Lead", etiqueta: boxerAtende ? "RD: Indústria" : "RD: BMAX" };
 }
 
 async function createLeadPipefy(negociacao) {
-    const { nomePipe, nomeFaseInicial } = escolherPipeDaNegociacao(negociacao);
+    const { nomePipe, nomeFaseInicial, etiqueta } = escolherPipeDaNegociacao(negociacao);
     const configPipe = nomePipe === "BMAX"
         ? { id: PIPEFY_PIPE_BMAX, fases: PIPEFY_FASES, campos: PIPEFY_CAMPOS }
         : pipeConfig(nomePipe);
@@ -894,7 +898,33 @@ async function createLeadPipefy(negociacao) {
     if (configPipe.campos["Máquina de interesse"]) camposCard.push({ field_id: configPipe.campos["Máquina de interesse"], field_value: negociacao.maquinainteresse || "" });
     camposCard.push({ field_id: campoPci, field_value: pciParaPipefy(nomePipe, pciValor) });
 
-    const card = await createCard(pipeId, faseInicial, negociacao.nome, montarCamposValidos(camposCard));
+    // O pipe CRM BOXER SOLDAS exige "Responsável" no formulário inicial (descoberto em 25/11/2026: sem ele a criação é recusada pelo Pipefy).
+    // Usa o responsável da negociação (revenda vende = "Revenda"); sem membro correspondente cai no administrador (EMAIL_FALLBACK). O fluxo de
+    // encaminhamento (caminhoVenda) troca o responsável logo depois quando a Boxer atende.
+    if (typeof getStartFormFields === "function") {
+        try {
+            const campoResp = (await getStartFormFields(pipeId)).find(f => f.required && f.type === "assignee_select");
+            if (campoResp && !camposCard.some(c => c.field_id === campoResp.id)) {
+                const nomeOwner = negociacao.responsavel || (negociacao.atendimento === "revenda" ? "Revenda" : null);
+                let assigneeId = nomeOwner && RD_OWNERS[nomeOwner] ? await resolverAssigneeId(RD_OWNERS[nomeOwner]) : null;
+                if (!assigneeId && process.env.EMAIL_FALLBACK) assigneeId = PIPEFY_MEMBROS[String(process.env.EMAIL_FALLBACK).trim().toLowerCase()] || PIPEFY_MEMBROS[process.env.EMAIL_FALLBACK] || null;
+                if (assigneeId) camposCard.push({ field_id: campoResp.id, field_value: [String(assigneeId)] });
+                else logger.warn({ message: "Nova Negociação: não achei membro do Pipefy para o campo Responsável obrigatório — a criação pode ser recusada", nomeOwner });
+            }
+        } catch (e) { logger.warn({ message: "Nova Negociação: falha ao preencher o Responsável obrigatório", error: e.message }); }
+    }
+
+    // Etiqueta do funil de origem. Sem ela o card ficaria fora do Portal: se a etiqueta não existir no pipe, falha ALTO (nunca cria card sem etiqueta).
+    let labelIds = [];
+    if (etiqueta && typeof getPipeLabels === "function") {
+        const etiquetas = await getPipeLabels(pipeId);
+        const achada = etiquetas.find(e => String(e.name).trim() === etiqueta);
+        if (!achada) throw new Error(`A etiqueta "${etiqueta}" não existe no pipe "${nomePipe}" do Pipefy — card NÃO criado`);
+        labelIds = [achada.id];
+    }
+    const card = labelIds.length
+        ? await createCard(pipeId, faseInicial, negociacao.nome, montarCamposValidos(camposCard), labelIds)
+        : await createCard(pipeId, faseInicial, negociacao.nome, montarCamposValidos(camposCard));
     await atualizarCardNoCache(card.id);
     return { id: card.id };
 }

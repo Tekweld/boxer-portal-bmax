@@ -309,14 +309,26 @@ async function createContato(tabelaId, titulo, campos) {
 }
 
 // Guia 5.4 (testado na conta) — cria o card já na fase desejada, ligado ao contato.
-async function createCard(pipeId, faseId, titulo, campos) {
+// Etiquetas (labels) do pipe: { id, name }. Cache de 10 min — mudam raramente.
+const _cacheEtiquetas = new Map();
+async function getPipeLabels(pipeId) {
+    const c = _cacheEtiquetas.get(String(pipeId));
+    if (c && Date.now() - c.ts < 10 * 60 * 1000) return c.lista;
+    const dados = await pipefyFetch(`query($id: ID!) { pipe(id: $id) { labels { id name } } }`, { id: pipeId });
+    const lista = (dados.pipe && dados.pipe.labels) || [];
+    _cacheEtiquetas.set(String(pipeId), { ts: Date.now(), lista });
+    return lista;
+}
+
+async function createCard(pipeId, faseId, titulo, campos, labelIds = []) {
+    const comEtiqueta = Array.isArray(labelIds) && labelIds.length > 0;
     const MUTATION = `
-        mutation($pipe: ID!, $fase: ID!, $titulo: String!, $campos: [FieldValueInput]) {
-            createCard(input: { pipe_id: $pipe, phase_id: $fase, title: $titulo, fields_attributes: $campos }) {
+        mutation($pipe: ID!, $fase: ID!, $titulo: String!, $campos: [FieldValueInput]${comEtiqueta ? ", $labels: [ID]" : ""}) {
+            createCard(input: { pipe_id: $pipe, phase_id: $fase, title: $titulo, fields_attributes: $campos${comEtiqueta ? ", label_ids: $labels" : ""} }) {
                 card { id }
             }
         }`;
-    const dados = await pipefyFetch(MUTATION, { pipe: pipeId, fase: faseId, titulo, campos });
+    const dados = await pipefyFetch(MUTATION, { pipe: pipeId, fase: faseId, titulo, campos, ...(comEtiqueta ? { labels: labelIds } : {}) });
     return dados.createCard.card;
 }
 
@@ -439,7 +451,7 @@ async function allCardsAtualizadosDesde(pipeId, desde) {
 async function getStartFormFields(pipeId) {
     const QUERY = `
         query($id: ID!) {
-            pipe(id: $id) { start_form_fields { id uuid label options } }
+            pipe(id: $id) { start_form_fields { id uuid label type required options } }
         }`;
     const dados = await pipefyFetch(QUERY, { id: pipeId });
     return dados.pipe?.start_form_fields || [];
@@ -498,6 +510,7 @@ async function updateFieldEmVariosCards(campoId, valorNovo, cardIds) {
 
 module.exports = {
     pipefyFetch,
+    getPipeLabels,
     findCardByRdId,
     findCardsByFieldValue,
     getCard,

@@ -249,11 +249,11 @@ async function fetchDealsBmaxInterno() {
 // pela revenda), SDR e Revenda nunca apareciam no painel nem geravam comissão (todos os 255 créditos do razão são de cards "RD: Indústria").
 // No Pipefy os funis viraram ETIQUETAS do pipe único: o card com etiqueta de outro funil (e sem "RD: Indústria") fica FORA do painel e da comissão.
 // Cards sem nenhuma etiqueta "RD:" (criados direto no Pipefy) continuam dentro.
-const ETIQUETAS_FORA_DO_PORTAL = ["RD: BMAX", "RD: SDR", "RD: Revenda"];
+// REGRA FINAL (André, 25/11/2026): SOMENTE cards com a etiqueta "RD: Indústria". "RD: BMAX" = negociações da revenda que ela vende sozinha (só Performance);
+// "RD: SDR" e "RD: Revenda" e cards sem etiqueta ficam fora. Modo RD (sem etiquetas na leitura) não filtra.
 function ehFunilPortal(d) {
-    const e = d && d.etiquetas; if (!Array.isArray(e) || !e.length) return true;
-    if (e.includes("RD: Indústria")) return true;
-    return !e.some(x => ETIQUETAS_FORA_DO_PORTAL.includes(x));
+    if (!d || !Array.isArray(d.etiquetas)) return true;   // leitura do RD: o funil já vem filtrado pelo pipeline
+    return d.etiquetas.includes("RD: Indústria");
 }
 const ehFunilBmax = d => !!(d && Array.isArray(d.etiquetas) && d.etiquetas.includes("RD: BMAX") && !d.etiquetas.includes("RD: Indústria"));
 

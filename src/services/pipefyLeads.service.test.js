@@ -140,6 +140,7 @@ function cardBase(overrides = {}) {
         created_at: "2026-06-01T10:00:00Z",
         updated_at: "2026-06-01T10:00:00+00:00",
         current_phase: { id: "x", name: "Leads Revenda" },
+        labels: [{ name: "RD: Indústria" }],   // o Portal só considera cards com esta etiqueta
         fields: [
             { field: { id: "pci" }, value: "PCI 12" },
             { field: { id: "cnpj" }, value: "12345678000199" }
@@ -650,7 +651,7 @@ describe("pipefyLeads.service — valores válidos (Tarefa 5)", () => {
 
         await createLeadPipefy({ nome: "Cliente Empresa", cnpj: "11222333000144" });
 
-        expect(findContatoPorEmail).toHaveBeenCalledWith("d-K0ZaIH", "cnpj_empresa", "11222333000144");
+        expect(findContatoPorEmail).toHaveBeenCalledWith("empresasRdId", "cnpj_rd", "11222333000144");
         expect(createContato).not.toHaveBeenCalled();
         const camposEnviados = createCard.mock.calls[0][3];
         expect(camposEnviados).toEqual(expect.arrayContaining([{ field_id: "empresa", field_value: ["empresa-existente"] }]));
@@ -670,7 +671,7 @@ describe("pipefyLeads.service — valores válidos (Tarefa 5)", () => {
 
         await createLeadPipefy({ nome: "Cliente Empresa Pontuada", cnpj: "11.222.333/0001-81" });
 
-        expect(findContatoPorEmail).toHaveBeenCalledWith("d-K0ZaIH", "cnpj_empresa", "11222333000181");
+        expect(findContatoPorEmail).toHaveBeenCalledWith("empresasRdId", "cnpj_rd", "11222333000181");
         expect(createContato).not.toHaveBeenCalled();
         const camposEnviados = createCard.mock.calls[0][3];
         expect(camposEnviados).toEqual(expect.arrayContaining([{ field_id: "empresa", field_value: ["empresa-existente"] }]));
@@ -685,9 +686,9 @@ describe("pipefyLeads.service — valores válidos (Tarefa 5)", () => {
 
         await createLeadPipefy({ nome: "Cliente Empresa Nova", cnpj: "99888777000166" });
 
-        expect(createContato).toHaveBeenCalledWith("d-K0ZaIH", "Cliente Empresa Nova", expect.arrayContaining([
-            { field_id: "nome_empresa", field_value: "Cliente Empresa Nova" },
-            { field_id: "cnpj_empresa", field_value: "99888777000166" }
+        expect(createContato).toHaveBeenCalledWith("empresasRdId", "Cliente Empresa Nova", expect.arrayContaining([
+            { field_id: "nome_rd", field_value: "Cliente Empresa Nova" },
+            { field_id: "cnpj_rd", field_value: "99888777000166" }
         ]));
         const camposEnviados = createCard.mock.calls[0][3];
         expect(camposEnviados).toEqual(expect.arrayContaining([{ field_id: "empresa", field_value: ["empresa-nova"] }]));
@@ -1019,21 +1020,6 @@ describe("pipefyLeads.service — CRM BOXER SOLDAS (Fase 5, 18/11/2026)", () => 
         const camposEnviados = createCard.mock.calls[0][3];
         expect(camposEnviados.find(c => c.field_id === "contatos").field_value).toEqual(["contatoRD1"]);
         expect(camposEnviados.find(c => c.field_id === "empresa").field_value).toEqual(["empresaRD1"]);
-    });
-
-    it("createLeadPipefy fora do CRM BOXER SOLDAS continua ligando Empresa/Contato em Empresas/Contatos Comercial", async () => {
-        const createCard = jest.fn().mockResolvedValue({ id: "1" });
-        const findContatoPorEmail = jest.fn().mockResolvedValue(null);
-        const createContato = jest.fn()
-            .mockResolvedValueOnce({ id: "contatoComercial1" })
-            .mockResolvedValueOnce({ id: "empresaComercial1" });
-        jest.doMock("./pipefy.service", () => ({ createCard, allCardsInPipe: jest.fn(), getCard: jest.fn().mockResolvedValue(null), findContatoPorEmail, createContato }));
-        const { createLeadPipefy } = require("./pipefyLeads.service");
-
-        await createLeadPipefy({ nome: "Cliente BMAX", cnpj: "11222333000144", email: "cliente@exemplo.com" });
-
-        expect(findContatoPorEmail).toHaveBeenCalledWith("CCt1tB1F", "e_mail", "cliente@exemplo.com");
-        expect(findContatoPorEmail).toHaveBeenCalledWith("d-K0ZaIH", "cnpj_empresa", "11222333000144");
     });
 
     it("PIPEFY_FASE_PARA_ETAPA_RD cobre as 8 fases do CRM BOXER SOLDAS, incluindo nomes com espaço no final", () => {
@@ -2128,3 +2114,47 @@ describe("rd.leads.service — despacho de tarefas/notas pro Pipefy (Tarefa 7)",
         expect(updateTaskPipefy).toHaveBeenCalledWith({ subject: "x" }, "123");
     });
 });
+
+describe("Nova Negociação: etiqueta do funil (25/11/2026)", () => {
+    beforeEach(() => { jest.resetModules(); jest.unmock("./pipefyLeads.service"); process.env.PIPEFY_MAPA_JSON = JSON.stringify(MAPA_TESTE); });
+    const labels = [{ id: "lbl-ind", name: "RD: Indústria" }, { id: "lbl-bmax", name: "RD: BMAX" }, { id: "lbl-sdr", name: "RD: SDR" }];
+    function carregar(getPipeLabels) {
+        const createCard = jest.fn().mockResolvedValue({ id: "1" });
+        jest.doMock("./pipefy.service", () => ({ createCard, getPipeLabels, allCardsInPipe: jest.fn(), getCard: jest.fn().mockResolvedValue(null), findContatoPorEmail: jest.fn().mockResolvedValue({ id: "x" }), createContato: jest.fn() }));
+        const mod = require("./pipefyLeads.service");
+        if (!mod.createLeadPipefy) throw new Error("exports: " + Object.keys(mod).join(","));
+        return { createCard, createLeadPipefy: mod.createLeadPipefy };
+    }
+    it("revenda que vende sozinha (BOX>REV) cria no CRM com a etiqueta RD: BMAX", async () => {
+        const { createCard, createLeadPipefy } = carregar(jest.fn().mockResolvedValue(labels));
+        await createLeadPipefy({ nome: "Cliente BMAX", cnpj: "11222333000144", role: "revenda", caminho: "BOX>REV", atendimento: "revenda" });
+        expect(createCard.mock.calls[0][0]).toBe("307242360");
+        expect(createCard.mock.calls[0][4]).toEqual(["lbl-bmax"]);
+    });
+    it("Boxer atende (BOX+REV>IND) cria no CRM com a etiqueta RD: Indústria", async () => {
+        const { createCard, createLeadPipefy } = carregar(jest.fn().mockResolvedValue(labels));
+        await createLeadPipefy({ nome: "Cliente IND", cnpj: "11222333000144", role: "revenda", caminho: "BOX+REV>IND", atendimento: "boxer" });
+        expect(createCard.mock.calls[0][4]).toEqual(["lbl-ind"]);
+    });
+    it("lead Indústria do admin/representante (funil industria) leva RD: Indústria", async () => {
+        const { createCard, createLeadPipefy } = carregar(jest.fn().mockResolvedValue(labels));
+        await createLeadPipefy({ nome: "Cliente 12", cnpj: "11222333000144", role: "representante", funil: "industria" });
+        expect(createCard.mock.calls[0][4]).toEqual(["lbl-ind"]);
+    });
+    it("etiqueta inexistente no pipe: falha ALTO e não cria card sem etiqueta", async () => {
+        const { createCard, createLeadPipefy } = carregar(jest.fn().mockResolvedValue([{ id: "lbl-sdr", name: "RD: SDR" }]));
+        await expect(createLeadPipefy({ nome: "Cliente", cnpj: "11222333000144", role: "revenda", caminho: "BOX>REV", atendimento: "revenda" })).rejects.toThrow(/etiqueta/i);
+        expect(createCard).not.toHaveBeenCalled();
+    });
+});
+
+describe("Portal só considera cards com a etiqueta RD: Indústria", () => {
+    it("ehFunilPortal", () => {
+        jest.resetModules(); jest.unmock("./rd.leads.service"); jest.doMock("./pipefy.service", () => ({}));
+        const { ehFunilPortal } = require("./rd.leads.service");
+        expect(ehFunilPortal({ etiquetas: ["RD: Indústria"] })).toBe(true);
+        for (const e of [["RD: BMAX"], ["RD: SDR"], ["RD: Revenda"], [], ["Qualificado"]]) expect(ehFunilPortal({ etiquetas: e })).toBe(false);
+        expect(ehFunilPortal({})).toBe(true);   // leitura do RD (sem etiquetas): o funil já vem filtrado
+    });
+});
+
