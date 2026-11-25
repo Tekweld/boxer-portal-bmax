@@ -74,7 +74,8 @@ async function calcularPerformance({ de = null, ate = null } = {}) {
     // senão o mesmo lead entra duas vezes (id do RD no controle + id do Pipefy no card) e o PCI12 sai inflado.
     const rd2p = new Map();
     for (const d of [...leadsInd, ...leadsBmax]) if (d && d.rd_deal_id) rd2p.set(String(d.rd_deal_id), String(d.id || d._id));
-    const canon = id => { const s = String(id); return rd2p.get(s) || s; };
+    const dupAlias = new Map();   // card ignorado como duplicata -> card mantido
+    const canon = id => { const x = String(id); const p = rd2p.get(x) || x; return dupAlias.get(p) || p; };
     const arquivados = new Set(prazo12a.filter(p => p.arquivado_em).map(p => canon(p.deal_id)));
     // Desfecho gravado no Portal (controle do 12a) vale mais que a inferência pela etapa do RD
     const desfecho12a = new Map(prazo12a.filter(p => p.resultado).map(p => [canon(p.deal_id), p.resultado]));
@@ -87,8 +88,29 @@ async function calcularPerformance({ de = null, ate = null } = {}) {
     };
 
     // Leads = funil Indústria (Portal) + funil BMAX (negociações das revendas), sem cards de teste/fora do escopo.
-    const leads = [...leadsInd, ...leadsBmax.filter(d => d.deal_stage && !motivoForaDoEscopo(getCustomField(d, "MÁQUINA DE INTERESSE"), getCustomField(d, "SEGMENTO DE PRODUTO")))]
+    // Card do funil BMAX-Interno do RD que JÁ foi migrado para o Pipefy (o card do Pipefy guarda o id dele em "ID no RD CRM") não conta de novo.
+    const leadsBmaxSemMigrados = leadsBmax.filter(d => !rd2p.has(String(d.id || d._id)));
+    const leadsBrutos = [...leadsInd, ...leadsBmaxSemMigrados.filter(d => d.deal_stage && !motivoForaDoEscopo(getCustomField(d, "MÁQUINA DE INTERESSE"), getCustomField(d, "SEGMENTO DE PRODUTO")))]
         .filter(d => !ehTeste(d));
+    // Mesma venda registrada em 2 cards (ex.: card da revenda + card da Indústria, copiados 1:1 na migração): mesmo CNPJ + mesma revenda +
+    // mesmo valor (> 0) + mesmo dia de criação = um lead só. Fica o card que já tem controle/escolha do PCI12; os ignorados vão em `duplicados_ignorados`.
+    const ligadosAoControle = new Set([...tracking, ...prazo12a, ...escolhas].map(t => canon(t.deal_id)));
+    const chaveDup = d => {
+        const v = Number(d.amount_total || 0), cnpj = String(getCustomField(d, "CNPJ") || "").replace(/\D/g, "");
+        if (!(v > 0) || cnpj.length < 11) return null;
+        return [cnpj, norm(getCustomField(d, "REVENDA/LOJA") || ""), v.toFixed(2), String(d.created_at || "").slice(0, 10)].join("|");
+    };
+    const unicos = new Map(), semChave = [], duplicadosIgnorados = [];
+    for (const d of leadsBrutos) {
+        const k = chaveDup(d); if (!k) { semChave.push(d); continue; }
+        const ant = unicos.get(k);
+        if (!ant) { unicos.set(k, d); continue; }
+        const mantem = ligadosAoControle.has(String(d.id || d._id)) && !ligadosAoControle.has(String(ant.id || ant._id)) ? d : ant, descarta = mantem === d ? ant : d;
+        unicos.set(k, mantem);
+        dupAlias.set(String(descarta.id || descarta._id), String(mantem.id || mantem._id));
+        duplicadosIgnorados.push({ mantido: String(mantem.id || mantem._id), ignorado: String(descarta.id || descarta._id), lead: mantem.name, valor: Number(mantem.amount_total) });
+    }
+    const leads = [...semChave, ...unicos.values()];
     const porId = new Map();
     for (const d of leads) porId.set(d.id || d._id, d);
 
@@ -258,6 +280,7 @@ async function calcularPerformance({ de = null, ate = null } = {}) {
         historico_pci12: { rastreio_48h_desde: "2026-07-30", escolhas_e_assumidos_desde: "2026-09-10" },
         linhas: comAtividade,
         sem_revenda: semRevenda,
+        duplicados_ignorados: duplicadosIgnorados,
         prazo12a: prazoLista.sort((a, b) => b.dias - a.dias)
     };
 }
