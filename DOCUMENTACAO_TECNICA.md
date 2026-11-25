@@ -288,7 +288,7 @@ Código: `src/services/orcamento.service.js`; `createNote` em `rd.leads.service.
 
 **Prazos sem fim de semana (14/10/2026):** os prazos de 24h/48h do PCI12 pendente contam só segunda a sexta (horário de Brasília), via `src/services/prazoUtil.service.js` (`horasUteisEntre`). Sábado e domingo não contam; **feriados não são descontados**. O prazo de 60 dias do PCI12a **continua em dias corridos**. `detectado_em`/`assumido_em` são `timestamp without time zone` gravados em UTC pelo `now()` do Postgres e lidos em UTC pela Vercel — ao rodar scripts locais em UTC-3 o valor lido aparece 3h adiantado (só leitura local; use `TZ=UTC`).
 
-Todas autenticadas via header `Authorization: Bearer <CRON_SECRET>`. Vercel Hobby só permite 1 `schedule` por entrada rodando 1x/dia — múltiplos horários no mesmo cron = múltiplas entradas em `vercel.json`, não uma única com "várias vezes ao dia".
+Todas autenticadas via header `Authorization: Bearer <CRON_SECRET>`. Vercel Hobby só permite 1 `schedule` por entrada rodando 1x/dia — múltiplos horários no mesmo cron = múltiplas entradas em `vercel.json`, não uma única com "várias vezes ao dia". **O horário no Hobby é impreciso:** o cron dispara em qualquer momento dentro da hora programada (observado: 11:00 UTC rodando às 11:57) e, em 25/11/2026, algumas chamadas das 11h-13h UTC não aconteceram. Por isso o auditor trata rodada ausente como achado e a decisão de mover crons críticos para um agendador com horário exato depende do que se observar em 26/11.
 
 ## 10. Papel no ecossistema BMax
 
