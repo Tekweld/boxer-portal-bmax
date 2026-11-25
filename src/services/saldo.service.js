@@ -315,14 +315,14 @@ async function getCreditosExpirandoRep(username) {
 // especificamente, não deve somar junto a comissão de representante/vendedor
 // interno creditada pro mesmo lead_id.
 // `aliasRd`: { idDoPipefy: idDoRd } — créditos antigos foram lançados sob o id do RD; o card do Pipefy soma os dois
-async function getCreditosPorLeads(leadIds, aliasRd = {}) {
+async function getCreditosPorLeads(leadIds, aliasRd = {}, tipoAgente = 'revenda') {
     if (!leadIds.length) return {};
     const todos = [...new Set([...leadIds, ...Object.values(aliasRd).filter(Boolean)].map(String))];
     const rows = await sequelize.query(
         `SELECT lead_id, SUM(valor) as total FROM bmax_transacoes
-         WHERE tipo = 'credito' AND tipo_agente = 'revenda' AND lead_id IN (:leadIds)
+         WHERE tipo = 'credito' AND tipo_agente = :tipoAgente AND lead_id IN (:leadIds)
          GROUP BY lead_id`,
-        { replacements: { leadIds: todos }, type: QueryTypes.SELECT }
+        { replacements: { leadIds: todos, tipoAgente }, type: QueryTypes.SELECT }
     );
     const bruto = {};
     for (const r of rows) bruto[r.lead_id] = Number(r.total);

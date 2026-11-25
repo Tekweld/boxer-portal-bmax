@@ -221,12 +221,8 @@ function render() {
   if (session.role === "adm") {
     // Admin: o Cashback Total é o SALDO CREDITADO do extrato (mesma fonte da aba Extrato de Comissões e da tela da revenda), não uma estimativa
     atualizarCashbackAdmin(rev);
-  } else if (session.role !== "revenda") {
-    const cashbackTotal = data.reduce((total, card) => total + (card.cashback || 0), 0);
-    const cashValEl = $("statCashbackVal");
-    cashValEl.textContent = `R$ ${cashbackTotal.toLocaleString("pt-BR", {minimumFractionDigits:2, maximumFractionDigits:2})}`;
-    cashValEl.className = cashbackTotal > 0 ? "cashback-positive" : "";
   }
+  // Revenda e representante: o valor vem do saldo real do extrato (cashback.js → updateDashCashback). Nunca estimativa.
   const cashLabel = $("statCashback")?.querySelector(".k");
   if (cashLabel) cashLabel.textContent = session.role === "representante" ? "Comissao Total" : "Cashback Total";
   // Funcionário Boxer não tem carteira de cashback/comissão: esconde o card (e o atalho para o extrato)
@@ -382,7 +378,7 @@ function renderGrid(data) {
       ${l.prazo48hExpirou ? `<div style="font-size:11px;color:var(--muted);margin:-4px 0 6px;">Prazo de 48h úteis expirou — seguiu como Boxer vende</div>` : ""}
       <div class="lead-foot">
         <span style="font-size:11px;color:var(--muted);font-weight:800;">${esc(l.criadoem)}</span>
-        <div class="${cbClass}">R$ ${cb.toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2})}</div>
+        <div class="${cbClass}" ${l.cashbackPendente && !cb ? 'title="Venda concluída: o crédito entra no extrato na próxima apuração do robô"' : ""}>${l.cashbackPendente && !cb ? "a creditar" : "R$ " + cb.toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2})}</div>
       </div>
       ${((session.role === "revenda" && (normalizePci(l.pci) === "PCI12A" || pcixCard)) || (session.role === "adm" && pcixCard)) && !l.fechado ? `
       <div class="lead-resultado" data-id="${esc(l.id)}">

@@ -389,17 +389,7 @@ async function refreshCashback() {
 }
 
 function updateDashCashback() {
-    if (session.role === "representante") {
-        const saldoEl = $("statSaldoRevendas");
-        const saldoVal = $("statSaldoRevendasVal");
-        if (saldoEl) saldoEl.classList.remove("hidden");
-        if (saldoVal) {
-            saldoVal.textContent = `R$ ${fmtBRL(CASHBACK_SALDO)}`;
-            saldoVal.className = CASHBACK_SALDO > 0 ? "cashback-positive" : "";
-        }
-        return;
-    }
-    if (session.role !== "revenda") return;
+    if (session.role !== "revenda" && session.role !== "representante") return;   // revenda e representante: só o saldo real do extrato
     const el = $("statCashbackVal");
     if (!el) return;
     el.textContent = `R$ ${fmtBRL(CASHBACK_SALDO)}`;

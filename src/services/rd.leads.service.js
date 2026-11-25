@@ -989,7 +989,7 @@ async function getLeadNotes(deal_id) {
 const estados = ESTADOS;
 const estagios = RD_STAGES;
 
-async function mapDealToCard(deal, role, creditosMap) {
+async function mapDealToCard(deal, role, creditosMap, creditosRepMap) {
     const stageId = deal.deal_stage ? deal.deal_stage.id : null;
     const org = deal.organization || {};
     const orgCfs = {};
@@ -1024,6 +1024,7 @@ async function mapDealToCard(deal, role, creditosMap) {
     // impressão de "essa venda não gerou nada" quando na verdade é dado faltando.
     let cashback = 0;
     let cashbackFaltando = false;
+    let cashbackPendente = false;
     let cashbackRevenda = null;
     let cashbackRevendaFaltando = false;
     const dealId = deal.id || deal._id || "";
@@ -1033,23 +1034,23 @@ async function mapDealToCard(deal, role, creditosMap) {
         const valorTotal = Number(deal.amount_total || 0);
         const responsavelRdCard = (deal.user && deal.user.name) || "";
 
+        // REGRA (André, 25/11/2026): NUNCA mostrar estimativa. Só é comissão o que já foi CREDITADO no extrato (venda efetivada concluída).
+        // Venda concluída que ainda não foi creditada aparece como "a creditar" (cashbackPendente) — o valor só existe depois do crédito.
+        // As consultas de regra abaixo só servem para avisar que falta PCI/Classe (cashbackFaltando), não para calcular valor.
+        const creditado = (mapa) => (mapa && dealId in mapa) ? Number(mapa[dealId]) : null;
         if (role === "revenda" || role === "adm") {
-            if (creditosMap && dealId in creditosMap) {
-                cashback = creditosMap[dealId];
-            } else {
-                const pct = await resolverComissao(pci, "Revenda", classeCashback);
-                if (pct === null) cashbackFaltando = true;
-                else cashback = Number((valorTotal * pct).toFixed(2));
-            }
+            const c = creditado(creditosMap);
+            cashback = c === null ? 0 : c;
+            if (c === null && valorTotal > 0) cashbackPendente = true;
+            if (c === null && (await resolverComissao(pci, "Revenda", classeCashback)) === null) cashbackFaltando = true;
         } else if (role === "representante") {
             const excecao = isExcecaoRepresentante(representante, responsavelRdCard);
-            const pctRep = await resolverComissao(pci, excecao ? "RepExcecao" : "Rep", classeCashback);
-            if (pctRep === null) cashbackFaltando = true;
-            else cashback = Number((valorTotal * pctRep).toFixed(2));
-
-            const pctRevenda = await resolverComissao(pci, "Revenda", classeCashback);
-            if (pctRevenda === null) cashbackRevendaFaltando = true;
-            else cashbackRevenda = Number((valorTotal * pctRevenda).toFixed(2));
+            const cRep = creditado(creditosRepMap), cRev = creditado(creditosMap);
+            cashback = cRep === null ? 0 : cRep;
+            cashbackRevenda = cRev === null ? 0 : cRev;
+            if (cRep === null && valorTotal > 0) cashbackPendente = true;
+            if (cRep === null && (await resolverComissao(pci, excecao ? "RepExcecao" : "Rep", classeCashback)) === null) cashbackFaltando = true;
+            if (cRev === null && (await resolverComissao(pci, "Revenda", classeCashback)) === null) cashbackRevendaFaltando = true;
         }
     }
 
@@ -1107,6 +1108,7 @@ async function mapDealToCard(deal, role, creditosMap) {
         tag,
         cashback,
         cashbackFaltando,
+        cashbackPendente,
         cashbackRevenda,
         cashbackRevendaFaltando,
         tarefa,
@@ -1354,6 +1356,7 @@ async function buildLeadsCards(role, identifier, grupo) {
     const leadIds = leads.map(d => d.id || d._id).filter(Boolean);
     const aliasRd = {}; for (const d of leads) if (d.rd_deal_id) aliasRd[String(d.id || d._id)] = String(d.rd_deal_id);
     const creditosMap = await getCreditosPorLeads(leadIds, aliasRd);
+    const creditosRepMap = await getCreditosPorLeads(leadIds, aliasRd, 'representante');
 
     // Leads cujo prazo de 48h (PCI12) expirou e viraram 12b sozinhos: o card mostra um
     // aviso discreto, sem pedir ação da revenda.
@@ -1361,7 +1364,7 @@ async function buildLeadsCards(role, identifier, grupo) {
     try { prazoExpirado = await require("./pci12Tracking.service").getDealsComPrazo48Expirado(leadIds); }
     catch (e) { logger.error({ message: "Falha ao consultar prazos 48h expirados", error: e.message }); }
 
-    const cards = await Promise.all(leads.map(lead => mapDealToCard(lead, role, creditosMap)));
+    const cards = await Promise.all(leads.map(lead => mapDealToCard(lead, role, creditosMap, creditosRepMap)));
     for (const c of cards) c.prazo48hExpirou = prazoExpirado.has(c.id);
 
     // Admin: marca lead cuja revenda está escrita no RD mas nenhum login do Portal enxerga (alerta na tela)
