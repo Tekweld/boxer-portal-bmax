@@ -32,10 +32,10 @@ function lerCard(deal, get) {
     };
 }
 
-function criarContexto({ dryRun }) {
+function criarContexto({ dryRun, rodada = "manual" }) {
     let cache = null;
     return {
-        dryRun, avisos: [],
+        dryRun, rodada, avisos: [],
         async cards() {
             if (!cache) {
                 const rd = require("./rd.leads.service");
@@ -52,6 +52,10 @@ function criarContexto({ dryRun }) {
             async creditados() {
                 const rows = await sequelize.query(`SELECT DISTINCT lead_id FROM bmax_transacoes WHERE tipo = 'credito' AND lead_id IS NOT NULL`, { type: QueryTypes.SELECT });
                 return new Set(rows.map(r => String(r.lead_id)));
+            },
+            async ultimaRodadaAgendada() {
+                const r = await sequelize.query(`SELECT iniciado_em FROM bmax_auditoria_execucoes WHERE rodada <> 'manual' ORDER BY iniciado_em DESC LIMIT 1`, { type: QueryTypes.SELECT });
+                return r[0] ? new Date(r[0].iniciado_em) : null;
             },
             async mudancasRecentes() {
                 return sequelize.query(
@@ -276,6 +280,23 @@ async function checarPci12aSemResposta(ctx) {
     }));
 }
 
+// Rodadas agendadas (manhã 09h UTC, tarde 16h UTC): o intervalo normal entre duas é de 6 a 18h. Mais de 20h desde a rodada anterior = uma rodada
+// não aconteceu (a Vercel pode pular cron). Só vale para rodada agendada; a manual e a simulação não entram. Some sozinho na rodada seguinte.
+const LIMITE_RODADA_PERDIDA_H = 20;
+async function checarRodadaPerdida(ctx) {
+    if (ctx.dryRun || ctx.rodada === "manual") return [];
+    const ultima = await ctx.db.ultimaRodadaAgendada();
+    if (!ultima) return [];                       // primeira rodada agendada da história
+    const horas = (Date.now() - ultima.getTime()) / 3600000;
+    if (horas <= LIMITE_RODADA_PERDIDA_H) return [];
+    return [{
+        chave: `auditor_rodada_perdida:${hojeBRT()}`, grupo: "robos", checagem: "auditor_rodada_perdida", severidade: "media",
+        titulo: `O auditor ficou ${Math.floor(horas)}h sem rodar (a rodada anterior foi em ${ultima.toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })}): pelo menos uma rodada não aconteceu`,
+        detalhe: { ultima_rodada: ultima.toISOString(), horas: Math.floor(horas) },
+        acao: "Provável pulo do cron da Vercel. Se repetir, mover o agendamento para um serviço com horário exato.",
+    }];
+}
+
 // `cobre`: os tipos de achado (campo `checagem`) que esta função consegue dar como resolvidos quando roda sem erro e não os encontra mais.
 const CHECAGENS = [
     { id: "saldo_vs_razao", grupo: "dinheiro", cobre: ["saldo_vs_razao"], roda: checarSaldoVsRazao },
@@ -285,6 +306,7 @@ const CHECAGENS = [
     { id: "pci_x_produto", grupo: "cards", cobre: ["pci_x_produto"], roda: checarPciXProduto },
     { id: "mudancas_campos", grupo: "cards", cobre: ["mudanca_campos"], roda: checarMudancasCampos },
     { id: "pci12a_sem_resposta", grupo: "prazos", cobre: ["pci12a_sem_resposta"], roda: checarPci12aSemResposta },
+    { id: "rodada_perdida", grupo: "robos", cobre: ["auditor_rodada_perdida"], roda: checarRodadaPerdida },
 ];
 
 // ─── Comparação com o que já estava aberto (função pura, testada sem banco) ───────────────────────────────
@@ -318,6 +340,7 @@ const TEMAS = [
     ["saldo_vs_razao", "1. Saldo diferente do extrato"],
     ["creditos_anormais", "2. Créditos anormais nas últimas 24h"],
     ["auditor_checagem_falhou", "3. Checagens do auditor que falharam"],
+    ["auditor_rodada_perdida", "3. Rodada do auditor que não aconteceu"],
     ["robo_sem_sucesso", "4. Robôs sem sucesso no prazo"],
     ["robo_ultima_falhou", "5. Robôs com a última execução falha"],
     ["venda_sem_dados", "6. Vendas com dados faltando"],
@@ -379,7 +402,7 @@ function montarEmail({ novos, lembretes, resolvidos, abertosTotal, atuais = [] }
 // dryRun: roda as checagens e devolve o resultado, sem gravar nada e sem enviar e-mail.
 async function rodarAuditoria({ rodada = "manual", dryRun = false } = {}) {
     const t0 = Date.now();
-    const ctx = criarContexto({ dryRun });
+    const ctx = criarContexto({ dryRun, rodada });
     const atuais = [], checagensOk = [], tempos = [];
     let erros = 0;
 
@@ -470,5 +493,5 @@ async function rodarAuditoria({ rodada = "manual", dryRun = false } = {}) {
 
 module.exports = {
     rodarAuditoria, reconciliar, montarEmail, CHECAGENS, REAVISO_DIAS,
-    checarVendaSemDados, checarPciXProduto, checarMudancasCampos, checarPci12aSemResposta,
+    checarRodadaPerdida, checarVendaSemDados, checarPciXProduto, checarMudancasCampos, checarPci12aSemResposta,
 };

@@ -158,6 +158,22 @@ describe("checagens de cards (com contexto falso)", () => {
     });
 });
 
+describe("rodada do auditor que não aconteceu", () => {
+    const { checarRodadaPerdida } = require("./auditor.service");
+    const ctx = (rodada, horasAtras, dryRun = false) => ({ rodada, dryRun, db: { ultimaRodadaAgendada: async () => horasAtras == null ? null : new Date(Date.now() - horasAtras * 3600000) } });
+    test("intervalo normal (17h) não acusa; 30h acusa", async () => {
+        expect(await checarRodadaPerdida(ctx("manha", 17))).toEqual([]);
+        const r = await checarRodadaPerdida(ctx("tarde", 30));
+        expect(r).toHaveLength(1);
+        expect(r[0]).toMatchObject({ checagem: "auditor_rodada_perdida", severidade: "media" });
+    });
+    test("primeira rodada agendada, rodada manual e simulação nunca acusam", async () => {
+        expect(await checarRodadaPerdida(ctx("manha", null))).toEqual([]);
+        expect(await checarRodadaPerdida(ctx("manual", 30))).toEqual([]);
+        expect(await checarRodadaPerdida(ctx("manha", 30, true))).toEqual([]);
+    });
+});
+
 describe("ordem dos temas no e-mail", () => {
     test("dinheiro, robôs, vendas sem dados, mudanças, PCI x produto e cobrança, nessa ordem, e gravidade alta antes", () => {
         const mk = (checagem, sev, t) => ({ chave: checagem + t, checagem, grupo: "x", severidade: sev, titulo: t });

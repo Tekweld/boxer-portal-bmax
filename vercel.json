@@ -94,6 +94,14 @@
       "schedule": "0 20 * * *"
     },
     {
+      "path": "/api/cron/auditor?rodada=manha",
+      "schedule": "0 9 * * *"
+    },
+    {
+      "path": "/api/cron/auditor?rodada=tarde",
+      "schedule": "0 16 * * *"
+    },
+    {
       "path": "/api/cron/vigia-robos",
       "schedule": "30 22 * * *"
     }
