@@ -8,6 +8,8 @@ metadata:
   modified: 2026-11-05T19:00:47.098Z
 ---
 
+> **HISTÓRICO (até 05/11/2026) — não é mais a lista de pendências.** A lista atual está em `Documentação/Registro_Mudancas_Portal_BMax_23-25-11-2026.md` §6 e resumida em `project_bmax_estado_2026_11_25.md`. Vários itens abaixo já foram entregues ou mudaram com a migração para o Pipefy (23/11).
+
 André pediu (15 e 28/10/2026): **me lembrar das pendências a cada sessão até concluirmos** e dizer o que ele precisa fazer. Última atualização: 28/10/2026 (fim do dia).
 
 ## ABERTO — depende do André

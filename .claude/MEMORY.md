@@ -1,3 +1,5 @@
+> **ÍNDICE ANTIGO (28/10/2026).** O índice atual do BMax é `.claude/memory/MEMORY.md`; o estado real do projeto em 25/11/2026 está em `.claude/memory/project_bmax_estado_2026_11_25.md`. Onde este arquivo divergir, o de 25/11 vence.
+
 - [GVX manual deploy](feedback_gvx_manual_deploy.md) — Netlify auto-deploy is unreliable for boxer-gvx; always run `netlify deploy --prod` (Claude runs it directly once confirmed); watch for truncated-file deploy hazard.
 - [Boxer projects inventory](boxer_projects_inventory.md) — GVX, BMax, Portal BMax: real repo/Supabase/hosting per project (docs are often stale/wrong).
 - [Supabase MCP wrong account](supabase_mcp_wrong_account.md) — the chat's Supabase MCP connector is on the wrong account; use the `supabase` CLI for Boxer projects instead.
@@ -10,7 +12,7 @@
 - [BMax Graphify knowledge graph](project_bmax_graphify.md) — 527 nodes, 935 edges, 26 communities; reduces token cost ~70x; open `.claude/graph/graphify-out/graph.html` to explore.
 - [BMax filiais](project_bmax_filiais.md) — Revendas support multiple branch locations; main office auto-created, additional branches can be managed via admin UI or API.
 - [BMax email setup](project_bmax_email_setup.md) — Transactional email via Resend working end-to-end; currently in spam (needs SPF/DKIM/DMARC DNS records).
-- [BMax Supabase routing](feedback_bmax_supabase_keys.md) — BMax uses two Supabase projects (boxer-sistemas + boxer-bmax); use sbBmax() for revenda data, sbSistemas() for other roles to avoid schema cache errors.
+- [BMax Supabase routing](feedback_bmax_supabase_keys.md) — BMax uses two Supabase projects (boxer-sistemas + boxer-bmax). `comercial_revendas_bmax` lives in **boxer-sistemas**: use `sbSistemas`/`sbSistemasAnon`, NEVER `sbBmax` (corrigido em 25/11/2026 — este índice dizia o contrário e a regra já foi escrita errada 3 vezes; confirme com consulta ao vivo).
 - [BMax CEP auto-fill](project_bmax_cep_autofill.md) — Revenda/filial registration starts with CEP, auto-fills address via ViaCEP API; readonly fields dark background shows auto-filled status.
 - [BMax validations & security improvements](project_bmax_validations_improvements.md) — 8 melhorias implementadas: (Phase 1) permissões filial + validações CNPJ/email/CEP/telefone; (Phase 2) audit log + rate limiting + CEP duplicado por revenda. Tudo em produção.
 - [BMax audit logging & rate limiting](project_bmax_audit_ratelimit.md) — Full audit trail (who/when/IP/changes), rate limits (login 10/15min, users 20/15min, filiais 20/15min), CEP duplicate validation per revenda.

@@ -8,6 +8,8 @@ metadata:
   originSessionId: 87fa48d5-0558-4034-9609-8fbcde3f3b32
 ---
 
+> **HISTÓRICO (14–17/09/2026) — SUPERADO.** Regras vigentes: `DOCUMENTACAO_TECNICA.md` §6 e `project_bmax_estado_2026_11_25.md`. Hoje o prazo é de **48 horas úteis** (não corridas), existe lembrete às 24h úteis, o 12a tem prazo de 60 dias corridos com desfecho gravado no Portal, e o PCI X tem fluxo próprio. O que está abaixo descreve só o começo da funcionalidade.
+
 ## Seletor de caminho PCI12 liberado pra representante/admin (14/09/2026, commit `9205d9c`)
 
 Antes só `role==="revenda"` podia escolher o caminho (BOX>REV / BOX+REV>IND) — checagem em 3 pontos: middleware `authorize(["revenda"])` na rota `POST /api/leads/pci` (`leads.routes.js`), checagem redundante no controller (`leads.controller.js`), e gate no front (`leads.js`, condição de exibição do seletor no card). Os 3 foram atualizados pra aceitar `["revenda", "representante", "adm"]`.
