@@ -413,3 +413,17 @@ Todas autenticadas via header `Authorization: Bearer <CRON_SECRET>`. Vercel Hobb
 - Backfill em 17/11/2026: 4 perdidos pela revenda, 1 vendido (Alpha Industrial) e 1 vencido (Departamento Compras — arquivado pelo robô nesse mesmo dia).
 
 - Robôs — garantia contra 401 silencioso (17/11/2026): o 401 visto no teste do vigia foi só o segredo da máquina local (diferente do de produção); em produção o `CRON_SECRET` existe na Vercel e o robô `recalcular-comissoes` rodou com HTTP 200 às 15:33 UTC. Para nunca passar em silêncio: o monitor agora trata 401/403 recebido do agendador da Vercel (user-agent `vercel-cron`) como FALHA e manda e-mail ("o CRON_SECRET que a Vercel envia não confere com o do servidor"); 401 de outros chamadores segue ignorado. O próprio `vigia-robos` passou a ser registrado e é vigiado: se não rodar com sucesso há mais de 50h, o próximo robô que rodar avisa por e-mail.
+
+## Atualização 23-25/11/2026 — Pipefy em produção, cashback por grupo, PCI X
+
+Detalhe completo em `Documentação/Registro_Mudancas_Portal_BMax_23-25-11-2026.md` (pasta do projeto). Pontos técnicos:
+
+- **Dois ids por lead.** Id do Pipefy (numérico) é o principal; o do RD fica em `deal.rd_deal_id` (campo "ID no RD CRM"). Tabelas antigas (`bmax_transacoes.lead_id`, `bmax_pci12_tracking`, `bmax_pci12a_prazo`, AuditLogs) guardam o id do RD. Todo consumidor deve casar pelos dois (ver `comissao.service.recalcularComissoes`, `performanceRevendas` → `canon()`, `admin.routes` dealMap, `getNomesDeLeads`).
+- **Robô de comissões** é idempotente por lead+agente somando créditos sob os dois ids; aceita `{ dryRun: true }`.
+- **Cashback por grupo:** `codigoUnico.nomeUnico(nome)` devolve o nome do grupo quando a loja pertence a um; `saldo.service` grava sempre pela carteira do grupo; `debitarCashbackGrupo` reparte o saque.
+- **Novas tabelas:** `bmax_lead_andamento` (status/perda/venda; coluna `lead_nome`), `bmax_pcix_prazo`.
+- **Novos robôs:** `/api/cron/pcix-prazo` (30 dias, alertas 15/25/30 e semanal). `roboMonitor.verificarCreditosAnormais` roda depois de `recalcular-comissoes`, `cashback-nf` e `vigia-robos` (limite 40 créditos ou R$ 25 mil em 24 h; e-mail só aos administradores).
+- **Novos endpoints:** `POST /api/leads/andamento`, `GET /api/leads/andamento/:dealId`, `GET /api/leads/andamento/relatorio/perdas`; `POST /api/leads/resultado` agora exige motivo no "Perdido" e aceita admin só nos PCI X.
+- **Cards:** campos novos `andamento`, `pcix`, `quemVende`, `revendaGrupo`, `rdDealId`.
+- **Pipefy:** mapeamento Vendido/Perdido da revenda → fases do CRM BOXER SOLDAS em `pipefyConstants.PREFERENCIA_ETAPA_RD_PARA_FASE`; "PCI X" em `PIPEFY_PCI_OPCOES`; `updatePhaseField` com `label: String!`.
+- **Token de administrador do Pipefy** (`PIPEFY_TOKEN_ADMIN`) só no `.env` local; scripts em `scripts/codigo-unico/pipefy_*.js`.

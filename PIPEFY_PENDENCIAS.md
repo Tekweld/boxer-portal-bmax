@@ -499,3 +499,11 @@ por construção — a classe de bug que esse cron corrige simplesmente não
 ocorre no desenho atual da integração. `fetchAllDealsAllPipelines`
 continua RD-only (ver "Fica sempre no RD" acima) só porque esse cron
 continua sendo RD-only — não é mais uma pendência em aberto.
+
+## Atualização 25/11/2026
+
+- Pipefy é o CRM em produção; só o pipe **CRM BOXER SOLDAS** é usado. O id do RD fica em "ID no RD CRM" (`deal.rd_deal_id`).
+- Campo "Revenda/Loja" unificado com os nomes únicos (75 opções). Representante: limpeza parcial, ver `Documentação/Registro_Mudancas_Portal_BMax_23-25-11-2026.md`.
+- **Pendente:** o `PIPEFY_TOKEN` da Vercel é de usuário "member" (sem permissão para editar opções de campo): tornar administrador ou trocar por token de administrador/usuário de serviço.
+- **Pendente:** conectar o "Motivo de perda" do Portal ao campo "Motivo de perda" do Pipefy.
+- **Pendente:** juntar/encerrar cards duplicados de verdade no CRM (mesma venda em 2 cards, herdados do RD).
