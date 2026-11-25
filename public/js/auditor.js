@@ -17,12 +17,28 @@ function auditorErroAmigavel(e) {
         : (e.message || "Erro ao consultar o auditor");
 }
 
+// Mesma ordem de temas do e-mail (auditor.service.js)
+const AUDITOR_TEMAS = ["saldo_vs_razao", "creditos_anormais", "auditor_checagem_falhou", "robo_sem_sucesso", "robo_ultima_falhou", "venda_sem_dados", "mudanca_campos", "pci_x_produto", "pci12a_sem_resposta"];
+const AUDITOR_SEV_ORDEM = { alta: 0, media: 1, baixa: 2 };
+const auditorOrdenar = lista => lista.slice().sort((a, b) => {
+    const ta = AUDITOR_TEMAS.indexOf(a.checagem), tb = AUDITOR_TEMAS.indexOf(b.checagem);
+    return (ta < 0 ? 99 : ta) - (tb < 0 ? 99 : tb) || (AUDITOR_SEV_ORDEM[a.severidade] ?? 3) - (AUDITOR_SEV_ORDEM[b.severidade] ?? 3);
+});
+
+// Achados que listam cards (PCI12a sem resposta): mostra cada card com link para abrir no Pipefy
+function auditorCards(a) {
+    const cards = a.detalhe && Array.isArray(a.detalhe.cards) ? a.detalhe.cards : [];
+    if (!cards.length) return "";
+    return `<details style="margin-top:4px"><summary style="cursor:pointer">ver os ${cards.length} card(s)</summary><ul style="margin:4px 0 0;padding-left:18px">${cards.map(c =>
+        `<li>${/^\d+$/.test(String(c.id)) ? `<a href="https://app.pipefy.com/open-cards/${esc(c.id)}" target="_blank" rel="noopener">${esc(c.nome)}</a>` : esc(c.nome)} · ${esc(c.dias)} dias · rep.: ${esc(c.representante)}</li>`).join("")}</ul></details>`;
+}
+
 function auditorLinhaAchado(a) {
     const link = a.link && /^https?:\/\//.test(a.link) ? ` <a href="${esc(a.link)}" target="_blank" rel="noopener">abrir</a>` : "";
     return `<tr>
         <td style="white-space:nowrap;color:${AUDITOR_SEV_COR[a.severidade] || "inherit"};font-weight:700">${esc((a.severidade || "").toUpperCase())}</td>
         <td>${esc(AUDITOR_GRUPO[a.grupo] || a.grupo)}</td>
-        <td>${esc(a.titulo)}${a.acao_sugerida || a.acao ? `<div style="color:var(--muted);font-size:12px;margin-top:2px">O que fazer: ${esc(a.acao_sugerida || a.acao)}</div>` : ""}${link}</td>
+        <td>${esc(a.titulo)}${a.acao_sugerida || a.acao ? `<div style="color:var(--muted);font-size:12px;margin-top:2px">O que fazer: ${esc(a.acao_sugerida || a.acao)}</div>` : ""}${link}${auditorCards(a)}</td>
         <td style="white-space:nowrap">${a.primeira_vez ? auditorData(a.primeira_vez) : "—"}</td>
         <td style="white-space:nowrap">${a.resolvido_em ? auditorData(a.resolvido_em) : (a.ultimo_aviso_em ? auditorData(a.ultimo_aviso_em) : "nunca")}</td>
     </tr>`;
@@ -30,7 +46,7 @@ function auditorLinhaAchado(a) {
 
 function auditorTabela(achados, resolvidos) {
     if (!achados.length) return `<p style="color:var(--muted)">${resolvidos ? "Nenhum achado resolvido ainda." : "Nenhum achado aberto. Tudo certo na última rodada."}</p>`;
-    return `<table class="extrato-table"><thead><tr><th>Gravidade</th><th>Área</th><th>Achado</th><th>Desde</th><th>${resolvidos ? "Resolvido em" : "Último aviso"}</th></tr></thead><tbody>${achados.map(auditorLinhaAchado).join("")}</tbody></table>`;
+    return `<table class="extrato-table"><thead><tr><th>Gravidade</th><th>Área</th><th>Achado</th><th>Desde</th><th>${resolvidos ? "Resolvido em" : "Último aviso"}</th></tr></thead><tbody>${(resolvidos ? achados : auditorOrdenar(achados)).map(auditorLinhaAchado).join("")}</tbody></table>`;
 }
 
 async function carregarAuditor() {

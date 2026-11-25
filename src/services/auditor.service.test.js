@@ -146,13 +146,27 @@ describe("checagens de cards (com contexto falso)", () => {
 
     test("e-mail traz o bloco de cobrança por representante e por revenda, e corta listas longas", () => {
         const cobranca = { chave: "p:Luitex", grupo: "prazos", checagem: "pci12a_sem_resposta", severidade: "media", titulo: "Luitex",
-            detalhe: { revenda: "Luitex", total: 3, maisAntigoDias: 55, representantes: { Victor: 2, Caio: 1 } } };
+            detalhe: { revenda: "Luitex", total: 3, maisAntigoDias: 55, representantes: { Victor: 2, Caio: 1 },
+                cards: [{ id: "11", nome: "Card A", dias: 55, representante: "Victor" }, { id: "12", nome: "Card B", dias: 10, representante: "Victor" }, { id: "13", nome: "Card C", dias: 5, representante: "Caio" }] } };
         const muitos = Array.from({ length: 20 }, (_, i) => ach(`v${i}`, "venda_sem_dados", { grupo: "cards" }));
         const { html } = montarEmail({ novos: [cobranca, ...muitos], lembretes: [], resolvidos: [], abertosTotal: 21, atuais: [cobranca] });
         expect(html).toContain("Por representante");
         expect(html).toContain("Victor</strong>: 2 card(s)");
+        expect(html).toContain("https://app.pipefy.com/open-cards/11");   // cada card da cobrança tem link
         expect(html).toContain("perto dos 60 dias");
         expect(html).toContain("e mais 8 do mesmo tipo");
+    });
+});
+
+describe("ordem dos temas no e-mail", () => {
+    test("dinheiro, robôs, vendas sem dados, mudanças, PCI x produto e cobrança, nessa ordem, e gravidade alta antes", () => {
+        const mk = (checagem, sev, t) => ({ chave: checagem + t, checagem, grupo: "x", severidade: sev, titulo: t });
+        const { html } = montarEmail({ novos: [mk("pci_x_produto", "media", "P"), mk("venda_sem_dados", "media", "VM"), mk("venda_sem_dados", "alta", "VA"), mk("robo_sem_sucesso", "alta", "R"), mk("saldo_vs_razao", "alta", "S")], lembretes: [], resolvidos: [], abertosTotal: 5 });
+        const pos = t => html.indexOf(t);
+        expect(pos("Saldo diferente")).toBeLessThan(pos("Robôs sem sucesso"));
+        expect(pos("Robôs sem sucesso")).toBeLessThan(pos("Vendas com dados faltando"));
+        expect(pos("Vendas com dados faltando")).toBeLessThan(pos("PCI que não combina"));
+        expect(pos("VA")).toBeLessThan(pos("VM"));
     });
 });
 

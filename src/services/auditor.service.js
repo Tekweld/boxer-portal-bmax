@@ -15,7 +15,6 @@ const REAVISO_DIAS = 7;
 const DIAS_MUDANCA_ABERTA = 3;      // uma mudança de PCI/produto/classe fica "aberta" por 3 dias e some sozinha
 const LIMITE_LINHAS_EMAIL = 12;     // por tipo de checagem; o resto fica na aba Auditor diário
 const TOLERANCIA_SALDO = 0.01;
-const ROTULO_GRUPO = { dinheiro: "Dinheiro (razão e créditos)", cards: "Cards e ids", prazos: "Prazos e cobrança", pessoas: "Cadastro e pessoas", robos: "Robôs" };
 
 const brl = x => "R$ " + Number(x).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const hojeBRT = () => new Date().toLocaleDateString("sv-SE", { timeZone: "America/Sao_Paulo" });
@@ -314,17 +313,37 @@ function reconciliar(atuais, abertos, checagensOk, agora = new Date(), reavisoDi
 const esc = s => String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 const COR_SEV = { alta: "#e30613", media: "#e8890c", baixa: "#6b7280" };
 
-// Cobrança do PCI12a: quem cobrar e de quem. Uma lista por representante (revendas dele) e outra por revenda.
+// Tema = tipo de achado. A ordem é a do e-mail e da aba: dinheiro primeiro, depois robôs, dados que travam comissão, mudanças, PCI x produto e cobrança.
+const TEMAS = [
+    ["saldo_vs_razao", "1. Saldo diferente do extrato"],
+    ["creditos_anormais", "2. Créditos anormais nas últimas 24h"],
+    ["auditor_checagem_falhou", "3. Checagens do auditor que falharam"],
+    ["robo_sem_sucesso", "4. Robôs sem sucesso no prazo"],
+    ["robo_ultima_falhou", "5. Robôs com a última execução falha"],
+    ["venda_sem_dados", "6. Vendas com dados faltando"],
+    ["mudanca_campos", "7. Mudanças de PCI, produto ou classe"],
+    ["pci_x_produto", "8. PCI que não combina com o produto"],
+    ["pci12a_sem_resposta", "9. Cobrança: PCI12a sem resposta da revenda"],
+];
+const ORDEM_SEV = { alta: 0, media: 1, baixa: 2 };
+const ordemTema = c => { const i = TEMAS.findIndex(t => t[0] === c); return i < 0 ? TEMAS.length : i; };
+
+// Cobrança do PCI12a: quem cobrar e de quê. Por representante (revendas e os cards, com link) e por revenda.
 function blocoCobranca12a(achados) {
     if (!achados.length) return "";
     const totalCards = achados.reduce((s, a) => s + (a.detalhe.total || 0), 0);
     const porRep = {};
-    for (const a of achados) for (const [rep, n] of Object.entries(a.detalhe.representantes || {})) (porRep[rep] = porRep[rep] || []).push({ revenda: a.detalhe.revenda, n, dias: a.detalhe.maisAntigoDias });
-    const lista = Object.entries(porRep).sort((x, y) => y[1].reduce((s, r) => s + r.n, 0) - x[1].reduce((s, r) => s + r.n, 0));
-    return `<h3 style="margin:18px 0 6px">Cobrança: PCI12a sem resposta (${totalCards} cards em ${achados.length} revenda(s))</h3>
+    for (const a of achados) for (const c of (a.detalhe.cards || [])) {
+        const rep = (porRep[c.representante] = porRep[c.representante] || {});
+        (rep[a.detalhe.revenda] = rep[a.detalhe.revenda] || []).push(c);
+    }
+    const cardLi = c => { const l = linkCard(c.id); return `${l ? `<a href="${esc(l)}">${esc(c.nome)}</a>` : esc(c.nome)} (${c.dias} dias)`; };
+    const lista = Object.entries(porRep).sort((x, y) => Object.values(y[1]).flat().length - Object.values(x[1]).flat().length);
+    return `<h3 style="margin:18px 0 6px">${esc(TEMAS[8][1])} (${totalCards} cards em ${achados.length} revenda(s))</h3>
         <p style="margin:0 0 6px;color:#555;font-size:13px">Cards em que a revenda assumiu a venda e ainda não registrou andamento no Portal (ou deixou "Pendente"/"Sem retorno").</p>
-        <p style="margin:10px 0 4px;color:#1d327b"><strong>Por representante</strong></p><ul style="margin:0;padding-left:18px">${lista.map(([rep, rs]) =>
-            `<li style="margin-bottom:6px"><strong>${esc(rep)}</strong>: ${rs.reduce((s, r) => s + r.n, 0)} card(s) · ${rs.map(r => `${esc(r.revenda)} (${r.n})`).join(", ")}</li>`).join("")}</ul>
+        <p style="margin:10px 0 4px;color:#1d327b"><strong>Por representante</strong></p><ul style="margin:0;padding-left:18px">${lista.map(([rep, revs]) =>
+            `<li style="margin-bottom:8px"><strong>${esc(rep)}</strong>: ${Object.values(revs).flat().length} card(s)<ul style="margin:2px 0 0;padding-left:18px">${Object.entries(revs).map(([rev, cs]) =>
+                `<li>${esc(rev)} (${cs.length}): ${cs.map(cardLi).join("; ")}</li>`).join("")}</ul></li>`).join("")}</ul>
         <p style="margin:10px 0 4px;color:#1d327b"><strong>Por revenda</strong></p><ul style="margin:0;padding-left:18px">${achados.map(a =>
             `<li style="margin-bottom:4px"><strong>${esc(a.detalhe.revenda)}</strong>: ${a.detalhe.total} card(s), o mais antigo há ${a.detalhe.maisAntigoDias} dias${a.detalhe.maisAntigoDias >= 50 ? ' <span style="color:#e30613">(perto dos 60 dias)</span>' : ""}</li>`).join("")}</ul>`;
 }
@@ -332,17 +351,16 @@ function blocoCobranca12a(achados) {
 function montarEmail({ novos, lembretes, resolvidos, abertosTotal, atuais = [] }) {
     const bloco = (titulo, lista) => {
         if (!lista.length) return "";
-        const porGrupo = {};
-        for (const a of lista) (porGrupo[a.grupo] = porGrupo[a.grupo] || []).push(a);
-        return `<h3 style="margin:18px 0 6px">${esc(titulo)} (${lista.length})</h3>` + Object.entries(porGrupo).map(([g, itens]) => {
-            const porTipo = {};
-            for (const a of itens) (porTipo[a.checagem] = porTipo[a.checagem] || []).push(a);
-            const linhas = Object.values(porTipo).map(grupoTipo => {
-                const visiveis = grupoTipo.slice(0, LIMITE_LINHAS_EMAIL), resto = grupoTipo.length - visiveis.length;
-                return visiveis.map(a => `<li style="margin-bottom:8px"><span style="color:${COR_SEV[a.severidade] || "#6b7280"};font-weight:bold">${esc((a.severidade || "").toUpperCase())}</span> ${esc(a.titulo)}${a.acao ? `<br><span style="color:#555;font-size:13px">O que fazer: ${esc(a.acao)}</span>` : ""}${a.link ? `<br><a href="${esc(a.link)}">abrir</a>` : ""}</li>`).join("")
-                    + (resto > 0 ? `<li style="color:#555;margin-bottom:8px">... e mais ${resto} do mesmo tipo. Veja todos em Gestão &gt; Auditor diário.</li>` : "");
-            }).join("");
-            return `<p style="margin:10px 0 4px;color:#1d327b"><strong>${esc(ROTULO_GRUPO[g] || g)}</strong></p><ul style="margin:0;padding-left:18px">${linhas}</ul>`;
+        const porTema = new Map();
+        for (const a of lista) (porTema.has(a.checagem) ? porTema.get(a.checagem) : porTema.set(a.checagem, []).get(a.checagem)).push(a);
+        const temas = [...porTema.entries()].sort((x, y) => ordemTema(x[0]) - ordemTema(y[0]));
+        return `<h3 style="margin:18px 0 6px">${esc(titulo)} (${lista.length})</h3>` + temas.map(([checagem, itens]) => {
+            itens = itens.slice().sort((a, b) => (ORDEM_SEV[a.severidade] ?? 3) - (ORDEM_SEV[b.severidade] ?? 3));
+            const visiveis = itens.slice(0, LIMITE_LINHAS_EMAIL), resto = itens.length - visiveis.length;
+            const tema = TEMAS.find(t => t[0] === checagem);
+            const linhas = visiveis.map(a => `<li style="margin-bottom:8px"><span style="color:${COR_SEV[a.severidade] || "#6b7280"};font-weight:bold">${esc((a.severidade || "").toUpperCase())}</span> ${esc(a.titulo)}${a.acao ? `<br><span style="color:#555;font-size:13px">O que fazer: ${esc(a.acao)}</span>` : ""}${a.link ? `<br><a href="${esc(a.link)}">abrir</a>` : ""}</li>`).join("")
+                + (resto > 0 ? `<li style="color:#555;margin-bottom:8px">... e mais ${resto} do mesmo tipo. Veja todos em Gestão &gt; Auditor diário.</li>` : "");
+            return `<p style="margin:10px 0 4px;color:#1d327b"><strong>${esc(tema ? tema[1] : checagem)} (${itens.length})</strong></p><ul style="margin:0;padding-left:18px">${linhas}</ul>`;
         }).join("");
     };
     const ehCobranca = a => a.checagem === "pci12a_sem_resposta";
