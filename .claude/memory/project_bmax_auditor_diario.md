@@ -24,7 +24,7 @@ metadata:
 6. `mudancas_campos`: mudança de PCI/produto/classe contra o retrato anterior (`bmax_auditoria_cards_ultimo`). A primeira rodada real só grava a linha de base (311 cards em 25/11). Vazio->preenchido e PCI12->12a/12b não contam. Alta se a venda já foi creditada. Fica aberta 3 dias.
 7. `pci12a_sem_resposta`: PCI12a em aberto sem desfecho e sem andamento da revenda (nenhum andamento, ou último status Pendente/Sem retorno), agrupado por revenda e representante, para cobrança. Casa os DOIS ids do card (Pipefy e RD). Alta a partir de 50 dias (prazo é 60).
 8. `rodada_perdida`: descrita acima.
-9. `pci12_responsavel` (26/11): PCI12/12a em aberto (não vendido) com responsável diferente de André Coelho. Só avisa.
+9. `pci12_responsavel` (26/11): PCI12/12a em aberto (não vendido) com responsável diferente de André Coelho; e PCI12 puro em venda (`pci12_em_venda`, deveria ser 12a/12b). Só avisa. Desde 26/11 todo achado de card traz " · responsável: Nome" no título (e a cobrança de PCI12a mostra o responsável por card).
 
 ## Tabelas (DDL em `scripts/create-auditor-tables.js`, aplicado em produção 25/11)
 `bmax_auditoria_achados`, `bmax_auditoria_execucoes`, `bmax_auditoria_cards_ultimo`, `bmax_auditoria_card_mudancas`. O auditor só escreve nelas.

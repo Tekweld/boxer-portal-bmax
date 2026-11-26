@@ -442,3 +442,9 @@ Agente que confere o Portal 2x por dia (06h e 13h Brasília, `/api/cron/auditor?
 - **Estado em 26/11:** a primeira rodada real ainda não aconteceu (cron não disparou na manhã; ver nota de crons na seção 9).
 - **Pendente:** colocar `auditor` em `ESPERADOS` (`roboMonitor.service.js`) depois da primeira rodada real bem-sucedida; ampliar as checagens (cards duplicados, ids órfãos, status x etapa, etiqueta ausente, prazos parados, cadastro de pessoas).
 
+## Responsável do PCI12 e vendas (26/11/2026)
+
+- **Regra:** PCI12 pendente e 12a têm responsável André Coelho; 12b tem o responsável de quem vendeu; PCI12 puro não pode estar em venda (só 12a ou 12b); perdido fica como está.
+- **Consumível/produto fora da tabela BMax:** fora do Portal (`escopoBmax.service.js`). No Pipefy o card fica Sem PCI, Sem revenda, Sem representante, com comentário.
+- **Troca de responsável no Pipefy (48 h e detector):** `PIPEFY_EMAIL_POR_DONO_RD`, `EMAIL_ANDRE` e `donoRdPorEmail` em `src/config/constants.js` ligam o dono do RD (nome) ao membro do Pipefy (e-mail); usados por `resolverAssigneeId` e `cardParaDealFake` (`pipefyLeads.service.js`) e pelo detector em `app.js` (`jaEAndre`). Reaplicar o mesmo valor num campo de responsável limpa o assignee: usar `updateCardAssignees`.
+- **Auditor:** checagem `pci12_responsavel` cobre responsável errado (aberto) e `pci12_em_venda`; títulos de achados de card terminam com "· responsável: Nome" (`respTxt` em `auditor.service.js`).
