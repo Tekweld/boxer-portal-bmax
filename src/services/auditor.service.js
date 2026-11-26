@@ -27,7 +27,7 @@ function lerCard(deal, get) {
     return {
         id: String(deal.id || deal._id || ""), rdId: deal.rd_deal_id ? String(deal.rd_deal_id) : null, nome: deal.name || "",
         pci: get(deal, "PERFIL PCI"), segmento: get(deal, "SEGMENTO DE PRODUTO"), classe: get(deal, "CLASSE DE PREÇO"),
-        revenda: get(deal, "REVENDA/LOJA"), representante: get(deal, "REPRESENTANTE"), maquina: get(deal, "MÁQUINA DE INTERESSE"),
+        revenda: get(deal, "REVENDA/LOJA"), representante: get(deal, "REPRESENTANTE"), responsavel: deal.user && deal.user.name ? String(deal.user.name).trim() : "", maquina: get(deal, "MÁQUINA DE INTERESSE"),
         valor: Number(deal.amount_total || 0), etapaId: deal.deal_stage ? deal.deal_stage.id : null, criadoEm: deal.created_at || null, deal,
     };
 }
@@ -214,6 +214,24 @@ async function checarPciXProduto(ctx) {
     return achados;
 }
 
+// PCI12 / PCI12a em aberto com responsável diferente do André Coelho (regra do projeto). Só avisa: quem decide e corrige é o André.
+async function checarPci12Responsavel(ctx) {
+    const achados = [];
+    for (const c of await ctx.cards()) {
+        if (VENDA.has(c.etapaId)) continue;                     // vendido: o responsável é quem vendeu
+        const r = A.pci12ResponsavelErrado(c);
+        if (!r) continue;
+        achados.push({
+            chave: `pci12_responsavel:${c.id}`, grupo: "cards", checagem: "pci12_responsavel", severidade: "media",
+            titulo: `"${c.nome}" (${String(c.revenda).trim() || "sem revenda"}): ${A.pciKey(c.pci)} está com ${r.encontrado} como responsável; pela regra do projeto deve ser ${r.esperado}`,
+            detalhe: { card: c.id, nome: c.nome, pci: A.pciKey(c.pci), responsavel: r.encontrado, esperado: r.esperado, revenda: c.revenda },
+            link: linkCard(c.id),
+            acao: "Conferir no Pipefy e devolver o responsável ao André Coelho (o auditor não corrige sozinho).",
+        });
+    }
+    return achados;
+}
+
 // Mudança de PCI, produto ou classe em relação ao último retrato. A 1ª rodada só grava a linha de base. Preencher campo vazio e a decisão
 // PCI12 -> 12a/12b não contam. Gravidade: alta se a venda já foi creditada (a comissão pode ter ficado errada), média se vendida, baixa se aberta.
 async function checarMudancasCampos(ctx) {
@@ -304,6 +322,7 @@ const CHECAGENS = [
     { id: "robos", grupo: "robos", cobre: ["robo_sem_sucesso", "robo_ultima_falhou"], roda: checarRobos },
     { id: "venda_sem_dados", grupo: "cards", cobre: ["venda_sem_dados"], roda: checarVendaSemDados },
     { id: "pci_x_produto", grupo: "cards", cobre: ["pci_x_produto"], roda: checarPciXProduto },
+    { id: "pci12_responsavel", grupo: "cards", cobre: ["pci12_responsavel"], roda: checarPci12Responsavel },
     { id: "mudancas_campos", grupo: "cards", cobre: ["mudanca_campos"], roda: checarMudancasCampos },
     { id: "pci12a_sem_resposta", grupo: "prazos", cobre: ["pci12a_sem_resposta"], roda: checarPci12aSemResposta },
     { id: "rodada_perdida", grupo: "robos", cobre: ["auditor_rodada_perdida"], roda: checarRodadaPerdida },
@@ -346,7 +365,8 @@ const TEMAS = [
     ["venda_sem_dados", "6. Vendas com dados faltando"],
     ["mudanca_campos", "7. Mudanças de PCI, produto ou classe"],
     ["pci_x_produto", "8. PCI que não combina com o produto"],
-    ["pci12a_sem_resposta", "9. Cobrança: PCI12a sem resposta da revenda"],
+    ["pci12_responsavel", "9. PCI12/12a com responsável que não é o André"],
+    ["pci12a_sem_resposta", "10. Cobrança: PCI12a sem resposta da revenda"],
 ];
 const ORDEM_SEV = { alta: 0, media: 1, baixa: 2 };
 const ordemTema = c => { const i = TEMAS.findIndex(t => t[0] === c); return i < 0 ? TEMAS.length : i; };
@@ -362,7 +382,7 @@ function blocoCobranca12a(achados) {
     }
     const cardLi = c => { const l = linkCard(c.id); return `${l ? `<a href="${esc(l)}">${esc(c.nome)}</a>` : esc(c.nome)} (${c.dias} dias)`; };
     const lista = Object.entries(porRep).sort((x, y) => Object.values(y[1]).flat().length - Object.values(x[1]).flat().length);
-    return `<h3 style="margin:18px 0 6px">${esc(TEMAS[8][1])} (${totalCards} cards em ${achados.length} revenda(s))</h3>
+    return `<h3 style="margin:18px 0 6px">${esc(TEMAS.find(t => t[0] === "pci12a_sem_resposta")[1])} (${totalCards} cards em ${achados.length} revenda(s))</h3>
         <p style="margin:0 0 6px;color:#555;font-size:13px">Cards em que a revenda assumiu a venda e ainda não registrou andamento no Portal (ou deixou "Pendente"/"Sem retorno").</p>
         <p style="margin:10px 0 4px;color:#1d327b"><strong>Por representante</strong></p><ul style="margin:0;padding-left:18px">${lista.map(([rep, revs]) =>
             `<li style="margin-bottom:8px"><strong>${esc(rep)}</strong>: ${Object.values(revs).flat().length} card(s)<ul style="margin:2px 0 0;padding-left:18px">${Object.entries(revs).map(([rev, cs]) =>
@@ -493,5 +513,5 @@ async function rodarAuditoria({ rodada = "manual", dryRun = false } = {}) {
 
 module.exports = {
     rodarAuditoria, reconciliar, montarEmail, CHECAGENS, REAVISO_DIAS,
-    checarRodadaPerdida, checarVendaSemDados, checarPciXProduto, checarMudancasCampos, checarPci12aSemResposta,
+    checarRodadaPerdida, checarPci12Responsavel, checarVendaSemDados, checarPciXProduto, checarMudancasCampos, checarPci12aSemResposta,
 };

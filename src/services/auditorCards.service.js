@@ -107,7 +107,18 @@ function agruparSemResposta(cards) {
     return [...porRevenda.values()].sort((a, b) => b.total - a.total || b.maisAntigoDias - a.maisAntigoDias);
 }
 
+// PCI12 (pendente) e PCI12a (revenda atende) em aberto: o responsável do card é SEMPRE o André Coelho (regra do projeto). Vendedor Boxer como
+// responsável de um lead que é da revenda faz o vendedor querer vender o que é da revenda. Devolve { esperado, encontrado } ou null.
+const ehAndre = s => /^andr[eé]\s+coelho$/i.test(txt(s));
+function pci12ResponsavelErrado({ pci, responsavel }) {
+    const k = pciKey(pci);
+    if (k !== "PCI12" && k !== "PCI12A") return null;
+    if (ehAndre(responsavel)) return null;
+    return { esperado: "André Coelho", encontrado: txt(responsavel) || "(ninguém)" };
+}
+
 module.exports = {
+    pci12ResponsavelErrado, ehAndre,
     pciKey, classeKey, produtoKey, produtoDaMaquina, PRODUTO_POR_PCI, ROTULO_PRODUTO, ROTULO_CAMPO, mostrarValor,
     pciIncompativelComProduto, camposFaltandoNaVenda, diffCampos, semRespostaDaRevenda, agruparSemResposta,
 };

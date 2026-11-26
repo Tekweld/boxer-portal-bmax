@@ -79,6 +79,18 @@ describe("mudança significativa de campos", () => {
     });
 });
 
+describe("responsável do PCI12/12a", () => {
+    test("PCI12 e PCI12a com vendedor Boxer como responsável são erro; com André não", () => {
+        expect(A.pci12ResponsavelErrado({ pci: "PCI 12a", responsavel: "Carlos Alberto Fernandes" })).toEqual({ esperado: "André Coelho", encontrado: "Carlos Alberto Fernandes" });
+        expect(A.pci12ResponsavelErrado({ pci: "PCI 12", responsavel: "" })).toEqual({ esperado: "André Coelho", encontrado: "(ninguém)" });
+        expect(A.pci12ResponsavelErrado({ pci: "PCI 12a", responsavel: "André Coelho" })).toBeNull();
+        expect(A.pci12ResponsavelErrado({ pci: "PCI 12a", responsavel: "andre coelho" })).toBeNull();
+    });
+    test("outros PCIs (12b, 15, 6...) nunca acusam", () => {
+        for (const p of ["PCI 12b", "PCI 15", "PCI 6", "PCI X", "Sem PCI"]) expect(A.pci12ResponsavelErrado({ pci: p, responsavel: "Carlos" })).toBeNull();
+    });
+});
+
 describe("PCI12a sem resposta, por revenda e representante", () => {
     test("sem andamento, ou último status Pendente/Sem retorno, é sem resposta", () => {
         expect(A.semRespostaDaRevenda(null)).toBe(true);

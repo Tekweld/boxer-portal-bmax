@@ -144,6 +144,18 @@ describe("checagens de cards (com contexto falso)", () => {
         expect(r[0].detalhe).toMatchObject({ revenda: "Luitex", total: 2, maisAntigoDias: 40 });
     });
 
+    test("PCI12 com responsável errado: acusa aberto, ignora vendido e o que está com André", async () => {
+        const { checarPci12Responsavel } = require("./auditor.service");
+        const r = await checarPci12Responsavel(ctxCom([
+            card({ id: "1", pci: "PCI 12a", etapaId: "x", responsavel: "Carlos Alberto Fernandes" }),
+            card({ id: "2", pci: "PCI 12a", etapaId: "x", responsavel: "André Coelho" }),
+            card({ id: "3", pci: "PCI 12", etapaId: C.RD_STAGE_VENDIDO, responsavel: "Carlos Alberto Fernandes" }),
+            card({ id: "4", pci: "PCI 6", etapaId: "x", responsavel: "Carlos Alberto Fernandes" }),
+        ]));
+        expect(r.map(a => a.chave)).toEqual(["pci12_responsavel:1"]);
+        expect(r[0].severidade).toBe("media");
+    });
+
     test("e-mail traz o bloco de cobrança por representante e por revenda, e corta listas longas", () => {
         const cobranca = { chave: "p:Luitex", grupo: "prazos", checagem: "pci12a_sem_resposta", severidade: "media", titulo: "Luitex",
             detalhe: { revenda: "Luitex", total: 3, maisAntigoDias: 55, representantes: { Victor: 2, Caio: 1 },

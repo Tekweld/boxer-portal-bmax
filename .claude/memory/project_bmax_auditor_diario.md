@@ -15,7 +15,7 @@ metadata:
 - Cada achado tem chave estável. Estados: novo, persistente, resolvido (some sozinho quando a checagem roda bem e não o encontra mais). Checagem que FALHA ao rodar vira achado `auditor_checagem_falhou:<id>` e nunca resolve os achados dela. Rodada agendada que não aconteceu (mais de 20h desde a anterior) vira achado `auditor_rodada_perdida`.
 - Aba **Gestão > Auditor diário**: achados abertos/resolvidos, últimas execuções e botão "Rodar simulação agora" (sem gravar nem enviar). Achados de PCI12a trazem "ver os N card(s)" com link do Pipefy. E-mail e aba usam a mesma ordem de temas: saldo, créditos anormais, checagens/rodadas do auditor, robôs, vendas com dados faltando, mudanças de PCI/produto/classe, PCI x produto, cobrança PCI12a.
 
-## Checagens ativas (8 funções)
+## Checagens ativas (9 funções)
 1. `saldo_vs_razao`: `bmax_saldo` x soma de `bmax_transacoes` (tolerância R$ 0,01).
 2. `creditos_anormais`: mais de 40 créditos ou R$ 25 mil em 24h (limites de `roboMonitor`).
 3. `robos`: robô de `ESPERADOS` sem sucesso no prazo, ou última execução falha.
@@ -24,6 +24,7 @@ metadata:
 6. `mudancas_campos`: mudança de PCI/produto/classe contra o retrato anterior (`bmax_auditoria_cards_ultimo`). A primeira rodada real só grava a linha de base (311 cards em 25/11). Vazio->preenchido e PCI12->12a/12b não contam. Alta se a venda já foi creditada. Fica aberta 3 dias.
 7. `pci12a_sem_resposta`: PCI12a em aberto sem desfecho e sem andamento da revenda (nenhum andamento, ou último status Pendente/Sem retorno), agrupado por revenda e representante, para cobrança. Casa os DOIS ids do card (Pipefy e RD). Alta a partir de 50 dias (prazo é 60).
 8. `rodada_perdida`: descrita acima.
+9. `pci12_responsavel` (26/11): PCI12/12a em aberto (não vendido) com responsável diferente de André Coelho. Só avisa.
 
 ## Tabelas (DDL em `scripts/create-auditor-tables.js`, aplicado em produção 25/11)
 `bmax_auditoria_achados`, `bmax_auditoria_execucoes`, `bmax_auditoria_cards_ultimo`, `bmax_auditoria_card_mudancas`. O auditor só escreve nelas.
