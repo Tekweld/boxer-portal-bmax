@@ -2157,4 +2157,26 @@ describe("Portal só considera cards com a etiqueta RD: Indústria", () => {
         expect(ehFunilPortal({})).toBe(true);   // leitura do RD (sem etiquetas): o funil já vem filtrado
     });
 });
-
+describe("dono do RD x responsável do Pipefy (troca de responsável do PCI12)", () => {
+    const C = require("../config/constants");
+    it("André, Carlos, Max e Lucas Ferreira têm e-mail de membro e voltam ao ID do dono do RD", () => {
+        for (const [chave, mail] of Object.entries(C.PIPEFY_EMAIL_POR_DONO_RD)) expect(C.donoRdPorEmail(mail)).toBe(C.RD_OWNERS[chave]);
+        expect(C.donoRdPorEmail("ANDRE.COELHO@boxersoldas.com.br")).toBe(C.RD_OWNERS["Revenda"]);
+        expect(C.EMAIL_ANDRE).toBe("andre.coelho@boxersoldas.com.br");
+    });
+    it("responsável fora dos donos mapeados não tem ID de dono (null)", () => {
+        expect(C.donoRdPorEmail("marketing@boxersoldas.com.br")).toBeNull();
+        expect(C.donoRdPorEmail("")).toBeNull();
+    });
+    it("cardParaDealFake preenche user.id com o dono do RD quando o responsável é André", () => {
+        jest.resetModules();
+        process.env.PIPEFY_MAPA_JSON = JSON.stringify(MAPA_TESTE);
+        const { cardParaDealFake } = require("./pipefyLeads.service");
+        const C2 = require("../config/constants");
+        const deal = cardParaDealFake(cardBase({ assignees: [{ id: "1", name: "André Coelho", email: "andre.coelho@boxersoldas.com.br" }] }), "BMAX");
+        expect(deal.user.id).toBe(C2.RD_OWNERS["Revenda"]);
+        const outro = cardParaDealFake(cardBase({ assignees: [{ id: "2", name: "Goy Almeida", email: "marketing@boxersoldas.com.br" }] }), "BMAX");
+        expect(outro.user.id).toBeUndefined();
+        expect(outro.user.email).toBe("marketing@boxersoldas.com.br");
+    });
+});

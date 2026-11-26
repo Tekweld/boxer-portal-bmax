@@ -10,7 +10,7 @@
 // completa do funil ou sem equivalente direto no Pipefy, e exigem um
 // redesenho à parte (webhook + índice local) antes de migrar de fato.
 const { logger } = require("../logger");
-const { RD_STAGES, RD_OWNERS, RD_STAGE_NEGOCIACAO } = require("../config/constants");
+const { RD_STAGES, RD_OWNERS, RD_STAGE_NEGOCIACAO, PIPEFY_EMAIL_POR_DONO_RD, donoRdPorEmail } = require("../config/constants");
 const {
     PIPEFY_PIPE_BMAX,
     PIPEFY_FASES,
@@ -202,7 +202,9 @@ function cardParaDealFake(card, pipeNome = "BMAX") {
     const amountTotal = campoValor ? parseValorMonetario(valorPorCampoId[campoValor]) : 0;
 
     const primeiroResponsavel = (card.assignees || [])[0] || null;
-    const user = primeiroResponsavel ? { name: primeiroResponsavel.name, email: primeiroResponsavel.email } : null;
+    // id/_id = ID do dono equivalente no RD (quando o responsável é um dos donos mapeados): o robô de PCI12 compara com o do André
+    const donoRd = primeiroResponsavel ? donoRdPorEmail(primeiroResponsavel.email) : null;
+    const user = primeiroResponsavel ? { name: primeiroResponsavel.name, email: primeiroResponsavel.email, ...(donoRd ? { id: donoRd, _id: donoRd } : {}) } : null;
 
     const win = infoFase ? infoFase.win : null;
 
@@ -962,7 +964,7 @@ async function resolverAssigneeId(ownerIdRd) {
     if (!nome) return null;
 
     const { rdToEmail } = await getAliasMapsLazy();
-    const email = rdToEmail[nome];
+    const email = rdToEmail[nome] || PIPEFY_EMAIL_POR_DONO_RD[nome];
     if (!email) return null;
 
     return PIPEFY_MEMBROS[email] || null;

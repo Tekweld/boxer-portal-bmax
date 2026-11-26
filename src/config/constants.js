@@ -85,6 +85,23 @@ const RD_OWNERS = {
     "Representante": "661572a5823cb7000e85e146"
 };
 
+// Dono do RD (chave de RD_OWNERS) -> e-mail do membro correspondente no Pipefy. O robô de PCI12 (troca para o André ao detectar, devolve ao dono
+// anterior no 12b automático de 48h) e o caminho 12a/12b trabalham com o ID do dono do RD; no Pipefy o responsável é um membro. Sem este mapa só o
+// "Carlos" achava o membro (rdToEmail do cadastro só tinha ele) e as trocas de responsável eram ignoradas em silêncio (achado 26/11/2026).
+const PIPEFY_EMAIL_POR_DONO_RD = {
+    "Carlos": "vendas.2@boxersoldas.com.br",
+    "Lucas Ferreira": "lucas.ferreira@boxersoldas.com.br",
+    "Max": "max.santos@boxersoldas.com.br",
+    "Revenda": "andre.coelho@boxersoldas.com.br"   // "Revenda" = André Coelho (ver comentário de RD_OWNERS)
+};
+const EMAIL_ANDRE = PIPEFY_EMAIL_POR_DONO_RD["Revenda"];
+// ID do dono no RD a partir do e-mail do responsável no Pipefy (null quando o responsável não é um dono mapeado)
+function donoRdPorEmail(email) {
+    const e = String(email || "").trim().toLowerCase();
+    const chave = Object.entries(PIPEFY_EMAIL_POR_DONO_RD).find(([, mail]) => mail === e)?.[0];
+    return chave ? RD_OWNERS[chave] : null;
+}
+
 // Owner padrão para tarefas automáticas
 const RD_OWNER_DEFAULT = "6a312b777a6c170023b6427d";
 // Owner usado para leads criados via portal
@@ -186,6 +203,9 @@ module.exports = {
     RD_CUSTOM_FIELDS,
     RD_CF_SLUG_MAP,
     RD_OWNERS,
+    PIPEFY_EMAIL_POR_DONO_RD,
+    EMAIL_ANDRE,
+    donoRdPorEmail,
     RD_OWNER_DEFAULT,
     RD_OWNER_PORTAL,
     REPRESENTANTES,

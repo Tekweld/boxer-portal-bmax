@@ -309,7 +309,7 @@ app.get("/api/cron/sync-revenda-rep-rd", async (req, res) => {
             const { getLeads, getCustomField, updateLead, getAliasMaps } = require("./services/rd.leads.service");
             const { getRevendaEmailByName, getRepresentativeEmailByName } = require("./services/user.service");
             const { sendEmail } = require("./services/email.service");
-            const { EMAIL_FALLBACK, RD_OWNERS } = require("./config/constants");
+            const { EMAIL_FALLBACK, RD_OWNERS, EMAIL_ANDRE } = require("./config/constants");
             const { registrarTroca } = require("./services/pci12Tracking.service");
 
             const { rdToEmail } = await getAliasMaps();
@@ -343,9 +343,13 @@ app.get("/api/cron/sync-revenda-rep-rd", async (req, res) => {
                     // conhecido grava '' e o 12b automático usa a planilha por região.
                     const ownerAtualId = d.user?._id || d.user?.id || "";
                     const donoAndre = RD_OWNERS["Revenda"];
-                    const jaEAndre = ownerAtualId === donoAndre;
+                    // No Pipefy o responsável vem com e-mail (e só tem ID de dono do RD quando é um dos mapeados): sem isto a troca para o André
+                    // nunca acontecia (achado 26/11/2026: PCI12 detectado em 24/11 continuou com o vendedor).
+                    const emailAtual = String(d.user?.email || "").trim().toLowerCase();
+                    const jaEAndre = ownerAtualId === donoAndre || (!!emailAtual && emailAtual === EMAIL_ANDRE);
+                    const temDono = !!(ownerAtualId || emailAtual);
                     const primeiraVez = await registrarTroca(dealId, jaEAndre ? "" : ownerAtualId, jaEAndre ? null : (d.user?.name || null));
-                    if (primeiraVez && ownerAtualId && !jaEAndre) await updateLead(dealId, { data: { owner_id: donoAndre } });
+                    if (primeiraVez && temDono && !jaEAndre) await updateLead(dealId, { data: { owner_id: donoAndre } });
                 } catch (e) {
                     logger.error({ message: "Erro ao trocar responsável do lead PCI12 pendente", dealId, error: e.message });
                 }
