@@ -36,8 +36,8 @@ Detalhe completo (não copiar para cá, ler lá): `DOCUMENTACAO_TECNICA.md` (§6
 - Admin: Extrato de Comissões (export Excel por agente), editor visual da matriz de comissão, reatribuição de representante em lote em Revendas BMax.
 - Lição de teste: regressão de CSP/UI é invisível a curl/API. Teste feature de tela clicando de verdade no navegador.
 
-## Pendências atuais (Registro 23–25/11 §6; lá estão completas)
-Agente auditor diário JÁ PUBLICADO em 25/11 (só lê e avisa, não corrige; ver [[project-bmax-auditor-diario]]); falta conferir a 1a rodada real (26/11), colocá-lo em ESPERADOS e ampliar as checagens; conferir Performance em produção (caso Rosman/Aldesoldas); juntar cards duplicados no Pipefy; ligar "Motivo de perda" ao campo do Pipefy; decidir representantes Joyce/Cristina/SANTOS; Ayrton virar admin do pipe ou trocar `PIPEFY_TOKEN`; etapa 6 do código único (aposentar `bmax_grupos`); rodar auditoria de PCI/classe das comissões.
+## Pendências atuais
+Lista única e atualizada (26/11/2026) em [[project-bmax-pendencias-atuais]] e na seção 6 do Registro de 23 a 25/11. Não duplicar aqui.
 
 ## Documentação
 `DOCUMENTACAO_TECNICA.md` §7 foi reconferida contra o código em 25/11 e corrigida (card sem estimativa, dedup no robô pelos dois ids, expiração só da revenda, PCIs que geram comissão, etapas consideradas venda). Regra para não defasar de novo: ao mudar uma regra já descrita, corrija a seção original; a seção "Atualização" no fim só registra o histórico.

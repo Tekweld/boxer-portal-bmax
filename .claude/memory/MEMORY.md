@@ -1,13 +1,14 @@
 ## BMax — arquivos que existem NESTE repo (leia primeiro o estado de 25/11)
 
 - [project_bmax_estado_2026_11_25.md](project_bmax_estado_2026_11_25.md) — **ESTADO REAL em 25/11/2026 (fonte de verdade)**: Pipefy em produção, funil por etiqueta "RD: Indústria", cashback = só o razão (nunca estimativa), PCI manda na comissão, PCI12/PCI X, pendências. Vence qualquer memória de set/out.
+- [project_bmax_pendencias_atuais.md](project_bmax_pendencias_atuais.md) — **PENDÊNCIAS ATUAIS (26/11/2026)**: dados de cards do auditor, crons no Pro, auditor, Pipefy, negócio e documentação
 - [project_bmax_auditor_diario.md](project_bmax_auditor_diario.md) — Auditor diário (publicado 25/11/2026): só lê e avisa o André por e-mail, 2x/dia; 8 checagens, tabelas, crons e o que falta
 - [feedback_bmax_cache_pipefy_preaquecer.md](feedback_bmax_cache_pipefy_preaquecer.md) — Mudou a consulta/filtro do Pipefy? Refazer o cache no banco LOCALMENTE antes (leitura completa = 139 s > 60 s da Vercel; incidente do painel vazio 25/11)
 - [feedback_portal_bmax_logica.md](feedback_portal_bmax_logica.md) — Portal BMax: PCI12 (48h→12b, 60d 12a→Prazo Vencido), escopo consumíveis, vínculo rep/RD, nomes de revenda/grupos, sem migration tooling, 504 em varredura; 28/10: PCI 13/14/15 pelo produto + "quem atende", nome único da revenda, travas CNPJ/nome+cidade
 - [project_bmax_portal.md](project_bmax_portal.md) — Portal BMax: Vercel+Supabase+RD V1 (visão geral até 05/11; o CRM agora é Pipefy, ver estado 25/11)
 - [project_bmax_motor.md](project_bmax_motor.md) — BMax Motor PCI: 16 PCIs, Diamante operacional, somente-leitura em cadastro (RLS), só o Portal escreve
 - [project_bmax_modelo_revenda_grupo.md](project_bmax_modelo_revenda_grupo.md) — 27-28/10: código único de revenda/grupo juntando lojas/CNPJs (hoje também carteira de cashback por grupo)
-- [project_bmax_pendencias.md](project_bmax_pendencias.md) — HISTÓRICO até 05/11 (cashback automático por NF em pausa etc.). **Pendências atuais: `Documentação/Registro_Mudancas_Portal_BMax_23-25-11-2026.md` §6.**
+- [project_bmax_pendencias.md](project_bmax_pendencias.md) — HISTÓRICO até 05/11 (cashback automático por NF em pausa etc.). **Pendências atuais: `project_bmax_pendencias_atuais.md`.**
 - [project_bmax_whatsapp.md](project_bmax_whatsapp.md) — Avisos WhatsApp: só aviso+link do Portal (Twilio), sem botão; textos aprovados 14/10; falta número+Twilio+cron
 - [project_bmax_api_fields.md](project_bmax_api_fields.md) — custom fields do deal no RD V1; "REPRESENTANTE " tem espaço no fim
 - [project_bmax_docs.md](project_bmax_docs.md) — `BMAX CRITERIOS.xlsx` (aba REVENDA) é a fonte mestra de classe/rep/e-mail

@@ -1,0 +1,42 @@
+---
+name: project-bmax-pendencias-atuais
+description: Lista de pendências do Portal BMax atualizada em 26/11/2026 (dados de cards do auditor, crons no plano Pro, auditor, Pipefy, negócio e documentação). Fonte única das pendências atuais.
+metadata:
+  type: project
+---
+
+# Pendências atuais do Portal BMax (atualizada em 26/11/2026)
+
+Esta é a lista atual. A mesma lista está na seção 6 do `Documentação/Registro_Mudancas_Portal_BMax_23-25-11-2026.md`. `project_bmax_pendencias.md` é só histórico de novembro e não vale mais.
+
+### A. Dados dos cards que o auditor apontou em 25/11 (o André corrige no Pipefy; o auditor só sinaliza)
+1. **Vendas sem PCI (gravidade alta, sem PCI a comissão não é creditada):** 2M Industria LTDA (Atual Equipamentos, R$ 197.900,00), BR Industria (WST, R$ 800,60), ALBERFLEX Industria de Moveis (CS Ferramentas, R$ 1.800,00) e mais uma. Preencher PCI e conferir a classe de preço.
+2. **Vendas sem produto (segmento) ou sem representante:** 6 cards (média). Preencher para o relatório e a cobrança ficarem completos.
+3. **PCI que não combina com o produto:** 13 cards (ex.: Equipcorte Marcos Freitas, PCI1 com produto Máquinas, confirmado errado; Maringa Ferro-Liga, PCI3 com produto Laser, confirmado). Conferir cada um pelo link da aba e corrigir o PCI ou o produto.
+4. **PCI12a sem resposta da revenda:** 13 revendas, 21 cards (WST 5, AlugaASoldas 4, Comercial Soldas 2, e 1 em cada uma das demais). Cobrar as revendas e avisar os representantes (lista por representante na aba e no e-mail). **Eletro Solda: 50 dias em 25/11, o prazo de 60 dias vence em cerca de 05/12/2026**, quando o robô arquiva o card em "Prazo Vencido".
+
+### B. Crons e auditor (aberto em 26/11)
+5. **Confirmar que os crons rodam no minuto agendado depois da mudança para o plano Pro (26/11).** Em 26/11 às 12:55 UTC o `recalcular-comissoes` (agendado 12:00) ainda veio atrasado; o `termos-prazos` das 13:00 rodou às 13:04 (igual aos dias anteriores, o que não prova pontualidade). Se os crons das 13:00 UTC e a rodada "tarde" do auditor (16:00 UTC) continuarem atrasados, fazer um deploy (mesmo vazio) para a Vercel registrar os crons de novo sob o Pro. Pedir autorização antes do deploy.
+6. **Primeira rodada real do auditor** (a da manhã de 26/11 não aconteceu: cron não disparou). Conferir `bmax_auditoria_execucoes`, o e-mail ao André e a linha de base de 311 cards. Só depois incluir `auditor` em `ESPERADOS` (`roboMonitor.service.js`).
+7. **Investigar os robôs que não rodaram em 25/11 e 26/11** (`pci12a-prazo`, `pcix-prazo`, `vigia-robos`, `expirar-cashback`, `sync-revenda-rep-rd`, `pci12-followup`, `sync-consulta-lead`): conferir `bmax_robo_execucoes`. Se a falta se repetir mesmo no Pro, mover os crons críticos para um agendador externo com horário exato (workflow agendado do GitHub Actions chamando a rota com `CRON_SECRET`).
+8. **Ampliar as checagens do auditor**, uma a uma, depois de 1 a 2 semanas só em modo aviso: cards duplicados, ids órfãos, status x etapa residual, etiqueta ausente, prazos 12/12a/PCI X parados, pessoas (revenda sem login, representante sem e-mail) e nomes fora do padrão.
+9. **Avaliar subir o `maxDuration`** de 60 s para até 300 s no Pro (`vercel.json`): a leitura completa do pipe do Pipefy leva ~139 s. Só com deploy e teste.
+
+### C. Pipefy e infraestrutura
+10. **Rotina para refazer o cache do Pipefy no banco sem improviso:** o script `scripts/pre-aquecer-cache-pipefy.js` exige `PIPEFY_TOKEN` e o mapa (`PIPEFY_MAPA_JSON` ou `mapa_pipefy.json`), que não existem na máquina local. Hoje só dá para refazer lendo com `PIPEFY_TOKEN_ADMIN` (ver `feedback_bmax_cache_pipefy_preaquecer.md`). Regra: refazer o cache ANTES de publicar mudança na consulta ou em filtro por campo novo.
+11. **Pipefy: Ayrton virar administrador do pipe OU trocar o `PIPEFY_TOKEN` da Vercel** por token de administrador/usuário de serviço (o autor dos comentários também depende disso).
+12. **Risco aberto:** leads novos do SDR-IA (etiqueta "Qualificado", nativos do Pipefy) não têm "RD: Indústria" e não aparecem no Portal até alguém marcar a etiqueta. **Gap conhecido:** negociações novas da revenda (BOX>REV) vão para o pipe BMAX antigo do Pipefy, que o Portal não lê.
+
+### D. Negócio e cadastro (vêm do Registro de 23 a 25/11, §6)
+13. Conferir a Performance em produção e decidir o caso **Rosman (Aldesoldas)**: R$ 40.359 x R$ 40.120.
+14. Juntar ou encerrar no Pipefy os cards duplicados de verdade (TECNOSERVICE/TECNOSERVISE etc.).
+15. Conectar o "Motivo de perda" do Portal ao campo "Motivo de perda" (36 opções) do Pipefy.
+16. Representantes no Pipefy: decidir sobre Joyce Florencio (20 abertos), Cristina Perez (36 abertos), SANTOS (8 abertos) e as 5 opções sem card.
+17. Etapa 6 do código único (aposentar `bmax_grupos` e o casamento por nome).
+18. Rodar a auditoria de PCI e classe das comissões em produção (valor de cada comissão x política).
+
+### E. Documentação
+19. Depois da primeira rodada real do auditor e da confirmação dos crons no Pro: atualizar `DOCUMENTACAO_TECNICA.md` (seção 9 e "Auditor diário"), o Registro e esta lista, e tirar a menção ao Hobby onde ainda houver.
+
+**Why:** o André quer uma lista única, sempre atualizada no repositório e na memória, para retomar o trabalho sem reconstruir o contexto.
+**How to apply:** ao concluir ou descobrir uma pendência, atualizar esta lista E a seção 6 do Registro no mesmo dia, com a data. Não duplicar a lista em outros arquivos: apontar para este.
