@@ -35,7 +35,7 @@ metadata:
 2 robôs parados (`pci12a-prazo`, `pcix-prazo`), 10 vendas com dado faltando (uma de R$ 197.900 sem PCI), 13 PCI x produto, 13 revendas com PCI12a sem resposta (21 cards; a Eletro Solda estava a 10 dias do prazo). O André validou 3 achados de PCI x produto e vendas sem PCI como corretos.
 
 ## O que falta
-- 26/11 ~06h Brasília: conferir a primeira rodada real (execução em `bmax_auditoria_execucoes`, e-mail recebido, linha de base gravada).
+- **A primeira rodada real NÃO aconteceu em 26/11** (a manhã de 06h Brasília): a Vercel não disparou o cron (ver "Ocorrências"). Conferir a rodada "tarde" (16:00 UTC) de 26/11: linha em `bmax_auditoria_execucoes`, e-mail recebido, linha de base gravada.
 - Depois da 1a rodada real OK, incluir `auditor` em `ESPERADOS` (`roboMonitor.service.js`). Antes disso o vigia acusaria falha de um robô que nunca rodou.
 - Investigar por que `pci12a-prazo` e `pcix-prazo` não rodaram em 25/11 (a Vercel pulou chamadas de cron de 11h a 13h UTC; também faltaram `sync-consulta-lead` e `recalcular-comissoes` nessa janela). Se repetir, mover os crons críticos para um agendador com horário exato.
 - Checagens ainda não feitas: cards duplicados, ids órfãos, status x etapa residual, etiqueta ausente, prazos 12/12a/PCI X parados, pessoas (revenda sem login, representante sem e-mail), nomes fora do padrão.
@@ -43,3 +43,8 @@ metadata:
 
 **Why:** o André quer ser avisado cedo de divergência de dinheiro e de dado de card, sem e-mail de ruído e sem nada sendo corrigido às escuras.
 **How to apply:** nova checagem = função em `CHECAGENS` com `cobre` (tipos de achado que ela pode resolver) + tema em `TEMAS` (`auditor.service.js`) e em `AUDITOR_TEMAS` (`public/js/auditor.js`). Nunca fazer o auditor gravar em tabela de negócio.
+## Ocorrências
+- **26/11/2026, cron do auditor não disparou.** Entre 21:30 UTC de 25/11 e 12:28 UTC de 26/11 não rodou nenhum robô agendado, exceto `status-x-etapa`: faltaram `vigia-robos` (22:30), auditor (09:00), `expirar-cashback`, `sync-revenda-rep-rd` e `pci12-followup` (10:00), `pci12a-prazo` (11:00) e `pcix-prazo` (11:30). Sem registro em `bmax_robo_execucoes` nem em `bmax_auditoria_execucoes`: a chamada nem chegou ao app (falha do app deixaria registro de falha). Os crons estavam registrados na Vercel (23 definições, ativos, atualizadas em 25/11 20:19 UTC). `recalcular-comissoes` (12:00) só rodou às 12:55 UTC.
+- **Plano da Vercel passou de Hobby para Pro em 26/11/2026** (o time `boxer-soldas1` consta como `pro`). No Hobby o cron dispara em qualquer momento da hora e a Vercel pulou execuções; a Vercel não reexecuta cron que falhou. No Pro o cron deve sair no minuto agendado e `maxDuration` pode subir até 300 s (não alterado). Pendente: confirmar a pontualidade dos crons depois da troca; se os crons registrados sob as regras antigas continuarem atrasados, fazer um deploy (mesmo vazio) para a Vercel registrá-los de novo.
+- **Como inspecionar os crons registrados (Git Bash):** `MSYS_NO_PATHCONV=1 vercel api "/v9/projects/boxer-portal-bmax" --raw --scope boxer-soldas1` e ler `crons.definitions`, `crons.updatedAt`. Sem `MSYS_NO_PATHCONV=1` o caminho vira caminho do Windows e o comando falha. O log da Vercel (`vercel logs`) guarda só cerca de 1 hora; diagnóstico de cron perdido tem que ser feito pelas tabelas `bmax_robo_execucoes` e `bmax_auditoria_execucoes`.
+
