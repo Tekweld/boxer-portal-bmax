@@ -50,15 +50,39 @@ function compactar(txt) {
 const reBmax = new RegExp(FAMILIAS_BMAX.join("|"));
 const reFora = new RegExp(FORA_DA_TABELA_BMAX.join("|"));
 
+const ehPciXTxt = pci => compactar(pci) === "pcix";
+
+// MÓDULO PCI X: PREPARADO, MAS DESLIGADO (André, 26/11/2026). Só liga com PCIX_ATIVO=1 na Vercel, depois que o agente que grava o PCI certo
+// no Pipefy existir. Desligado, o escopo funciona exatamente como antes (produto fora da tabela BMax fica fora do Portal, com ou sem PCI X).
+const pcixAtivo = () => process.env.PCIX_ATIVO === "1";
+const PCIX_CORTE = "2026-11-23";   // só vale para card criado a partir desta data e ainda em aberto (nada vendido nem perdido)
+// Devolve "PCI X" se o card pode usar a liberação do PCI X; senão "". aberto = false para vendido/perdido.
+function pciParaEscopo(pci, criadoEm, aberto) {
+    if (!pcixAtivo() || !ehPciXTxt(pci) || !aberto || !criadoEm) return pci && !ehPciXTxt(pci) ? pci : "";
+    return String(criadoEm).slice(0, 10) >= PCIX_CORTE ? "PCI X" : "";
+}
+
 // Retorna null (dentro do escopo) ou o motivo pelo qual o lead fica fora.
-function motivoForaDoEscopo(maquinaInteresse, segmentoProduto) {
+// PCI X (26/11/2026): é exatamente o PCI do produto que NÃO é BMax (máquina fora da tabela e máscara), que a revenda vende do próprio
+// estoque, sem cashback. Por isso o PCI X libera o "produto fora da tabela BMax", mas NUNCA o consumível (venda de consumível não é permitida).
+function motivoForaDoEscopo(maquinaInteresse, segmentoProduto, pci) {
     const t = compactar(maquinaInteresse);
     if (!t) return null;
     if (t.includes("consum")) return "consumivel";
-    if (reFora.test(t) && !reBmax.test(t) && !SEGMENTOS_SEMPRE_BMAX.includes(compactar(segmentoProduto))) {
+    if (reFora.test(t) && !reBmax.test(t) && !SEGMENTOS_SEMPRE_BMAX.includes(compactar(segmentoProduto)) && !(pcixAtivo() && ehPciXTxt(pci))) {
         return "produto_fora_da_tabela_bmax";
     }
     return null;
 }
 
-module.exports = { motivoForaDoEscopo, compactar, FAMILIAS_BMAX, FORA_DA_TABELA_BMAX };
+// Tipo do produto pelo texto da máquina de interesse, para conferir o PCI X: "bmax" (família BMax), "consumivel", "nao_bmax"
+// (fora da tabela ou máscara) ou "" (vazio/genérico: não dá para julgar).
+function tipoDoProduto(maquinaInteresse) {
+    const t = compactar(maquinaInteresse);
+    if (!t) return "";
+    if (t.includes("consum")) return "consumivel";
+    if (reBmax.test(t)) return "bmax";
+    return reFora.test(t) ? "nao_bmax" : "";
+}
+
+module.exports = { motivoForaDoEscopo, tipoDoProduto, ehPciXTxt, pcixAtivo, pciParaEscopo, PCIX_CORTE, compactar, FAMILIAS_BMAX, FORA_DA_TABELA_BMAX };

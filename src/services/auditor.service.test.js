@@ -166,6 +166,41 @@ describe("checagens de cards (com contexto falso)", () => {
         expect(r[1].titulo).toContain("· responsável: (ninguém)");
     });
 
+    test("PCI X: só máquina não BMax e máscara; produto BMax ou consumível é achado", async () => {
+        process.env.PCIX_ATIVO = "1";
+        const { CHECAGENS } = require("./auditor.service");
+        const roda = CHECAGENS.find(c => c.id === "pcix_produto").roda;
+        const r = await roda(ctxCom([
+            card({ id: "1", pci: "PCI X", etapaId: "x", maquina: "Migflex 250" }),
+            card({ id: "2", pci: "PCI X", etapaId: "x", maquina: "Hardmig 450 MV" }),
+            card({ id: "3", pci: "PCI X", etapaId: "x", maquina: "Máscara de solda" }),
+            card({ id: "4", pci: "PCI X", etapaId: "x", maquina: "" }),
+            card({ id: "5", pci: "PCI 6", etapaId: "x", maquina: "Hardmig 450 MV" }),
+        ]));
+        expect(r.map(a => a.chave)).toEqual(["pcix_produto:2"]);
+        delete process.env.PCIX_ATIVO;
+        expect(await roda(ctxCom([card({ id: "2", pci: "PCI X", etapaId: "x", maquina: "Hardmig 450 MV" })]))).toEqual([]);   // desligado: não acusa nada
+    });
+
+    test("PCI X: resumo diário por revenda e lembrete todo dia", async () => {
+        process.env.PCIX_ATIVO = "1";
+        const { CHECAGENS, reconciliar } = require("./auditor.service");
+        const roda = CHECAGENS.find(c => c.id === "pcix_resumo").roda;
+        const db = { pcixPrazos: async () => [{ deal_id: "1", iniciado_em: new Date(Date.now() - 40 * 86400000) }] };
+        const r = await roda(ctxCom([
+            card({ id: "1", pci: "PCI X", etapaId: "x", revenda: "AlugaASoldas" }),
+            card({ id: "2", pci: "PCI X", etapaId: "x", revenda: "AlugaASoldas" }),
+            card({ id: "3", pci: "PCI X", etapaId: C.RD_STAGE_VENDIDO, revenda: "AlugaASoldas" }),
+            card({ id: "4", pci: "PCI 6", etapaId: "x", revenda: "AlugaASoldas" }),
+        ], db));
+        expect(r).toHaveLength(1);
+        expect(r[0].detalhe).toMatchObject({ revenda: "AlugaASoldas", abertos: 2, vencidos: 1, vendidos: 1, perdidos: 0 });
+        const ontem = new Date(Date.now() - 20 * 3600000);
+        const rec = reconciliar(r, [{ chave: r[0].chave, checagem: "pcix_resumo", ultimo_aviso_em: ontem }], ["pcix_resumo"]);
+        expect(rec.lembretes).toHaveLength(1);      // avisou há 20 h: o resumo volta no e-mail do dia seguinte
+        delete process.env.PCIX_ATIVO;
+    });
+
     test("vendido: PCI12 puro é erro de PCI; 12b com vendedor Boxer e 12a com André ficam como estão", async () => {
         const { checarPci12Responsavel } = require("./auditor.service");
         const r = await checarPci12Responsavel(ctxCom([

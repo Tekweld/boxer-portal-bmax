@@ -23,7 +23,8 @@ const RD_CRM_V1 = "https://crm.rdstation.com/api/v1";
 
 const { sbSistemasAnon, sbSistemasService } = require("../config/supabaseSistemas");
 const { logger } = require("../logger");
-const { motivoForaDoEscopo } = require("./escopoBmax.service");
+const { motivoForaDoEscopo, pciParaEscopo } = require("./escopoBmax.service");
+const vendaOuPerdidoStages = new Set([RD_STAGE_VENDIDO, RD_STAGE_VENDA_EFETIVADA, RD_STAGE_PERDIDO, RD_STAGE_PERDIDO_REVENDA, RD_STAGE_EXCLUIDO, require("../config/constants").RD_STAGE_ENTREGA_TECNICA].filter(Boolean));
 
 // Feature flag da migração RD Station -> Pipefy (ver guia_bmax_pipefy.md,
 // PIPEFY_PENDENCIAS.md e o plano da migração). Desativada por padrão
@@ -278,7 +279,8 @@ async function getLeads(username, role) {
     // Fora do escopo BMax (consumíveis / produto fora da Tabela de Preços BMax):
     // não aparece em nenhum perfil e, como TODO cálculo de cashback parte daqui,
     // também não gera cashback. Ver escopoBmax.service.js.
-    allDeals = allDeals.filter(d => !motivoForaDoEscopo(getCustomField(d, "MÁQUINA DE INTERESSE"), getCustomField(d, "SEGMENTO DE PRODUTO")));
+    allDeals = allDeals.filter(d => !motivoForaDoEscopo(getCustomField(d, "MÁQUINA DE INTERESSE"), getCustomField(d, "SEGMENTO DE PRODUTO"),
+        pciParaEscopo(getCustomField(d, "PERFIL PCI"), d.created_at, !(d.win === true || d.win === false || vendaOuPerdidoStages.has(d.deal_stage && d.deal_stage.id)))));
 
     if (role === "revenda") {
         const grupo = typeof arguments[2] === "string" ? arguments[2] : null;

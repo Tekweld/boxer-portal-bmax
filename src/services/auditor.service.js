@@ -53,6 +53,9 @@ function criarContexto({ dryRun, rodada = "manual" }) {
                 const rows = await sequelize.query(`SELECT DISTINCT lead_id FROM bmax_transacoes WHERE tipo = 'credito' AND lead_id IS NOT NULL`, { type: QueryTypes.SELECT });
                 return new Set(rows.map(r => String(r.lead_id)));
             },
+            async pcixPrazos() {
+                return sequelize.query(`SELECT deal_id, iniciado_em FROM bmax_pcix_prazo WHERE encerrado_em IS NULL`, { type: QueryTypes.SELECT });
+            },
             async ultimaRodadaAgendada() {
                 const r = await sequelize.query(`SELECT iniciado_em FROM bmax_auditoria_execucoes WHERE rodada <> 'manual' ORDER BY iniciado_em DESC LIMIT 1`, { type: QueryTypes.SELECT });
                 return r[0] ? new Date(r[0].iniciado_em) : null;
@@ -217,6 +220,58 @@ async function checarPciXProduto(ctx) {
     return achados;
 }
 
+// PCI X só vale para máquina que não é BMax e máscara. Acusa PCI X em produto da família BMax (deveria ser o PCI do produto) e em consumível.
+async function checarPciXProduto2(ctx) {
+    const E = require("./escopoBmax.service");
+    if (!E.pcixAtivo()) return [];      // módulo PCI X desligado (PCIX_ATIVO)
+    const achados = [];
+    for (const c of await ctx.cards()) {
+        if (A.pciKey(c.pci) !== "PCIX") continue;
+        const tipo = E.tipoDoProduto(c.maquina);
+        if (tipo !== "bmax" && tipo !== "consumivel") continue;
+        achados.push({
+            chave: `pcix_produto:${c.id}`, grupo: "cards", checagem: "pcix_produto", severidade: "media",
+            titulo: `"${c.nome}" (${String(c.revenda).trim() || "sem revenda"}): PCI X com ${tipo === "bmax" ? "produto da linha BMax" : "consumível"} (${String(c.maquina).trim()}); PCI X é só para máquina que não é BMax e máscara${respTxt(c)}`,
+            detalhe: { card: c.id, nome: c.nome, maquina: c.maquina, tipo, responsavel: c.responsavel || "", revenda: c.revenda },
+            link: linkCard(c.id),
+            acao: tipo === "bmax" ? "Trocar o PCI para o do produto BMax (13, 14 ou 15 se veio da revenda)." : "Consumível não é permitido no BMax: Sem PCI, Sem revenda, Sem representante e comentário no card.",
+        });
+    }
+    return achados;
+}
+
+// Resumo diário do PCI X por revenda (quantos abertos, vencidos do prazo de 30 dias, vendidos e perdidos). Não é erro: é para o André acompanhar.
+async function checarPciXResumo(ctx) {
+    if (!require("./escopoBmax.service").pcixAtivo()) return [];      // módulo PCI X desligado (PCIX_ATIVO)
+    const px = require("./pciX.service");
+    const cards = (await ctx.cards()).filter(c => A.pciKey(c.pci) === "PCIX");
+    if (!cards.length) return [];
+    const prazos = new Map();
+    try { for (const r of await ctx.db.pcixPrazos()) prazos.set(String(r.deal_id), r); } catch (e) { if (!ctx.dryRun) throw e; }
+    const perdido = new Set([C.RD_STAGE_PERDIDO, C.RD_STAGE_PERDIDO_REVENDA, C.RD_STAGE_EXCLUIDO].filter(Boolean));
+    const porRevenda = new Map();
+    for (const c of cards) {
+        const rev = String(c.revenda || "").trim() || "(sem revenda)";
+        const g = porRevenda.get(rev) || { revenda: rev, abertos: 0, vencidos: 0, vendidos: 0, perdidos: 0, cards: [] };
+        if (VENDA.has(c.etapaId)) g.vendidos++;
+        else if (perdido.has(c.etapaId)) g.perdidos++;
+        else {
+            g.abertos++;
+            const r = prazos.get(c.id) || (c.rdId && prazos.get(c.rdId));
+            const dias = r ? px.situacao(r.iniciado_em).dias : 0;
+            if (r && px.situacao(r.iniciado_em).vencido) g.vencidos++;
+            g.cards.push({ id: c.id, nome: c.nome, dias, representante: String(c.representante || "").trim() || "(sem representante)", responsavel: c.responsavel || "" });
+        }
+        porRevenda.set(rev, g);
+    }
+    return [...porRevenda.values()].map(g => ({
+        chave: `pcix_resumo:${g.revenda}`, grupo: "prazos", checagem: "pcix_resumo", severidade: "baixa", reavisoDias: 0.8,
+        titulo: `PCI X · ${g.revenda}: ${g.abertos} em aberto${g.vencidos ? ` (${g.vencidos} com o prazo de 30 dias vencido)` : ""}, ${g.vendidos} vendido(s), ${g.perdidos} perdido(s)`,
+        detalhe: g,
+        acao: "Acompanhamento diário dos leads de produto não BMax repassados à revenda (sem cashback). Prazo de 30 dias.",
+    }));
+}
+
 // PCI12 / PCI12a em aberto com responsável diferente do André Coelho (regra do projeto). Só avisa: quem decide e corrige é o André.
 async function checarPci12Responsavel(ctx) {
     const achados = [];
@@ -338,6 +393,8 @@ const CHECAGENS = [
     { id: "venda_sem_dados", grupo: "cards", cobre: ["venda_sem_dados"], roda: checarVendaSemDados },
     { id: "pci_x_produto", grupo: "cards", cobre: ["pci_x_produto"], roda: checarPciXProduto },
     { id: "pci12_responsavel", grupo: "cards", cobre: ["pci12_responsavel"], roda: checarPci12Responsavel },
+    { id: "pcix_produto", grupo: "cards", cobre: ["pcix_produto"], roda: checarPciXProduto2 },
+    { id: "pcix_resumo", grupo: "prazos", cobre: ["pcix_resumo"], roda: checarPciXResumo },
     { id: "mudancas_campos", grupo: "cards", cobre: ["mudanca_campos"], roda: checarMudancasCampos },
     { id: "pci12a_sem_resposta", grupo: "prazos", cobre: ["pci12a_sem_resposta"], roda: checarPci12aSemResposta },
     { id: "rodada_perdida", grupo: "robos", cobre: ["auditor_rodada_perdida"], roda: checarRodadaPerdida },
@@ -359,7 +416,8 @@ function reconciliar(atuais, abertos, checagensOk, agora = new Date(), reavisoDi
     // Persistente só volta ao e-mail quando venceu o lembrete semanal (ou nunca foi avisado)
     const lembretes = persistentes.filter(a => {
         const antigo = abertosPorChave.get(a.chave);
-        return !antigo.ultimo_aviso_em || new Date(antigo.ultimo_aviso_em).getTime() < limite;
+        const limiteDele = a.reavisoDias ? agora.getTime() - a.reavisoDias * 86400000 : limite;   // ex.: resumo do PCI X avisa todo dia
+        return !antigo.ultimo_aviso_em || new Date(antigo.ultimo_aviso_em).getTime() < limiteDele;
     });
     return { novos, persistentes, resolvidos, lembretes, paraAvisar: [...novos, ...lembretes] };
 }
@@ -381,7 +439,9 @@ const TEMAS = [
     ["mudanca_campos", "7. Mudanças de PCI, produto ou classe"],
     ["pci_x_produto", "8. PCI que não combina com o produto"],
     ["pci12_responsavel", "9. PCI12/12a com responsável que não é o André"],
-    ["pci12a_sem_resposta", "10. Cobrança: PCI12a sem resposta da revenda"],
+    ["pcix_produto", "10. PCI X com produto que não cabe (BMax ou consumível)"],
+    ["pcix_resumo", "11. PCI X por revenda (resumo diário)"],
+    ["pci12a_sem_resposta", "12. Cobrança: PCI12a sem resposta da revenda"],
 ];
 const ORDEM_SEV = { alta: 0, media: 1, baixa: 2 };
 const ordemTema = c => { const i = TEMAS.findIndex(t => t[0] === c); return i < 0 ? TEMAS.length : i; };

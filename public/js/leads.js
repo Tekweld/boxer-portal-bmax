@@ -341,6 +341,24 @@ function ordenarCards(data) {
   });
 }
 
+// Filtros que podem esconder todos os cards: devolve o texto de cada um e limpa todos de uma vez
+function filtrosAtivosTexto() {
+  const out = [];
+  if (session.role !== "revenda" && $("filter") && $("filter").value !== "all") out.push("Revenda: " + $("filter").value);
+  if (activeQuemFilter) out.push(QUEM_ROTULO[activeQuemFilter] || activeQuemFilter);
+  if (activePciFilter && session.role !== "revenda") out.push(pciRotulo(activePciFilter));
+  if (activeAlertFilter) out.push("Alerta: " + activeAlertFilter);
+  if ($("q") && $("q").value.trim()) out.push("Busca: " + $("q").value.trim());
+  return out;
+}
+function limparFiltros() {
+  activeQuemFilter = null; activePciFilter = null; activeAlertFilter = null;
+  document.querySelectorAll(".alert-bar").forEach(el => el.classList.remove("active"));
+  if ($("q")) $("q").value = "";
+  if (session.role !== "revenda" && $("filter")) $("filter").value = "all";
+  atualizarBarraPciX(); render();
+}
+
 function renderGrid(data) {
   atualizarBarraPciX();
   atualizarBarraPci();
@@ -348,7 +366,13 @@ function renderGrid(data) {
   const grid = $("grid");
   grid.innerHTML = "";
 
-  $("empty").classList.toggle("hidden", data.length !== 0);
+  const emptyEl = $("empty");
+  emptyEl.classList.toggle("hidden", data.length !== 0);
+  if (data.length === 0) {
+    const ativos = filtrosAtivosTexto();
+    emptyEl.innerHTML = `Nenhum card encontrado com os filtros atuais.${ativos.length ? `<div style="margin:8px 0;font-size:13px;color:var(--muted)">Filtros ativos: ${ativos.map(esc).join(" · ")}</div><button type="button" class="btn" id="btnLimparFiltros">Limpar filtros</button>` : ""}`;
+    const btnLimpar = $("btnLimparFiltros"); if (btnLimpar) btnLimpar.onclick = limparFiltros;
+  }
 
   ordenarCards(data).forEach(l => {
     const el = document.createElement("div");
