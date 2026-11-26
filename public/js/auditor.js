@@ -30,7 +30,7 @@ function auditorCards(a) {
     const cards = a.detalhe && Array.isArray(a.detalhe.cards) ? a.detalhe.cards : [];
     if (!cards.length) return "";
     return `<details style="margin-top:4px"><summary style="cursor:pointer">ver os ${cards.length} card(s)</summary><ul style="margin:4px 0 0;padding-left:18px">${cards.map(c =>
-        `<li>${/^\d+$/.test(String(c.id)) ? `<a href="https://app.pipefy.com/open-cards/${esc(c.id)}" target="_blank" rel="noopener">${esc(c.nome)}</a>` : esc(c.nome)} · ${esc(c.dias)} dias · rep.: ${esc(c.representante)}</li>`).join("")}</ul></details>`;
+        `<li>${/^\d+$/.test(String(c.id)) ? `<a href="https://app.pipefy.com/open-cards/${esc(c.id)}" target="_blank" rel="noopener">${esc(c.nome)}</a>` : esc(c.nome)} · ${esc(c.dias)} dias · rep.: ${esc(c.representante)} · resp.: ${esc(c.responsavel || "—")}</li>`).join("")}</ul></details>`;
 }
 
 function auditorLinhaAchado(a) {

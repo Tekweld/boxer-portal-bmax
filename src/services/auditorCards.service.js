@@ -101,7 +101,7 @@ function agruparSemResposta(cards) {
         g.total++;
         g.maisAntigoDias = Math.max(g.maisAntigoDias, c.dias || 0);
         g.representantes[rep] = (g.representantes[rep] || 0) + 1;
-        g.cards.push({ id: c.id, nome: c.nome, dias: c.dias, representante: rep });
+        g.cards.push({ id: c.id, nome: c.nome, dias: c.dias, representante: rep, responsavel: txt(c.responsavel) });
         porRevenda.set(revenda, g);
     }
     return [...porRevenda.values()].sort((a, b) => b.total - a.total || b.maisAntigoDias - a.maisAntigoDias);

@@ -175,6 +175,9 @@ async function checarRobos() {
     return achados;
 }
 
+// Nome do responsável pelo card, para o título de todo achado de card (quem precisa agir sabe a quem procurar).
+const respTxt = c => ` · responsável: ${String(c && c.responsavel || "").trim() || "(ninguém)"}`;
+
 // Venda concluída (Vendido / Venda Efetivada / Entrega Técnica, valor > 0) com PCI, produto, classe, revenda ou representante em branco.
 // Sem PCI e Classe a comissão não é creditada; os demais atrapalham relatório e cobrança.
 async function checarVendaSemDados(ctx) {
@@ -186,8 +189,8 @@ async function checarVendaSemDados(ctx) {
         const bloqueiaComissao = faltando.includes("PCI") || faltando.includes("Classe de preço");
         achados.push({
             chave: `venda_sem_dados:${c.id}`, grupo: "cards", checagem: "venda_sem_dados", severidade: bloqueiaComissao ? "alta" : "media",
-            titulo: `Venda "${c.nome}" (${String(c.revenda).trim() || "sem revenda"}, ${brl(c.valor)}) sem: ${faltando.join(", ")}`,
-            detalhe: { card: c.id, nome: c.nome, revenda: c.revenda, representante: c.representante, valor: c.valor, faltando },
+            titulo: `Venda "${c.nome}" (${String(c.revenda).trim() || "sem revenda"}, ${brl(c.valor)}) sem: ${faltando.join(", ")}${respTxt(c)}`,
+            detalhe: { card: c.id, nome: c.nome, revenda: c.revenda, representante: c.representante, responsavel: c.responsavel || "", valor: c.valor, faltando },
             link: linkCard(c.id),
             acao: bloqueiaComissao ? "Preencher no card. Sem PCI e Classe de preço a comissão não é creditada." : "Preencher no card para o relatório e a cobrança ficarem completos.",
         });
@@ -205,7 +208,7 @@ async function checarPciXProduto(ctx) {
         const pciTxt = A.pciKey(c.pci);
         achados.push({
             chave: `pci_x_produto:${c.id}`, grupo: "cards", checagem: "pci_x_produto", severidade: r.origem === "segmento" ? "media" : "baixa",
-            titulo: `"${c.nome}" (${String(c.revenda).trim() || "sem revenda"}): ${pciTxt} é de ${A.ROTULO_PRODUTO[r.esperado]}, mas ${r.origem === "segmento" ? "o produto do card" : "a máquina de interesse"} indica ${A.ROTULO_PRODUTO[r.encontrado]}`,
+            titulo: `"${c.nome}" (${String(c.revenda).trim() || "sem revenda"}): ${pciTxt} é de ${A.ROTULO_PRODUTO[r.esperado]}, mas ${r.origem === "segmento" ? "o produto do card" : "a máquina de interesse"} indica ${A.ROTULO_PRODUTO[r.encontrado]}${respTxt(c)}`,
             detalhe: { card: c.id, nome: c.nome, pci: pciTxt, esperado: r.esperado, encontrado: r.encontrado, origem: r.origem, maquina: c.maquina },
             link: linkCard(c.id),
             acao: "Conferir se o PCI ou o produto está errado e corrigir no card.",
@@ -218,7 +221,18 @@ async function checarPciXProduto(ctx) {
 async function checarPci12Responsavel(ctx) {
     const achados = [];
     for (const c of await ctx.cards()) {
-        if (VENDA.has(c.etapaId)) continue;                     // vendido: o responsável é quem vendeu
+        if (VENDA.has(c.etapaId)) {
+            // Vendido: o responsável é quem vendeu (12b) ou o André (12a). Mas PCI12 puro (pendente) não pode estar em venda: o PCI está errado.
+            if (A.pciKey(c.pci) !== "PCI12") continue;
+            achados.push({
+                chave: `pci12_em_venda:${c.id}`, grupo: "cards", checagem: "pci12_responsavel", severidade: "media",
+                titulo: `"${c.nome}" (${String(c.revenda).trim() || "sem revenda"}): vendido com PCI12 (pendente), que não pode concluir venda; deveria ser PCI12a ou PCI12b${respTxt(c)}`,
+                detalhe: { card: c.id, nome: c.nome, pci: "PCI12", responsavel: String(c.responsavel || "").trim() || "(ninguém)", revenda: c.revenda },
+                link: linkCard(c.id),
+                acao: "Definir se foi 12a (revenda atende, responsável André) ou 12b (Boxer atende, responsável de quem vendeu) e corrigir o PCI no card. O auditor não corrige sozinho.",
+            });
+            continue;
+        }
         const r = A.pci12ResponsavelErrado(c);
         if (!r) continue;
         achados.push({
@@ -264,11 +278,12 @@ async function checarMudancasCampos(ctx) {
     }
     if (!ctx.dryRun && (novasMudancas.length || paraGravar.length)) await ctx.db.gravar(novasMudancas, paraGravar);
 
+    const respPorCard = new Map(cards.map(c => [String(c.id), c.responsavel]));
     const recentes = (await ctx.db.mudancasRecentes()).map(r => ({ ...r, antes: r.valor_antes, depois: r.valor_depois }));
     const emMemoria = ctx.dryRun ? novasMudancas.map(m => ({ ...m, id: `novo:${m.card_id}:${m.campo}` })) : [];
     return [...recentes, ...emMemoria].map(m => ({
         chave: `mudanca:${m.id}`, grupo: "cards", checagem: "mudanca_campos", severidade: m.severidade || "baixa",
-        titulo: `"${m.nome}" (${m.revenda || "sem revenda"}): ${A.ROTULO_CAMPO[m.campo]} mudou de ${A.mostrarValor(m.campo, m.antes)} para ${A.mostrarValor(m.campo, m.depois)}${m.severidade === "alta" ? " (venda já creditada)" : ""}`,
+        titulo: `"${m.nome}" (${m.revenda || "sem revenda"}): ${A.ROTULO_CAMPO[m.campo]} mudou de ${A.mostrarValor(m.campo, m.antes)} para ${A.mostrarValor(m.campo, m.depois)}${m.severidade === "alta" ? " (venda já creditada)" : ""}${respTxt({ responsavel: respPorCard.get(String(m.card_id)) })}`,
         detalhe: { card: m.card_id, campo: m.campo, antes: m.antes, depois: m.depois },
         link: linkCard(m.card_id),
         acao: m.severidade === "alta" ? "Conferir no Extrato de Comissões se a comissão já creditada continua correta e se a mudança foi intencional." : "Conferir se a mudança foi intencional.",
@@ -288,7 +303,7 @@ async function checarPci12aSemResposta(ctx) {
         if (prazo && prazo.resultado) continue;                                   // já tem desfecho no Portal
         if (!A.semRespostaDaRevenda(andamentos.get(c.id) || (c.rdId && andamentos.get(c.rdId)) || null)) continue;
         const desde = prazo && prazo.assumido_em ? new Date(prazo.assumido_em) : c.criadoEm ? new Date(c.criadoEm) : null;
-        semResposta.push({ id: c.id, nome: c.nome, revenda: c.revenda, representante: c.representante, dias: desde ? Math.max(0, Math.floor((agora - desde.getTime()) / 86400000)) : 0 });
+        semResposta.push({ id: c.id, nome: c.nome, revenda: c.revenda, representante: c.representante, responsavel: c.responsavel, dias: desde ? Math.max(0, Math.floor((agora - desde.getTime()) / 86400000)) : 0 });
     }
     return A.agruparSemResposta(semResposta).map(g => ({
         chave: `pci12a_sem_resposta:${g.revenda}`, grupo: "prazos", checagem: "pci12a_sem_resposta", severidade: g.maisAntigoDias >= 50 ? "alta" : "media",
@@ -380,7 +395,7 @@ function blocoCobranca12a(achados) {
         const rep = (porRep[c.representante] = porRep[c.representante] || {});
         (rep[a.detalhe.revenda] = rep[a.detalhe.revenda] || []).push(c);
     }
-    const cardLi = c => { const l = linkCard(c.id); return `${l ? `<a href="${esc(l)}">${esc(c.nome)}</a>` : esc(c.nome)} (${c.dias} dias)`; };
+    const cardLi = c => { const l = linkCard(c.id); return `${l ? `<a href="${esc(l)}">${esc(c.nome)}</a>` : esc(c.nome)} (${c.dias} dias${c.responsavel ? `, resp.: ${esc(c.responsavel)}` : ""})`; };
     const lista = Object.entries(porRep).sort((x, y) => Object.values(y[1]).flat().length - Object.values(x[1]).flat().length);
     return `<h3 style="margin:18px 0 6px">${esc(TEMAS.find(t => t[0] === "pci12a_sem_resposta")[1])} (${totalCards} cards em ${achados.length} revenda(s))</h3>
         <p style="margin:0 0 6px;color:#555;font-size:13px">Cards em que a revenda assumiu a venda e ainda não registrou andamento no Portal (ou deixou "Pendente"/"Sem retorno").</p>

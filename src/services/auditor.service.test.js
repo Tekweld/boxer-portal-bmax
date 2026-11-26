@@ -152,8 +152,29 @@ describe("checagens de cards (com contexto falso)", () => {
             card({ id: "3", pci: "PCI 12", etapaId: C.RD_STAGE_VENDIDO, responsavel: "Carlos Alberto Fernandes" }),
             card({ id: "4", pci: "PCI 6", etapaId: "x", responsavel: "Carlos Alberto Fernandes" }),
         ]));
-        expect(r.map(a => a.chave)).toEqual(["pci12_responsavel:1"]);
+        expect(r.map(a => a.chave)).toEqual(["pci12_responsavel:1", "pci12_em_venda:3"]);
         expect(r[0].severidade).toBe("media");
+    });
+
+    test("achados de card trazem o nome do responsável no título", async () => {
+        const { checarVendaSemDados } = require("./auditor.service");
+        const r = await checarVendaSemDados(ctxCom([
+            card({ id: "1", pci: "", etapaId: C.RD_STAGE_VENDIDO, valor: 100, responsavel: "Carlos Alberto Fernandes" }),
+            card({ id: "2", pci: "", etapaId: C.RD_STAGE_VENDIDO, valor: 100, responsavel: "" }),
+        ]));
+        expect(r[0].titulo).toContain("· responsável: Carlos Alberto Fernandes");
+        expect(r[1].titulo).toContain("· responsável: (ninguém)");
+    });
+
+    test("vendido: PCI12 puro é erro de PCI; 12b com vendedor Boxer e 12a com André ficam como estão", async () => {
+        const { checarPci12Responsavel } = require("./auditor.service");
+        const r = await checarPci12Responsavel(ctxCom([
+            card({ id: "1", pci: "PCI 12b", etapaId: C.RD_STAGE_VENDIDO, responsavel: "Carlos Alberto Fernandes" }),
+            card({ id: "2", pci: "PCI 12a", etapaId: C.RD_STAGE_VENDIDO, responsavel: "André Coelho" }),
+            card({ id: "3", pci: "PCI 12", etapaId: C.RD_STAGE_VENDIDO, responsavel: "" }),
+        ]));
+        expect(r.map(a => a.chave)).toEqual(["pci12_em_venda:3"]);
+        expect(r[0].titulo).toContain("PCI12a ou PCI12b");
     });
 
     test("e-mail traz o bloco de cobrança por representante e por revenda, e corta listas longas", () => {
