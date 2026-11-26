@@ -60,7 +60,24 @@ const VENDA = new Set([C.RD_STAGE_VENDIDO, C.RD_STAGE_VENDA_EFETIVADA, C.RD_STAG
       maquina: String(l.getCustomField(d, "MÁQUINA DE INTERESSE") || "").trim(), segmento: String(l.getCustomField(d, "SEGMENTO DE PRODUTO") || "").trim(),
     });
   }
-  console.log("vendas do CRM no escopo (desde 01/05):", cards.length);
+  // cards de teste não entram em nada (André, 26/11/2026)
+  const ehTeste = c => /teste/i.test(c.nome || "");
+  const nTeste = cards.filter(ehTeste).length;
+  for (let i = cards.length - 1; i >= 0; i--) if (ehTeste(cards[i])) cards.splice(i, 1);
+  console.log("vendas do CRM no escopo (desde 01/05):", cards.length, "| cards de teste ignorados:", nTeste);
+
+  // Tabela de Preços BMax (boxer-sistemas, produtos tabela_id=2): código -> modelo, para classificar os itens das notas
+  const SBK = process.env.SUPABASE_SERVICE_KEY_SISTEMAS;
+  const tabelaPorCodigo = new Map();
+  if (SBK) {
+    const r = await fetch("https://bmepxcnrsofofoswubuu.supabase.co/rest/v1/produtos?tabela_id=eq.2&select=codigo,modelo&limit=1000", { headers: { apikey: SBK, Authorization: "Bearer " + SBK } });
+    if (r.ok) for (const p of await r.json()) tabelaPorCodigo.set(String(p.codigo).trim(), p.modelo || "");
+  }
+  console.log("produtos da Tabela de Preços BMax lidos:", tabelaPorCodigo.size);
+  // famílias canônicas (texto livre do card x descrição/modelo da nota)
+  const FAM = [["laser", /laser|lq\d/], ["hardmig", /hardmig|hard\d/], ["duramax", /duramax|dura\d/], ["tigon", /tigon/], ["alutig", /alutig/], ["alumig", /alumig|alu\d|m500/], ["q25", /q25/], ["hardcut", /hardcut/], ["robo", /robo|robot|rm\d|b500|posicionador|troly|cabecote|chiller|rtb/], ["migflex", /migflex/], ["optiarc", /optiarc/], ["flama", /flama/]];
+  const familias = txt => { const t = compactar(txt); return new Set(FAM.filter(([, re]) => re.test(t)).map(([f]) => f)); };
+  const addDias = (d, n) => new Date(new Date(d).getTime() + n * 86400000).toISOString().slice(0, 10);
 
   // 2) notas do ZEN com a tag bmax (filtro principal)
   const nfs = []; let ultimo = null;
@@ -70,7 +87,7 @@ const VENDA = new Set([C.RD_STAGE_VENDIDO, C.RD_STAGE_VENDA_EFETIVADA, C.RD_STAG
     for (const n of r) {
       ultimo = n.id;
       nfs.push({ id: n.id, numero: n.number, data: dia(n.issueDate), total: Number(n.totalValue) || 0, status: n.status, cancelada: n.status === "CANCELED" || !!n.returned, saleId: n.properties && n.properties.saleId ? String(n.properties.saleId) : "",
-        cnpj: so(n.person && n.person.documentNumber), cliente: nomeDe(n.person), vendedor: nomeDe(n.personSalesperson), comissao: n.properties && n.properties.salesCommission, tag: true });
+        cnpj: so(n.person && n.person.documentNumber), cliente: nomeDe(n.person), canal: (n.personSalesperson && n.personSalesperson.category1 && (n.personSalesperson.category1.description || n.personSalesperson.category1.name)) || "", vendedor: nomeDe(n.personSalesperson), comissao: n.properties && n.properties.salesCommission, tag: true });
     }
     if (r.length < 100) break;
   }
@@ -87,7 +104,7 @@ const VENDA = new Set([C.RD_STAGE_VENDIDO, C.RD_STAGE_VENDA_EFETIVADA, C.RD_STAG
       const lista = [];
       for (const p of pessoas) {
         const r = await zget("/fiscal/outgoingInvoice", { q: "person.id==" + p.id, order: "-id", max: 100 });
-        for (const n of r) lista.push({ id: n.id, numero: n.number, data: dia(n.issueDate), total: Number(n.totalValue) || 0, status: n.status, cancelada: n.status === "CANCELED" || !!n.returned, saleId: n.properties && n.properties.saleId ? String(n.properties.saleId) : "", cnpj, cliente: p.name, vendedor: nomeDe(n.personSalesperson), tag: /bmax/i.test(n.tags || "") });
+        for (const n of r) lista.push({ id: n.id, numero: n.number, data: dia(n.issueDate), total: Number(n.totalValue) || 0, status: n.status, cancelada: n.status === "CANCELED" || !!n.returned, saleId: n.properties && n.properties.saleId ? String(n.properties.saleId) : "", cnpj, cliente: p.name, canal: (n.personSalesperson && n.personSalesperson.category1 && (n.personSalesperson.category1.description || n.personSalesperson.category1.name)) || "", vendedor: nomeDe(n.personSalesperson), tag: /bmax/i.test(n.tags || "") });
       }
       extra.set(cnpj, { achou: pessoas.length > 0, nfs: lista });
     } catch (e) { extra.set(cnpj, { erro: e.message.slice(0, 80), nfs: [] }); }
@@ -103,6 +120,7 @@ const VENDA = new Set([C.RD_STAGE_VENDIDO, C.RD_STAGE_VENDA_EFETIVADA, C.RD_STAG
     if (n.data < c.criado) ev.push("nota ANTES da criação do card"); else if (dd >= -5 && dd <= 60) { p += 2; ev.push("data perto do fechamento"); } else if (dd >= -45 && dd <= 90) { p += 1; ev.push("data na janela larga"); } else ev.push("data fora da janela");
     if (n.vendedor && (interseccao(tokens(n.vendedor), tokens(c.resp)) || interseccao(tokens(n.vendedor), tokens(c.rep)))) { p += 1; ev.push("vendedor bate"); }
     if (n.tag) { p += 1; ev.push("tag bmax"); }
+    if (/ind[uú]stria/i.test(n.canal || "")) { p += 1; ev.push("canal Indústria"); } else if (n.canal) ev.push("canal " + n.canal);
     return { p, ev, dif, rel, dd };
   };
   const linhas = cards.map(c => {
@@ -117,14 +135,42 @@ const VENDA = new Set([C.RD_STAGE_VENDIDO, C.RD_STAGE_VENDA_EFETIVADA, C.RD_STAG
     if (melhor) { usadas.set(melhor.n.id, x.c.id); x.escolhida = melhor; }
   });
 
-  // 5) itens da nota escolhida (produto)
+  // 4b) SOMA DE NOTAS: o card sem nota de valor igual pode ser um pedido faturado em várias notas.
+  // Procura um conjunto de notas do cliente (ainda livres, na janela do card) cuja soma bate com o valor; prefere notas do mesmo pedido (saleId).
+  linhas.filter(x => !x.escolhida && x.cand.length > 1).forEach(x => {
+    const livres = x.cand.filter(n => !usadas.has(n.id) && n.data >= addDias(x.c.criado, -60) && n.data <= addDias(x.c.fechado, 90)).slice(0, 14);
+    const tol = Math.max(0.05, x.c.valor * 0.001);
+    let melhor = null;
+    for (let m = 1; m < (1 << livres.length); m++) {
+      const sub = livres.filter((_, i) => m & (1 << i));
+      if (sub.length < 2 || sub.length > 6) continue;
+      const soma = sub.reduce((s, n) => s + n.total, 0);
+      if (Math.abs(soma - x.c.valor) > tol) continue;
+      const mesmoPedido = sub[0].saleId && sub.every(n => n.saleId === sub[0].saleId);
+      const nota = (mesmoPedido ? 0 : 10) + sub.length;
+      if (!melhor || nota < melhor.nota) melhor = { sub, soma, mesmoPedido, nota };
+    }
+    if (!melhor) return;
+    melhor.sub.forEach(n => usadas.set(n.id, x.c.id));
+    const u = melhor.sub[melhor.sub.length - 1];
+    x.escolhida = { n: { ...u, numero: melhor.sub.map(n => n.numero).join(" + "), data: melhor.sub.map(n => n.data).sort().pop(), total: melhor.soma, tag: melhor.sub.some(n => n.tag), canal: u.canal }, p: 7, dif: 0, rel: 0, ev: ["SOMA de " + melhor.sub.length + " notas" + (melhor.mesmoPedido ? " do mesmo pedido" : "")], ids: melhor.sub.map(n => n.id), soma: melhor.sub.length };
+  });
+
+  // 5) itens da(s) nota(s) escolhida(s): produto conferido pela família (texto livre do card x descrição + modelo da Tabela BMax)
   await pool(linhas.filter(x => x.escolhida), 4, async x => {
     try {
-      const it = await zget("/fiscal/outgoingInvoiceItem", { q: "invoice.id==" + x.escolhida.n.id, max: 30 });
-      x.itens = it.map(i => `${i.quantity}x ${((i.productPacking && i.productPacking.product && i.productPacking.product.description) || "?").slice(0, 45)}`).join("; ");
-      const textoItens = it.map(i => (i.productPacking && i.productPacking.product && i.productPacking.product.description) || "").join(" ");
-      const tc = tokens(x.c.maquina + " " + x.c.segmento), ti = tokens(textoItens);
-      x.produto = !x.c.maquina ? "card sem máquina" : (interseccao(tc, ti) || compactar(textoItens).includes(compactar(x.c.maquina).slice(0, 6)) ? "compatível" : "NÃO bate");
+      const it = [];
+      for (const id of (x.escolhida.ids || [x.escolhida.n.id])) it.push(...await zget("/fiscal/outgoingInvoiceItem", { q: "invoice.id==" + id, max: 30 }));
+      const prod = i => (i.productPacking && i.productPacking.product) || {};
+      const codigoDe = i => String(prod(i).code || prod(i).id || (i.productPacking && i.productPacking.code) || "").trim();
+      x.itens = it.map(i => `${i.quantity}x ${(prod(i).description || "?").slice(0, 45)}`).join("; ");
+      const daTabela = it.filter(i => tabelaPorCodigo.has(codigoDe(i)));
+      x.naTabela = it.length ? daTabela.length + "/" + it.length : "";
+      const textoItens = it.map(i => (prod(i).description || "") + " " + (tabelaPorCodigo.get(codigoDe(i)) || "")).join(" ");
+      const fc = familias(x.c.maquina), fn = familias(textoItens);
+      if (!x.c.maquina) x.produto = "card sem máquina";
+      else if (fc.size) x.produto = [...fc].some(f => fn.has(f)) ? "compatível" : "NÃO bate";
+      else { const tc = tokens(x.c.maquina + " " + x.c.segmento), ti = tokens(textoItens); x.produto = interseccao(tc, ti) || compactar(textoItens).includes(compactar(x.c.maquina).slice(0, 6)) ? "compatível" : "NÃO bate"; }
     } catch { x.itens = ""; x.produto = "sem itens"; }
   });
 
@@ -148,25 +194,25 @@ const VENDA = new Set([C.RD_STAGE_VENDIDO, C.RD_STAGE_VENDA_EFETIVADA, C.RD_STAG
       const igual = nfsDesde.find(n => !n.cancelada && !usadas.has(n.id) && n.cnpj !== c.cnpj && Math.abs(n.total - c.valor) <= 0.05 && Math.abs(difDias(n.data, c.fechado)) <= 90);
       if (igual) outroCnpj = `NF ${igual.numero} R$ ${igual.total} em outro CNPJ (${igual.cliente}), ${igual.data}`;
     }
-    return { estado, ...c, nfNumero: escolhida ? escolhida.n.numero : "", nfData: escolhida ? escolhida.n.data : "", nfTotal: escolhida ? escolhida.n.total : "", nfVendedor: escolhida ? escolhida.n.vendedor : "", nfTag: escolhida ? (escolhida.n.tag ? "sim" : "não") : "",
-      pontos: escolhida ? escolhida.p : "", evidencias: escolhida ? escolhida.ev.join(", ") : "", produto: x.produto || "", itens: x.itens || "", outrasNotas: obs, outroCnpj, melhorSemUso: !escolhida && ranked[0] ? `NF ${ranked[0].n.numero} R$ ${ranked[0].n.total} (${ranked[0].n.data}): ${ranked[0].ev.join(", ")}` : "" };
+    return { estado, ...c, nfNumero: escolhida ? escolhida.n.numero : "", nfData: escolhida ? escolhida.n.data : "", nfTotal: escolhida ? escolhida.n.total : "", nfVendedor: escolhida ? escolhida.n.vendedor : "", nfCanal: escolhida ? (escolhida.n.canal || "(vazio)") : "", nfTag: escolhida ? (escolhida.n.tag ? "sim" : "não") : "",
+      pontos: escolhida ? escolhida.p : "", evidencias: escolhida ? escolhida.ev.join(", ") : "", produto: x.produto || "", itens: x.itens || "", naTabela: x.naTabela || "", soma: escolhida && escolhida.soma ? escolhida.soma + " notas" : "", outrasNotas: obs, outroCnpj, melhorSemUso: !escolhida && ranked[0] ? `NF ${ranked[0].n.numero} R$ ${ranked[0].n.total} (${ranked[0].n.data}): ${ranked[0].ev.join(", ")}` : "" };
   });
 
   // 7) notas com tag bmax sem card
-  const semCard = nfsDesde.filter(n => !n.cancelada && !usadas.has(n.id)).map(n => ({ numero: n.numero, data: n.data, total: n.total, cliente: n.cliente, cnpj: n.cnpj, vendedor: n.vendedor, comissao: n.comissao }));
+  const semCard = nfsDesde.filter(n => !n.cancelada && !usadas.has(n.id)).map(n => ({ numero: n.numero, data: n.data, total: n.total, cliente: n.cliente, cnpj: n.cnpj, vendedor: n.vendedor, canal: n.canal, comissao: n.comissao }));
 
   const ordem = e => e.startsWith("SEM NOTA") ? 0 : e.startsWith("Valor") ? 1 : e.startsWith("Ambígua") ? 2 : e.startsWith("Provável") ? 3 : e.startsWith("CNPJ") ? 4 : e.startsWith("Sem nota esperada") ? 6 : 7;
   dados.sort((a, b) => ordem(a.estado) - ordem(b.estado));
   const wb = new ExcelJS.Workbook();
   const ws = wb.addWorksheet("Vendas do CRM x NF");
-  const cols = [["Estado", "estado", 34], ["Cliente (CRM)", "nome", 34], ["CNPJ", "cnpj", 17], ["Valor no card", "valor", 14], ["Fechado em", "fechado", 11], ["Criado em", "criado", 11], ["PCI", "pci", 9], ["Revenda", "revenda", 18], ["Representante", "rep", 16], ["Responsável", "resp", 18], ["Máquina de interesse", "maquina", 26], ["NF", "nfNumero", 9], ["Data NF", "nfData", 11], ["Total NF", "nfTotal", 14], ["Vendedor no ZEN", "nfVendedor", 22], ["Tag bmax", "nfTag", 8], ["Pontos", "pontos", 7], ["O que bateu", "evidencias", 40], ["Produto", "produto", 14], ["Itens da NF", "itens", 50], ["Obs", "outrasNotas", 24], ["NF de mesmo valor em outro CNPJ", "outroCnpj", 50], ["Melhor nota (não usada)", "melhorSemUso", 50], ["Card (Pipefy)", "id", 12]];
+  const cols = [["Estado", "estado", 34], ["Cliente (CRM)", "nome", 34], ["CNPJ", "cnpj", 17], ["Valor no card", "valor", 14], ["Fechado em", "fechado", 11], ["Criado em", "criado", 11], ["PCI", "pci", 9], ["Revenda", "revenda", 18], ["Representante", "rep", 16], ["Responsável", "resp", 18], ["Máquina de interesse", "maquina", 26], ["NF", "nfNumero", 9], ["Data NF", "nfData", 11], ["Total NF", "nfTotal", 14], ["Vendedor no ZEN", "nfVendedor", 22], ["Canal do vendedor (categoria 1)", "nfCanal", 18], ["Tag bmax", "nfTag", 8], ["Pontos", "pontos", 7], ["O que bateu", "evidencias", 40], ["Produto", "produto", 14], ["Itens da NF", "itens", 50], ["Itens na Tabela BMax", "naTabela", 12], ["Soma de notas", "soma", 10], ["Obs", "outrasNotas", 24], ["NF de mesmo valor em outro CNPJ", "outroCnpj", 50], ["Melhor nota (não usada)", "melhorSemUso", 50], ["Card (Pipefy)", "id", 12]];
   ws.columns = cols.map(([header, key, width]) => ({ header, key, width }));
   dados.forEach(r => ws.addRow(r));
   ws.getRow(1).font = { bold: true, color: { argb: "FFFFFFFF" } }; ws.getRow(1).fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF1D327B" } };
   ws.views = [{ state: "frozen", ySplit: 1 }]; ws.autoFilter = { from: "A1", to: ws.getRow(1).getCell(cols.length).address };
   ["valor", "nfTotal"].forEach(k => { ws.getColumn(k).numFmt = "#,##0.00"; });
   const w2 = wb.addWorksheet("NF bmax sem card");
-  w2.columns = [["NF", "numero", 9], ["Data", "data", 11], ["Total", "total", 14], ["Cliente", "cliente", 40], ["CNPJ", "cnpj", 17], ["Vendedor", "vendedor", 24], ["Comissão %", "comissao", 11]].map(([header, key, width]) => ({ header, key, width }));
+  w2.columns = [["NF", "numero", 9], ["Data", "data", 11], ["Total", "total", 14], ["Cliente", "cliente", 40], ["CNPJ", "cnpj", 17], ["Vendedor", "vendedor", 24], ["Canal", "canal", 14], ["Comissão %", "comissao", 11]].map(([header, key, width]) => ({ header, key, width }));
   semCard.forEach(r => w2.addRow(r)); w2.getRow(1).font = { bold: true }; w2.getColumn("total").numFmt = "#,##0.00";
   const cont = {}; dados.forEach(r => { const k = r.estado.replace(/ \(.*/, ""); cont[k] = (cont[k] || 0) + 1; });
   const w3 = wb.addWorksheet("Resumo");
