@@ -1,8 +1,10 @@
 ## BMax — arquivos que existem NESTE repo (leia primeiro o estado de 25/11)
 
 - [project_bmax_estado_2026_11_25.md](project_bmax_estado_2026_11_25.md) — **ESTADO REAL em 25/11/2026 (fonte de verdade)**: Pipefy em produção, funil por etiqueta "RD: Indústria", cashback = só o razão (nunca estimativa), PCI manda na comissão, PCI12/PCI X, pendências. Vence qualquer memória de set/out.
-- [project_bmax_pendencias_atuais.md](project_bmax_pendencias_atuais.md) — **PENDÊNCIAS ATUAIS (26/11/2026)**: dados de cards do auditor, crons no Pro, auditor, Pipefy, negócio e documentação
-- [project_bmax_auditor_diario.md](project_bmax_auditor_diario.md) — Auditor diário (publicado 25/11/2026): só lê e avisa o André por e-mail, 2x/dia; 8 checagens, tabelas, crons e o que falta
+- [project_bmax_pendencias_atuais.md](project_bmax_pendencias_atuais.md) — **PENDÊNCIAS ATUAIS (27/11/2026)**: cards divergentes do ZEN, cheques, decisões da margem, despachante dos robôs, Pipefy, negócio e documentação
+- [project_bmax_auditor_diario.md](project_bmax_auditor_diario.md) — Auditor diário: só lê e avisa o André por e-mail, 2x/dia; checagens (incl. vendas x ZEN e cheques desde 27/11), tabelas, crons e o que falta
+- [project_bmax_margem_fatos_2026_11_27.md](project_bmax_margem_fatos_2026_11_27.md) — **Margem de contribuição (27/11/2026)**: tabelas e views de fatos da venda Pipefy x ZEN, comissão por venda, cheques x pedido do ZEN, regras de reconhecimento e pagamento
+- [feedback_bmax_scripts_locais_e_crons.md](feedback_bmax_scripts_locais_e_crons.md) — Script local sem `CRM_PROVIDER=pipefy` lê o RD parado; Vercel perde crons (despachante); robô do ZEN incremental; DDL só com autorização
 - [Regras de responsável PCI12 e consumíveis](project_bmax_pci12_responsavel_regras.md) — 12a=André, 12b=vendedor, PCI12 puro nunca vendido, consumível = Sem PCI/revenda/rep (26/11/2026)
 - [feedback_bmax_cache_pipefy_preaquecer.md](feedback_bmax_cache_pipefy_preaquecer.md) — Mudou a consulta/filtro do Pipefy? Refazer o cache no banco LOCALMENTE antes (leitura completa = 139 s > 60 s da Vercel; incidente do painel vazio 25/11)
 - [feedback_portal_bmax_logica.md](feedback_portal_bmax_logica.md) — Portal BMax: PCI12 (48h→12b, 60d 12a→Prazo Vencido), escopo consumíveis, vínculo rep/RD, nomes de revenda/grupos, sem migration tooling, 504 em varredura; 28/10: PCI 13/14/15 pelo produto + "quem atende", nome único da revenda, travas CNPJ/nome+cidade
@@ -66,6 +68,7 @@ Este bloco veio de uma cópia do índice pessoal. Os links não abrem a partir d
 - Portal BMax: o auditor diário SÓ LÊ E AVISA; nunca corrige saldo, card ou qualquer dado de negócio
 - Portal BMax: leitura completa do pipe do Pipefy (~139 s) estoura os 60 s da Vercel; ao mudar a consulta ou um filtro por campo novo, refazer o cache no banco localmente ANTES de publicar (senão o painel mostra 0 leads)
 - Portal BMax: `git push` = deploy automático em produção (Vercel+GitHub)
+- Portal BMax: script local que lê cards precisa de `CRM_PROVIDER=pipefy` (senão lê o RD parado); a Vercel perde disparos de cron, o despachante recupera; margem = ler as views `vw_bmax_*`, nunca recalcular percentual
 - Portal BMax: editar `public/js/*.js` sem bumpar `?v=` em `index.html` = navegador serve versão antiga em cache
 - Portal BMax: sem migration tooling — mudar model Sequelize NUNCA muda o Postgres real sozinho (já quebrou 2x); aplicar DDL junto com o deploy
 - Portal BMax: helmet injeta `script-src-attr 'none'` se `scriptSrcAttr` não for definido — trava todo `onclick` inline. Teste de tela = clicar no navegador, não só chamar a API

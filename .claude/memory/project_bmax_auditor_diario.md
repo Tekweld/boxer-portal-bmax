@@ -49,3 +49,9 @@ metadata:
 - **Plano da Vercel passou de Hobby para Pro em 26/11/2026** (o time `boxer-soldas1` consta como `pro`). No Hobby o cron dispara em qualquer momento da hora e a Vercel pulou execuções; a Vercel não reexecuta cron que falhou. No Pro o cron deve sair no minuto agendado e `maxDuration` pode subir até 300 s (não alterado). Pendente: confirmar a pontualidade dos crons depois da troca; se os crons registrados sob as regras antigas continuarem atrasados, fazer um deploy (mesmo vazio) para a Vercel registrá-los de novo.
 - **Como inspecionar os crons registrados (Git Bash):** `MSYS_NO_PATHCONV=1 vercel api "/v9/projects/boxer-portal-bmax" --raw --scope boxer-soldas1` e ler `crons.definitions`, `crons.updatedAt`. Sem `MSYS_NO_PATHCONV=1` o caminho vira caminho do Windows e o comando falha. O log da Vercel (`vercel logs`) guarda só cerca de 1 hora; diagnóstico de cron perdido tem que ser feito pelas tabelas `bmax_robo_execucoes` e `bmax_auditoria_execucoes`.
 
+
+## Atualização 27/11/2026 (temas novos, rodada real, despachante)
+- **Temas novos** (13 a 18 no e-mail e na aba): `venda_sem_nota_zen`, `venda_valor_zen` (acima de 1%), `venda_produto_zen`, `venda_sem_cnpj_zen` (gravidade ALTA), `cheque_usado_sem_baixa`, `cheque_codigo_desconhecido` (alta). A checagem `vendas_zen` também GRAVA os fatos da venda (tabelas `bmax_venda_*`); a `cheques_zen` só lê o banco (o robô `cheques-zen` é quem varre o ZEN).
+- **1ª rodada real** (manual, 27/11 13:25 UTC): 207 s, 81 achados (61 novos). `vendas_zen` levou 188 s; subiu o `maxDuration` para 300 s e os itens passaram a vir do banco.
+- **Crons:** auditor 09:00 e 16:00 UTC (06h e 13h de Brasília); a Vercel perde disparos, o **despachante** recupera (carência 10 min, janela de 6 h na manhã e 5 h na tarde).
+- O auditor continua **só lendo e avisando**: nunca corrige Pipefy, ZEN nem razão.
