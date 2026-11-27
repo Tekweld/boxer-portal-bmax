@@ -66,3 +66,7 @@ Esta é a lista atual. A mesma lista está na seção 6 do `Documentação/Regis
 - Fato: a Vercel pula crons aleatoriamente por entrada (27/11: auditor 09h UTC, pci12a-prazo 11h, sync-consulta-lead e recalcular-comissoes 12h não rodaram; 10h e 13h rodaram), mesmo no plano Pro. Causa não confirmada.
 - Solução: despachante a cada 10 min (src/services/despachante.service.js + tabela bmax_robo_disparo, DDL scripts/sql/despachante-27-11-2026.sql) que roda o que ficou sem sucesso depois do horário; 3 tentativas e aviso por e-mail. Workflow GitHub opcional (.github/workflows/despachante.yml) precisa do segredo CRON_TRIGGER_KEY.
 - 1ª rodada real do auditor com os temas ZEN (rodada manual do André, 27/11 13:25 UTC): 207 s, 81 achados (61 novos), e-mail enviado, fatos gravados (105 vendas, 99 NFs, 178 itens). Lista dos 40 cards que não bateram: Documentação/Cards_sem_bater_com_NF_ZEN_27-11-2026.xlsx.
+
+## 4h. Decisões do André sobre reconhecimento e pagamento de comissão (27/11/2026)
+- Comissão da REVENDA: reconhecida no crédito; enquanto não usado (saque/cheque) não foi consumido da margem; expira em 180 dias (estorno). Representante e vendedor interno: pagos no mês do crédito/cashback gerado.
+- Em aberto: tratamento do crédito não usado na visão de margem (provisão vs margem realizada) e regra de alocação do saque (sem lead_id) às vendas. Registrado em Base_Conhecimento_Comissoes_BMax_para_Margem (§6.3, §11, §13).
