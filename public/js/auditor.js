@@ -18,7 +18,7 @@ function auditorErroAmigavel(e) {
 }
 
 // Mesma ordem de temas do e-mail (auditor.service.js)
-const AUDITOR_TEMAS = ["saldo_vs_razao", "creditos_anormais", "auditor_checagem_falhou", "robo_sem_sucesso", "robo_ultima_falhou", "venda_sem_dados", "mudanca_campos", "pci_x_produto", "pci12_responsavel", "pcix_produto", "pcix_resumo", "pci12a_sem_resposta", "venda_sem_nota_zen", "venda_valor_zen"];
+const AUDITOR_TEMAS = ["saldo_vs_razao", "creditos_anormais", "auditor_checagem_falhou", "robo_sem_sucesso", "robo_ultima_falhou", "venda_sem_dados", "mudanca_campos", "pci_x_produto", "pci12_responsavel", "pcix_produto", "pcix_resumo", "pci12a_sem_resposta", "venda_sem_nota_zen", "venda_valor_zen", "venda_produto_zen"];
 const AUDITOR_SEV_ORDEM = { alta: 0, media: 1, baixa: 2 };
 const auditorOrdenar = lista => lista.slice().sort((a, b) => {
     const ta = AUDITOR_TEMAS.indexOf(a.checagem), tb = AUDITOR_TEMAS.indexOf(b.checagem);

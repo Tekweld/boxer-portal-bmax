@@ -79,7 +79,7 @@ async function notasDoCnpj(cnpj) {
         const r = await zget("/fiscal/outgoingInvoice", { q: "person.id==" + p.id, order: "-id", max: 200 });
         for (const n of r) {
             if (n.status === "CANCELED" || n.returned) continue;
-            nfs.push({ numero: n.number, data: dia(n.issueDate), total: Number(n.totalValue) || 0 });
+            nfs.push({ id: n.id, numero: n.number, data: dia(n.issueDate), total: Number(n.totalValue) || 0 });
         }
     }
     _cacheCnpj.set(c, { ts: Date.now(), nfs });
@@ -136,4 +136,27 @@ async function notasParaCard(cnpj, desde) {
     return { comTag, semTag };
 }
 
-module.exports = { notasPorLeads, notasParaCard, notasDoCnpj, configurado };
+// Itens de uma nota (só leitura): [{ codigo, descricao }]. Cache por nota (nota emitida não muda).
+const _cacheItens = new Map();
+async function itensDaNota(idNota) {
+    if (_cacheItens.has(idNota)) return _cacheItens.get(idNota);
+    const it = await zget("/fiscal/outgoingInvoiceItem", { q: "invoice.id==" + idNota, max: 50 });
+    const lista = (Array.isArray(it) ? it : []).map(i => {
+        const p = (i.productPacking && i.productPacking.product) || {};
+        return { codigo: String(p.code || p.id || (i.productPacking && i.productPacking.code) || "").trim(), descricao: String(p.description || "") };
+    });
+    _cacheItens.set(idNota, lista);
+    return lista;
+}
+
+// Tabela de Preços BMax (boxer-sistemas, produtos tabela 2): código -> modelo. Cache de 1 hora.
+let _tabela = null;
+async function tabelaBmax() {
+    if (_tabela && Date.now() - _tabela.ts < 3600000) return _tabela.mapa;
+    const rows = await require("../config/supabaseSistemas").sbSistemasAnon("/produtos?tabela_id=eq.2&select=codigo,modelo&limit=1000");
+    const mapa = new Map((Array.isArray(rows) ? rows : []).map(p => [String(p.codigo).trim(), p.modelo || ""]));
+    _tabela = { ts: Date.now(), mapa };
+    return mapa;
+}
+
+module.exports = { notasPorLeads, notasParaCard, notasDoCnpj, itensDaNota, tabelaBmax, configurado };

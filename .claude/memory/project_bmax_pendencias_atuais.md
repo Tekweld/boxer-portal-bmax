@@ -46,8 +46,10 @@ Esta é a lista atual. A mesma lista está na seção 6 do `Documentação/Regis
 **How to apply:** ao concluir ou descobrir uma pendência, atualizar esta lista E a seção 6 do Registro no mesmo dia, com a data. Não duplicar a lista em outros arquivos: apontar para este.
 
 ## 4e. Auditoria Vendas CRM x ZEN — FASE A feita (27/11/2026, local, aguardando push)
-- Auditor ganhou 2 temas: `venda_sem_nota_zen` (13) e `venda_valor_zen` (14). Só avisa. Olha cards vendidos nos últimos 30 dias (etapas Vendido/Venda efetivada/Entrega técnica), ignora teste, PCI12a e "sem nota" nos primeiros 3 dias. Código: `src/services/vendasZen.service.js` (lógica pura + testes) e `checarVendasZen` no auditor.
-- Valor até 4% de diferença da nota = "valor sugerido" (baixa); acima = média. Soma de 2 a 6 notas conta como confirmada. Produto NÃO é conferido ainda (próxima fase: família + Tabela BMax `produtos` tabela_id=2 do boxer-sistemas; produto diferente com valor igual = corrigir máquina no Pipefy).
-- Canal no ZEN = `personSalesperson.category1.description` (Industria/Varejo/Representante/vazio); só pista, não filtro (vendedor interno vem vazio).
-- FASE B (pendente, só com aprovação do André): corrigir valor no Pipefy sozinho se card concluído há ≤1 dia, 1 nota única livre, diferença ≤4%, com comentário no card + log; acima disso nunca automático. Atenção: crédito já lançado em bmax_transacoes exige recálculo/estorno.
-- Planilha da limpeza única (21 valor diverge + 5 sem nota): Documentação/Simulacao_Vendas_CRM_x_ZEN_26-11-2026.xlsx (script scripts/auditoria-vendas-zen-fase1-26-11-2026.js).
+- Auditor ganhou 3 temas, só avisa: `venda_sem_nota_zen` (13), `venda_valor_zen` (14) e `venda_produto_zen` (15). Olha TODOS os cards de venda no escopo do Portal (sem janela de data; etapas Vendido/Venda efetivada/Entrega técnica), ignora teste e PCI12a; "sem nota" só depois de 3 dias do fechamento.
+- Valor: diferença até 1% é aceita; acima de 1% é erro (gravidade média). Entre 1% e 4% a mensagem traz o "valor sugerido" (candidato à Fase B). Soma de 2 a 6 notas conta como confirmada.
+- Produto: família da máquina do card (laser=LQ, Hardmig=hard, etc.) x itens da nota + modelo na Tabela BMax (`produtos` tabela_id=2, boxer-sistemas). Produto diferente com valor igual = corrigir a máquina no Pipefy (o cliente pode ter comprado outro produto).
+- Código: `src/services/vendasZen.service.js` (lógica pura + testes), `checarVendasZen` no auditor, `itensDaNota`/`tabelaBmax` em `zenNf.service.js`. Roda ~42 s com ~100 CNPJs; `vercel.json` maxDuration subiu de 60 para 300.
+- Canal no ZEN = `personSalesperson.category1.description` (Industria/Varejo/Representante/vazio); só pista, não filtro.
+- FASE B (pendente, só com aprovação do André): corrigir valor no Pipefy sozinho se card concluído há ≤1 dia, 1 nota única livre, diferença ≤4%, com comentário no card + log. Crédito já lançado em bmax_transacoes exige recálculo/estorno.
+- Planilha da limpeza única: Documentação/Simulacao_Vendas_CRM_x_ZEN_26-11-2026.xlsx (script scripts/auditoria-vendas-zen-fase1-26-11-2026.js).
