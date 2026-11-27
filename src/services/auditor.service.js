@@ -370,7 +370,7 @@ async function checarVendasZen(ctx) {
     for (const c of cards.filter(x => x.cnpj.length !== 14)) {
         const base = { card: c.id, nome: c.nome, cnpj: c.cnpj || "", valorCard: c.valor, fechadoEm: String(c.fechadoEm || "").slice(0, 10), responsavel: String(c.responsavel || "").trim() || "(ninguém)", revenda: c.revenda };
         achados.push({
-            chave: `venda_sem_cnpj_zen:${c.id}`, grupo: "cards", checagem: "venda_sem_cnpj_zen", severidade: "media",
+            chave: `venda_sem_cnpj_zen:${c.id}`, grupo: "cards", checagem: "venda_sem_cnpj_zen", severidade: "alta",   // sem CNPJ nenhuma conferência com o ZEN vale (André, 27/11/2026)
             titulo: `"${c.nome}" (${brl(c.valor)}, vendido em ${base.fechadoEm}): CNPJ ${c.cnpj ? "inválido (" + c.cnpj + ")" : "em branco"} no card; não dá para conferir a venda com o ZEN${respTxt(c)}`,
             detalhe: base, link: linkCard(c.id),
             acao: "Preencher o CNPJ correto no card do Pipefy. Sem ele a venda não se liga à nota nem ao cliente do ZEN.",
