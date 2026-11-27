@@ -107,7 +107,7 @@
     },
     {
       "path": "/api/cron/despachante",
-      "schedule": "*/5 * * * *"
+      "schedule": "*/10 * * * *"
     }
   ]
 }

@@ -27,9 +27,40 @@ describe("rodadas vencidas e pendentes", () => {
     });
     test("sucesso depois do horário tira a rodada das pendentes; sucesso antigo não", () => {
         const v = rodadasVencidas(utc("2026-11-27T09:20:00")).filter(r => r.chave === "auditor:manha");
-        expect(pendentes(v, new Map([["auditor", utc("2026-11-27T09:01:00")]]))).toHaveLength(0);
-        expect(pendentes(v, new Map([["auditor", utc("2026-11-26T16:00:00")]]))).toHaveLength(1);
+        expect(pendentes(v, new Map([["auditor", { ok: utc("2026-11-27T09:01:00"), qualquer: utc("2026-11-27T09:01:00") }]]))).toHaveLength(0);
+        expect(pendentes(v, new Map([["auditor", { ok: utc("2026-11-26T16:00:00"), qualquer: utc("2026-11-26T16:00:00") }]]))).toHaveLength(1);
         expect(pendentes(v, new Map())).toHaveLength(1);
+    });
+    test("robô sem controle de repetição (expirar-cashback) NÃO é repetido depois de falha; só quando não há execução nenhuma", () => {
+        const v = rodadasVencidas(utc("2026-11-27T10:20:00")).filter(r => r.chave === "expirar-cashback");
+        expect(v[0].soAusente).toBe(true);
+        const falhou = new Map([["expirar-cashback", { ok: utc("2026-11-26T10:00:00"), qualquer: utc("2026-11-27T10:00:05") }]]);
+        expect(pendentes(v, falhou)).toHaveLength(0);
+        expect(pendentes(v, new Map([["expirar-cashback", { ok: utc("2026-11-26T10:00:00"), qualquer: utc("2026-11-26T10:00:00") }]]))).toHaveLength(1);
+    });
+    test("robô comum é repetido depois de falha (recalcular-comissoes)", () => {
+        const v = rodadasVencidas(utc("2026-11-27T12:20:00")).filter(r => r.chave === "recalcular-comissoes");
+        const falhou = new Map([["recalcular-comissoes", { ok: utc("2026-11-27T09:00:00"), qualquer: utc("2026-11-27T12:00:05") }]]);
+        expect(pendentes(v, falhou)).toHaveLength(1);
+    });
+    test("robôs diários nunca são recuperados de madrugada (janela fecha em horário comercial)", () => {
+        const diarios = AGENDA.filter(a => a.slots.length === 1);
+        for (const a of diarios) {
+            const [h, m] = a.slots[0].split(":").map(Number);
+            const fimJanela = new Date(Date.UTC(2026, 10, 27, h, m) + a.janelaH * 3600000);
+            const horaBrt = (fimJanela.getUTCHours() + 24 - 3) % 24;
+            expect(horaBrt).toBeLessThanOrEqual(21);   // até 21h de Brasília
+            expect(horaBrt).toBeGreaterThanOrEqual(6);
+        }
+    });
+    test("nenhuma janela invade a rodada seguinte do mesmo robô", () => {
+        for (const a of AGENDA) {
+            const horas = a.slots.map(x => { const [h, m] = x.split(":").map(Number); return h + m / 60; }).sort((p, q) => p - q);
+            for (let i = 0; i < horas.length; i++) {
+                const prox = i + 1 < horas.length ? horas[i + 1] : horas[0] + 24;
+                expect(a.janelaH).toBeLessThan(prox - horas[i]);
+            }
+        }
     });
 });
 
@@ -37,14 +68,14 @@ describe("despachar", () => {
     const base = (over = {}) => ({ sucessos: async () => new Map(), reservar: async () => 1, chamar: jest.fn(async () => ({ ok: true, status: 200 })), avisar: jest.fn(async () => {}), ...over });
 
     test("dispara a rodada perdida (caso real de 27/11: auditor das 09h UTC)", async () => {
-        const deps = base({ sucessos: async () => new Map([["pci12-followup", utc("2026-11-27T10:00:30")]]) });
+        const deps = base({ sucessos: async () => new Map([["pci12-followup", { ok: utc("2026-11-27T10:00:30"), qualquer: utc("2026-11-27T10:00:30") }]]) });
         const r = await despachar({ agora: utc("2026-11-27T09:15:00"), deps });
         expect(deps.chamar).toHaveBeenCalledWith("/api/cron/auditor?rodada=manha", expect.any(Number));
         expect(r.acionados).toBe(1);
         expect(r.feitos[0].resultado).toBe("rodou");
     });
     test("não dispara se já houve sucesso depois do horário", async () => {
-        const deps = base({ sucessos: async () => new Map([["auditor", utc("2026-11-27T09:02:00")]]) });
+        const deps = base({ sucessos: async () => new Map([["auditor", { ok: utc("2026-11-27T09:02:00"), qualquer: utc("2026-11-27T09:02:00") }]]) });
         const r = await despachar({ agora: utc("2026-11-27T09:15:00"), deps });
         expect(deps.chamar).not.toHaveBeenCalled();
         expect(r.acionados).toBe(0);

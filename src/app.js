@@ -82,7 +82,7 @@ app.get("/api/health", (req, res) => {
 
 // Link fixo do orçamento anexado à Nova Negociação (André, 14/10/2026): SEM login, porque quem abre é o
 // time Boxer a partir da nota do card no RD. O token tem 192 bits (impossível de adivinhar), é revogável
-// e cada abertura é contada. Redireciona para um link temporário (5 min) do Storage — o link do Portal não expira.
+// e cada abertura é contada. Redireciona para um link temporário (10 min) do Storage — o link do Portal não expira.
 const { createRateLimiter } = require("./middlewares/rateLimit");
 const orcamentoRateLimit = createRateLimiter({ windowMs: 15 * 60 * 1000, max: 60, message: "Muitas aberturas em pouco tempo. Tente novamente em alguns minutos.", bucket: "orcamento" });
 app.get("/api/orcamento/:token", orcamentoRateLimit, async (req, res) => {
@@ -835,7 +835,7 @@ app.get("/api/cron/auditor", async (req, res) => {
     }
 });
 
-// Despachante dos robôs (27/11/2026): roda a cada 5 min e dispara qualquer robô cuja rodada já passou sem sucesso (rede de segurança contra cron perdido da Vercel).
+// Despachante dos robôs (27/11/2026): roda a cada 10 min e dispara qualquer robô cuja rodada já passou sem sucesso (rede de segurança contra cron perdido da Vercel).
 // Só grava em bmax_robo_execucoes quando de fato acionou algo (ver despachante.service.js).
 app.get("/api/cron/despachante", async (req, res) => {
     const secret = req.headers["authorization"];

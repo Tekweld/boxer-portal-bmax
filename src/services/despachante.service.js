@@ -1,6 +1,6 @@
 // DESPACHANTE DOS ROBÔS (27/11/2026). Rede de segurança contra cron perdido da Vercel.
 // Problema: a Vercel dispara cada cron uma única vez e NÃO tenta de novo; em 25–27/11 várias rodadas (inclusive o auditor das 06h) simplesmente não aconteceram,
-// e o monitor antigo só reclamava depois de 30 h. Solução: um cron FREQUENTE (a cada 5 min) olha a agenda dos robôs, vê no histórico (bmax_robo_execucoes)
+// e o monitor antigo só reclamava depois de 30 h. Solução: um cron FREQUENTE (a cada 10 min) olha a agenda dos robôs, vê no histórico (bmax_robo_execucoes)
 // se a rodada que já deveria ter acontecido teve sucesso e, se não teve, DISPARA o robô na hora (catch-up). Uma rodada perdida passa a atrasar minutos, não horas.
 // Os crons individuais continuam como estão; o despachante só age quando falta sucesso depois da carência. Os robôs são idempotentes.
 // Proteções: cada (robô, rodada) é "reservado" em bmax_robo_disparo (nunca dois despachantes na mesma rodada); no máximo 3 tentativas, com espera entre elas;
@@ -11,25 +11,28 @@ const { QueryTypes } = require("sequelize");
 const { logger } = require("../logger");
 
 // Agenda = a mesma do vercel.json (horários em UTC). `janelaH` = por quanto tempo depois do horário ainda vale correr atrás da rodada perdida.
+// `soAusente: true` = robô SEM controle próprio contra e-mail repetido: o despachante só corre atrás dele se NÃO existir nenhuma execução desde o horário
+// (nem com falha; falha já gera aviso aos admins pelo monitor). Os demais têm controle próprio (flags, reconciliação, idempotência) e podem ser repetidos.
+// `janelaH` = por quanto tempo depois do horário ainda vale correr atrás da rodada perdida (diários: só em horário comercial, nunca de madrugada).
 const AGENDA = [
     { robo: "auditor", chave: "auditor:manha", path: "/api/cron/auditor?rodada=manha", slots: ["09:00"], janelaH: 6 },
-    { robo: "auditor", chave: "auditor:tarde", path: "/api/cron/auditor?rodada=tarde", slots: ["16:00"], janelaH: 6 },
-    { robo: "expirar-cashback", path: "/api/cron/expirar-cashback", slots: ["10:00"], janelaH: 20 },
-    { robo: "pci12a-prazo", path: "/api/cron/pci12a-prazo", slots: ["11:00"], janelaH: 20 },
-    { robo: "pcix-prazo", path: "/api/cron/pcix-prazo", slots: ["11:30"], janelaH: 20 },
-    { robo: "status-x-etapa", path: "/api/cron/status-x-etapa", slots: ["11:30"], janelaH: 20 },
-    { robo: "termos-prazos", path: "/api/cron/termos-prazos", slots: ["13:00"], janelaH: 20 },
-    { robo: "sync-consulta-lead", path: "/api/cron/sync-consulta-lead", slots: ["12:00", "17:00", "21:00"], janelaH: 4 },
+    { robo: "auditor", chave: "auditor:tarde", path: "/api/cron/auditor?rodada=tarde", slots: ["16:00"], janelaH: 5 },
+    { robo: "expirar-cashback", path: "/api/cron/expirar-cashback", slots: ["10:00"], janelaH: 7, soAusente: true },   // avisa por e-mail todo dia, sem controle de repetição
+    { robo: "pci12a-prazo", path: "/api/cron/pci12a-prazo", slots: ["11:00"], janelaH: 7 },
+    { robo: "pcix-prazo", path: "/api/cron/pcix-prazo", slots: ["11:30"], janelaH: 7 },
+    { robo: "status-x-etapa", path: "/api/cron/status-x-etapa", slots: ["11:30"], janelaH: 7 },
+    { robo: "termos-prazos", path: "/api/cron/termos-prazos", slots: ["13:00"], janelaH: 6, soAusente: true },
+    { robo: "sync-consulta-lead", path: "/api/cron/sync-consulta-lead", slots: ["12:00", "17:00", "21:00"], janelaH: 3 },
     { robo: "recalcular-comissoes", path: "/api/cron/recalcular-comissoes", slots: ["12:00", "15:00", "18:00", "21:00"], janelaH: 2.5 },
     { robo: "sync-revenda-rep-rd", path: "/api/cron/sync-revenda-rep-rd", slots: ["10:00", "13:00", "17:00", "20:00"], janelaH: 2.5 },
     { robo: "pci12-followup", path: "/api/cron/pci12-followup", slots: ["10:00", "13:00", "17:00", "20:00"], janelaH: 2.5 },
-    { robo: "vigia-robos", path: "/api/cron/vigia-robos", slots: ["22:30"], janelaH: 8 },
+    { robo: "vigia-robos", path: "/api/cron/vigia-robos", slots: ["22:30"], janelaH: 1.5, soAusente: true },
 ];
 
 const CARENCIA_MIN = 10;          // espera depois do horário antes de dar a rodada por perdida (o cron normal ainda pode estar rodando)
 const ESPERA_ENTRE_TENTATIVAS_MIN = 12;
 const MAX_TENTATIVAS = 3;
-const ORCAMENTO_MS = 230000;      // a função tem 300 s; o que não couber fica para o próximo ciclo (5 min)
+const ORCAMENTO_MS = 230000;      // a função tem 300 s; o que não couber fica para o próximo ciclo (10 min)
 
 // Último horário da agenda que já passou (UTC) para um "HH:MM".
 function ultimoSlot(agora, hhmm) {
@@ -46,20 +49,25 @@ function rodadasVencidas(agora, agenda = AGENDA) {
         for (const hhmm of a.slots) {
             const slot = ultimoSlot(agora, hhmm);
             const idadeMin = (agora.getTime() - slot.getTime()) / 60000;
-            if (idadeMin >= CARENCIA_MIN && idadeMin <= a.janelaH * 60) out.push({ robo: a.robo, chave: a.chave || a.robo, path: a.path, slot });
+            if (idadeMin >= CARENCIA_MIN && idadeMin <= a.janelaH * 60) out.push({ robo: a.robo, chave: a.chave || a.robo, path: a.path, slot, soAusente: !!a.soAusente });
         }
     }
     return out.sort((x, y) => x.slot - y.slot);
 }
 
-// Das vencidas, as que NÃO tiveram sucesso desde o horário. sucessos: Map robo -> Date do último sucesso.
-function pendentes(vencidas, sucessos) {
-    return vencidas.filter(r => { const ok = sucessos.get(r.robo); return !ok || ok.getTime() < r.slot.getTime(); });
+// Das vencidas, as que ainda precisam rodar. execs: Map robo -> { ok: Date|null, qualquer: Date|null } (última execução com sucesso e última de qualquer tipo).
+// Robô comum: pendente se não houve SUCESSO desde o horário. Robô `soAusente`: pendente só se não houve NENHUMA execução desde o horário.
+function pendentes(vencidas, execs) {
+    return vencidas.filter(r => {
+        const e = execs.get(r.robo) || {};
+        const ref = r.soAusente ? e.qualquer : e.ok;
+        return !ref || new Date(ref).getTime() < r.slot.getTime();
+    });
 }
 
 async function ultimosSucessos() {
-    const rows = await sequelize.query(`SELECT robo, MAX(iniciado_em) AS ok_em FROM bmax_robo_execucoes WHERE ok = true AND iniciado_em > now() - interval '3 days' GROUP BY robo`, { type: QueryTypes.SELECT });
-    return new Map(rows.map(r => [r.robo, new Date(r.ok_em)]));
+    const rows = await sequelize.query(`SELECT robo, MAX(iniciado_em) FILTER (WHERE ok) AS ok_em, MAX(iniciado_em) AS qualquer_em FROM bmax_robo_execucoes WHERE iniciado_em > now() - interval '3 days' GROUP BY robo`, { type: QueryTypes.SELECT });
+    return new Map(rows.map(r => [r.robo, { ok: r.ok_em ? new Date(r.ok_em) : null, qualquer: r.qualquer_em ? new Date(r.qualquer_em) : null }]));
 }
 
 // Reserva a rodada. Devolve o número da tentativa, ou null se outro despachante já reservou / acabaram as tentativas / ainda está no intervalo de espera.
