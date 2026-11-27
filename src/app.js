@@ -835,6 +835,27 @@ app.get("/api/cron/auditor", async (req, res) => {
     }
 });
 
+// Despachante dos robôs (27/11/2026): roda a cada 5 min e dispara qualquer robô cuja rodada já passou sem sucesso (rede de segurança contra cron perdido da Vercel).
+// Só grava em bmax_robo_execucoes quando de fato acionou algo (ver despachante.service.js).
+app.get("/api/cron/despachante", async (req, res) => {
+    const secret = req.headers["authorization"];
+    const valido = secret === `Bearer ${process.env.CRON_SECRET}` ||
+        (process.env.CRON_TRIGGER_KEY && secret === `Bearer ${process.env.CRON_TRIGGER_KEY}`);
+    if (!valido) return res.status(401).json({ error: "unauthorized" });
+    try {
+        const r = await require("./services/despachante.service").despachar();
+        if (r.acionados > 0) {
+            const { sequelize } = require("./database");
+            await sequelize.query(`INSERT INTO bmax_robo_execucoes (robo, status_http, ok, resumo) VALUES ('despachante', 200, :ok, CAST(:resumo AS jsonb))`,
+                { replacements: { ok: r.ok, resumo: JSON.stringify(r).slice(0, 1800) } }).catch(() => {});
+        }
+        res.json(r);
+    } catch (err) {
+        logger.error({ message: "Erro no despachante dos robôs", error: err.message, stack: err.stack });
+        res.status(500).json({ error: err.message });
+    }
+});
+
 app.use("/api/auditor", require("./routes/auditor.routes"));
 
 app.use(errorMiddleware);

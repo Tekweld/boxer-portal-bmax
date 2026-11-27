@@ -111,7 +111,7 @@ async function verificarVigia() {
 // Middleware para app.use("/api/cron", ...). Ignora simulações (?dry=1) e chamadas sem autorização (401/403).
 function cronTracker(req, res, next) {
     const robo = String(req.path || "").replace(/^\//, "").split("/")[0];
-    if (!robo || req.query.dry === "1") return next();
+    if (!robo || robo === "despachante" || req.query.dry === "1") return next();   // o despachante roda a cada 5 min e se registra sozinho quando aciona algo
     // O agendador da Vercel se identifica como "vercel-cron/1.0". Se ELE for recusado (401/403), o CRON_SECRET da Vercel não confere
     // com o do servidor: o robô deixaria de rodar em silêncio — por isso conta como falha e avisa. Já 401/403 de outros chamadores
     // (tentativas sem segredo) continuam ignorados.

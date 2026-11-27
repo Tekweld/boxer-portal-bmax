@@ -98,6 +98,14 @@ function criarContexto({ dryRun, rodada = "manual" }) {
                     const rows = await sequelize.query(`SELECT DISTINCT nf_id FROM bmax_venda_nf_item`, { type: QueryTypes.SELECT });
                     return new Set(rows.map(r => String(r.nf_id)));
                 },
+                // itens já guardados (evita reler o ZEN a cada rodada): Map nf_id -> [{ codigo, descricao, modelo }]
+                async itens(ids) {
+                    if (!ids.length) return new Map();
+                    const rows = await sequelize.query(`SELECT nf_id, produto_codigo AS codigo, produto_descricao AS descricao, tabela_bmax_modelo AS modelo FROM bmax_venda_nf_item WHERE nf_id IN (:ids)`, { replacements: { ids }, type: QueryTypes.SELECT });
+                    const m = new Map();
+                    for (const r of rows) { const k = String(r.nf_id); if (!m.has(k)) m.set(k, []); m.get(k).push({ codigo: r.codigo || "", descricao: r.descricao || "", modelo: r.modelo || "" }); }
+                    return m;
+                },
                 gravar: regs => require("./vendaNfSync.service").gravar(sequelize, regs),
             },
         },
@@ -365,6 +373,11 @@ async function checarVendasZen(ctx) {
     let tabela = null;
     try { tabela = await ctx.zen.tabelaBmax(); } catch (e) { ctx.avisos.push("Tabela de Preços BMax indisponível: o produto foi conferido só pela descrição dos itens da nota."); }
     await guardarVendasNf(ctx, comNotas, res, tabela, cards.filter(x => x.cnpj.length !== 14));   // só grava as tabelas de fatos; nunca derruba a checagem
+    // Itens das notas usadas: do banco quando já guardados (rápido); o ZEN só entra para o que ainda não foi guardado.
+    let itensGuardados = new Map();
+    if (ctx.db && ctx.db.vendaNf && typeof ctx.db.vendaNf.itens === "function") {
+        try { itensGuardados = await ctx.db.vendaNf.itens([...new Set(comNotas.flatMap(c => ((res.get(c.id) || {}).usadas || []).map(n => n.id)).filter(i => i != null).map(Number))]); } catch (e) { itensGuardados = new Map(); }
+    }
     const achados = [];
     // Venda sem CNPJ válido no card: não dá para ligar ao ZEN (nem à nota, nem ao cliente). Antes ficava de fora da conferência em silêncio.
     for (const c of cards.filter(x => x.cnpj.length !== 14)) {
@@ -406,7 +419,7 @@ async function checarVendasZen(ctx) {
         if (!usadas.length) continue;
         try {
             const itens = [];
-            for (const n of usadas) if (n.id != null) itens.push(...await ctx.zen.itensDaNota(n.id));
+            for (const n of usadas) if (n.id != null) itens.push(...(itensGuardados.get(String(n.id)) || await ctx.zen.itensDaNota(n.id)));
             const p = V.produtoCompativel(c.maquina, c.segmento, itens, tabela);
             if (p.ok === false) {
                 achados.push({

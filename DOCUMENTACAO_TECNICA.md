@@ -448,3 +448,12 @@ Agente que confere o Portal 2x por dia (06h e 13h Brasília, `/api/cron/auditor?
 - **Consumível/produto fora da tabela BMax:** fora do Portal (`escopoBmax.service.js`). No Pipefy o card fica Sem PCI, Sem revenda, Sem representante, com comentário.
 - **Troca de responsável no Pipefy (48 h e detector):** `PIPEFY_EMAIL_POR_DONO_RD`, `EMAIL_ANDRE` e `donoRdPorEmail` em `src/config/constants.js` ligam o dono do RD (nome) ao membro do Pipefy (e-mail); usados por `resolverAssigneeId` e `cardParaDealFake` (`pipefyLeads.service.js`) e pelo detector em `app.js` (`jaEAndre`). Reaplicar o mesmo valor num campo de responsável limpa o assignee: usar `updateCardAssignees`.
 - **Auditor:** checagem `pci12_responsavel` cobre responsável errado (aberto) e `pci12_em_venda`; títulos de achados de card terminam com "· responsável: Nome" (`respTxt` em `auditor.service.js`).
+
+
+## Despachante dos robôs (27/11/2026)
+- **Problema:** a Vercel dispara cada cron uma vez e não tenta de novo. Em 25–27/11 várias rodadas não aconteceram (auditor das 06h, recalcular-comissoes, pci12a-prazo, sync-consulta-lead), de forma aleatória por entrada, e o vigia antigo só reclamava depois de 30 h.
+- **Solução:** cron `/api/cron/despachante` a cada 5 min (`src/services/despachante.service.js`). Lê a agenda dos robôs (espelho do `vercel.json`, em UTC), consulta `bmax_robo_execucoes` e, se a rodada já passou há mais de 10 min sem sucesso depois do horário, **chama o robô** (catch-up). Atraso de uma rodada perdida: minutos, não horas.
+- **Segurança:** cada rodada é reservada em `bmax_robo_disparo` (nunca dois disparos juntos), 12 min entre tentativas, no máximo 3; na 3ª falha avisa os admins por e-mail. Os crons individuais continuam; o despachante só age quando falta sucesso. Robôs são idempotentes. O despachante só grava em `bmax_robo_execucoes` quando aciona algo.
+- **Teste de consistência:** `despachante.service.test.js` falha se a agenda do despachante divergir do `vercel.json`. **Ao criar ou mudar um cron, atualize as duas listas.**
+- **Segunda linha de defesa (opcional):** `.github/workflows/despachante.yml` chama o despachante a cada ~15 min a partir do GitHub; se a resposta não for 2xx o workflow falha e o GitHub avisa por e-mail. Exige o segredo `CRON_TRIGGER_KEY` no GitHub e a mesma variável na Vercel; sem o segredo não faz nada.
+- **Auditor:** a checagem vendas_zen leva ~190 s na 1ª rodada (lê todas as notas e itens). A partir da 2ª, os itens vêm das tabelas `bmax_venda_*` e não do ZEN. `maxDuration` = 300 s.

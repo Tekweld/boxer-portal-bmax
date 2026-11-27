@@ -1,0 +1,19 @@
+# Segunda linha de defesa dos robôs do Portal BMAX (27/11/2026). Chama o despachante a cada ~15 min a partir do GitHub, que é uma infraestrutura
+# independente da Vercel. Se o despachante não responder (HTTP diferente de 2xx), este workflow FALHA e o GitHub avisa por e-mail quem é dono do repositório.
+# Só funciona depois de existir o segredo CRON_TRIGGER_KEY no GitHub (Settings > Secrets and variables > Actions) e a MESMA variável na Vercel.
+# Sem o segredo, o workflow não faz nada (não gera falha).
+name: Despachante dos robos
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+jobs:
+  chamar:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Chamar o despachante
+        env:
+          CHAVE: ${{ secrets.CRON_TRIGGER_KEY }}
+        run: |
+          if [ -z "$CHAVE" ]; then echo "CRON_TRIGGER_KEY não configurado: nada a fazer"; exit 0; fi
+          curl -fsS --max-time 290 -H "Authorization: Bearer $CHAVE" "https://bmax.boxersoldas.com.br/api/cron/despachante"

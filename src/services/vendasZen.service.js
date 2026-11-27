@@ -70,7 +70,7 @@ const tokens = s => new Set(String(s || "").normalize("NFD").replace(/[̀-ͯ]/g,
 // itens: [{ codigo, descricao }]; tabela: Map codigo -> modelo. Devolve { ok, motivo } (ok=null: não dá para julgar, ex.: card sem máquina).
 function produtoCompativel(maquina, segmento, itens, tabela) {
     if (!String(maquina || "").trim() || !itens.length) return { ok: null };
-    const textoNota = itens.map(i => i.descricao + " " + ((tabela && tabela.get(i.codigo)) || "")).join(" ");
+    const textoNota = itens.map(i => i.descricao + " " + (i.modelo || "") + " " + ((tabela && tabela.get(i.codigo)) || "")).join(" ");
     const fc = familias(maquina), fn = familias(textoNota);
     if (fc.size) return [...fc].some(f => fn.has(f)) ? { ok: true } : { ok: false, familiasCard: [...fc], familiasNota: [...fn] };
     const tc = tokens(maquina + " " + segmento), tn = tokens(textoNota);

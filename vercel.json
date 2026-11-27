@@ -104,6 +104,10 @@
     {
       "path": "/api/cron/vigia-robos",
       "schedule": "30 22 * * *"
+    },
+    {
+      "path": "/api/cron/despachante",
+      "schedule": "*/5 * * * *"
     }
   ]
 }
