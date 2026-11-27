@@ -136,4 +136,4 @@ async function notasParaCard(cnpj, desde) {
     return { comTag, semTag };
 }
 
-module.exports = { notasPorLeads, notasParaCard, configurado };
+module.exports = { notasPorLeads, notasParaCard, notasDoCnpj, configurado };

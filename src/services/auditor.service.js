@@ -29,6 +29,7 @@ function lerCard(deal, get) {
         pci: get(deal, "PERFIL PCI"), segmento: get(deal, "SEGMENTO DE PRODUTO"), classe: get(deal, "CLASSE DE PREÇO"),
         revenda: get(deal, "REVENDA/LOJA"), representante: get(deal, "REPRESENTANTE"), responsavel: deal.user && deal.user.name ? String(deal.user.name).trim() : "", maquina: get(deal, "MÁQUINA DE INTERESSE"),
         valor: Number(deal.amount_total || 0), etapaId: deal.deal_stage ? deal.deal_stage.id : null, criadoEm: deal.created_at || null, deal,
+        cnpj: String(get(deal, "CNPJ") || "").replace(/\D/g, ""), fechadoEm: deal.closed_at || deal.updated_at || null,
     };
 }
 
@@ -44,6 +45,7 @@ function criarContexto({ dryRun, rodada = "manual" }) {
             return cache;
         },
         desfechoDoCard: d => require("./pci12Desfecho.service").desfechoDoCard(d),
+        zen: { configurado: () => require("./zenNf.service").configurado(), notasDoCnpj: c => require("./zenNf.service").notasDoCnpj(c) },
         db: {
             async snapshot() {
                 const rows = await sequelize.query(`SELECT card_id, pci, produto, classe FROM bmax_auditoria_cards_ultimo`, { type: QueryTypes.SELECT });
@@ -301,6 +303,54 @@ async function checarPci12Responsavel(ctx) {
     return achados;
 }
 
+// Venda do CRM x nota no ZEN (Fase A, 27/11/2026): cards vendidos nos últimos 30 dias. Só avisa; não altera Pipefy nem ZEN.
+// "Sem nota" só depois de 3 dias do fechamento. Valor até 4% diferente da nota vira "valor sugerido" (candidato ao ajuste automático da Fase B).
+const DIAS_OLHAR_VENDAS_ZEN = 30;
+async function checarVendasZen(ctx) {
+    const V = require("./vendasZen.service");
+    const hoje = hojeBRT();
+    const desde = new Date(Date.now() - DIAS_OLHAR_VENDAS_ZEN * 86400000).toISOString().slice(0, 10);
+    const cards = (await ctx.cards()).filter(c => VENDA.has(c.etapaId) && c.valor > 0 && !V.ehTeste(c)
+        && String(c.fechadoEm || "").slice(0, 10) >= desde && A.pciKey(c.pci) !== "PCI12A");   // PCI12a: a revenda vende, não há nota da Boxer
+    if (!cards.length) return [];
+    if (!ctx.zen.configurado()) throw new Error("ZEN_EMAIL/ZEN_SENHA não configurados: não dá para conferir as vendas com o ZEN");
+    const nfsPorCnpj = new Map();
+    let falhas = 0;
+    const cnpjs = [...new Set(cards.filter(c => c.cnpj.length === 14).map(c => c.cnpj))];
+    for (const cnpj of cnpjs) {
+        try { nfsPorCnpj.set(cnpj, await ctx.zen.notasDoCnpj(cnpj)); } catch (e) { falhas++; logger.warn({ message: "Auditor: falha ao ler notas do ZEN", error: e.message }); }
+    }
+    if (cnpjs.length && falhas === cnpjs.length) throw new Error("não foi possível ler nenhuma nota do ZEN");
+    const comNotas = cards.filter(c => nfsPorCnpj.has(c.cnpj));
+    const res = V.avaliarVendas(comNotas, nfsPorCnpj);
+    const achados = [];
+    for (const c of comNotas) {
+        const r = res.get(c.id);
+        if (!r || r.estado === "ok" || r.estado === "ok_soma") continue;
+        const base = { card: c.id, nome: c.nome, cnpj: c.cnpj, valorCard: c.valor, fechadoEm: String(c.fechadoEm || "").slice(0, 10), responsavel: String(c.responsavel || "").trim() || "(ninguém)", revenda: c.revenda };
+        if (r.estado === "sem_nota") {
+            if ((new Date(hoje) - new Date(String(c.fechadoEm).slice(0, 10))) / 86400000 < V.DIAS_ESPERA_SEM_NOTA) continue;
+            achados.push({
+                chave: `venda_sem_nota_zen:${c.id}`, grupo: "cards", checagem: "venda_sem_nota_zen", severidade: "media",
+                titulo: `"${c.nome}" (${brl(c.valor)}, vendido em ${base.fechadoEm}): nenhuma nota do CNPJ no ZEN na janela da venda${respTxt(c)}`,
+                detalhe: base, link: linkCard(c.id),
+                acao: "Conferir se a nota foi emitida (talvez com outro CNPJ) ou se o card está vendido sem venda real. O auditor não altera nada.",
+            });
+        } else {
+            const sug = r.sugerido != null;
+            achados.push({
+                chave: `venda_valor_zen:${c.id}`, grupo: "cards", checagem: "venda_valor_zen", severidade: sug ? "baixa" : "media",
+                titulo: `"${c.nome}": card ${brl(c.valor)}, nota ${r.nota} ${brl(r.notaTotal)} (${r.notaData}), diferença ${brl(r.diff)} (${(r.pct * 100).toFixed(1).replace(".", ",")}%)${respTxt(c)}`,
+                detalhe: { ...base, nota: r.nota, notaData: r.notaData, notaTotal: r.notaTotal, diferenca: r.diff, pct: r.pct, valorSugerido: r.sugerido },
+                link: linkCard(c.id),
+                acao: sug ? `Ajustar o valor do card para ${brl(r.sugerido)} (total da nota), se a nota for dessa venda.`
+                          : "Diferença acima de 4%: pode ser faturamento parcial, produto diferente ou valor errado no card. Conferir antes de ajustar.",
+            });
+        }
+    }
+    return achados;
+}
+
 // Mudança de PCI, produto ou classe em relação ao último retrato. A 1ª rodada só grava a linha de base. Preencher campo vazio e a decisão
 // PCI12 -> 12a/12b não contam. Gravidade: alta se a venda já foi creditada (a comissão pode ter ficado errada), média se vendida, baixa se aberta.
 async function checarMudancasCampos(ctx) {
@@ -395,6 +445,7 @@ const CHECAGENS = [
     { id: "pci12_responsavel", grupo: "cards", cobre: ["pci12_responsavel"], roda: checarPci12Responsavel },
     { id: "pcix_produto", grupo: "cards", cobre: ["pcix_produto"], roda: checarPciXProduto2 },
     { id: "pcix_resumo", grupo: "prazos", cobre: ["pcix_resumo"], roda: checarPciXResumo },
+    { id: "vendas_zen", grupo: "cards", cobre: ["venda_sem_nota_zen", "venda_valor_zen"], roda: checarVendasZen },
     { id: "mudancas_campos", grupo: "cards", cobre: ["mudanca_campos"], roda: checarMudancasCampos },
     { id: "pci12a_sem_resposta", grupo: "prazos", cobre: ["pci12a_sem_resposta"], roda: checarPci12aSemResposta },
     { id: "rodada_perdida", grupo: "robos", cobre: ["auditor_rodada_perdida"], roda: checarRodadaPerdida },
@@ -442,6 +493,8 @@ const TEMAS = [
     ["pcix_produto", "10. PCI X com produto que não cabe (BMax ou consumível)"],
     ["pcix_resumo", "11. PCI X por revenda (resumo diário)"],
     ["pci12a_sem_resposta", "12. Cobrança: PCI12a sem resposta da revenda"],
+    ["venda_sem_nota_zen", "13. Venda do CRM sem nota no ZEN"],
+    ["venda_valor_zen", "14. Valor do card diferente da nota do ZEN"],
 ];
 const ORDEM_SEV = { alta: 0, media: 1, baixa: 2 };
 const ordemTema = c => { const i = TEMAS.findIndex(t => t[0] === c); return i < 0 ? TEMAS.length : i; };
@@ -588,5 +641,5 @@ async function rodarAuditoria({ rodada = "manual", dryRun = false } = {}) {
 
 module.exports = {
     rodarAuditoria, reconciliar, montarEmail, CHECAGENS, REAVISO_DIAS,
-    checarRodadaPerdida, checarPci12Responsavel, checarVendaSemDados, checarPciXProduto, checarMudancasCampos, checarPci12aSemResposta,
+    checarRodadaPerdida, checarPci12Responsavel, checarVendaSemDados, checarPciXProduto, checarMudancasCampos, checarPci12aSemResposta, checarVendasZen,
 };
