@@ -26,6 +26,7 @@ const AGENDA = [
     { robo: "recalcular-comissoes", path: "/api/cron/recalcular-comissoes", slots: ["12:00", "15:00", "18:00", "21:00"], janelaH: 2.5 },
     { robo: "sync-revenda-rep-rd", path: "/api/cron/sync-revenda-rep-rd", slots: ["10:00", "13:00", "17:00", "20:00"], janelaH: 2.5 },
     { robo: "pci12-followup", path: "/api/cron/pci12-followup", slots: ["10:00", "13:00", "17:00", "20:00"], janelaH: 2.5 },
+    { robo: "cheques-zen", path: "/api/cron/cheques-zen", slots: ["08:30", "15:30"], janelaH: 2.5 },   // idempotente e incremental; roda antes do auditor (09:00 e 16:00)
     { robo: "vigia-robos", path: "/api/cron/vigia-robos", slots: ["22:30"], janelaH: 1.5, soAusente: true },
 ];
 

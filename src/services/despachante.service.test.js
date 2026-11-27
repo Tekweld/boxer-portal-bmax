@@ -65,7 +65,7 @@ describe("rodadas vencidas e pendentes", () => {
 });
 
 describe("despachar", () => {
-    const base = (over = {}) => ({ sucessos: async () => new Map(), reservar: async () => 1, chamar: jest.fn(async () => ({ ok: true, status: 200 })), avisar: jest.fn(async () => {}), ...over });
+    const base = (over = {}) => ({ agenda: AGENDA.filter(a => a.chave === "auditor:manha"), sucessos: async () => new Map(), reservar: async () => 1, chamar: jest.fn(async () => ({ ok: true, status: 200 })), avisar: jest.fn(async () => {}), ...over });
 
     test("dispara a rodada perdida (caso real de 27/11: auditor das 09h UTC)", async () => {
         const deps = base({ sucessos: async () => new Map([["pci12-followup", { ok: utc("2026-11-27T10:00:30"), qualquer: utc("2026-11-27T10:00:30") }]]) });

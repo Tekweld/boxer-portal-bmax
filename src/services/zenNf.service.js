@@ -30,17 +30,25 @@ async function auth() {
 }
 
 async function zget(path, q) {
-    for (let i = 0; i < 2; i++) {
-        if (!_token) await auth();
-        const r = await fetch(ZEN + path + "?" + new URLSearchParams(q), {
-            headers: { Authorization: "Bearer " + _token, tenant: "boxer" },
-            signal: AbortSignal.timeout(15000)
-        });
-        if (r.status === 401) { _token = null; continue; }
-        if (!r.ok) throw new Error("ZEN " + r.status);
-        return r.json();
+    // 3 tentativas: o ZEN às vezes demora (páginas grandes de pedidos passam de 15 s). 401 renova o token; timeout e erro de rede tentam de novo.
+    let ultimoErro;
+    for (let i = 0; i < 3; i++) {
+        try {
+            if (!_token) await auth();
+            const r = await fetch(ZEN + path + "?" + new URLSearchParams(q), {
+                headers: { Authorization: "Bearer " + _token, tenant: "boxer" },
+                signal: AbortSignal.timeout(40000)
+            });
+            if (r.status === 401) { _token = null; continue; }
+            if (!r.ok) throw new Error("ZEN " + r.status);
+            return await r.json();
+        } catch (e) {
+            ultimoErro = e;
+            if (/^ZEN d{3}$/.test(String(e.message)) && !/^ZEN (429|5dd)$/.test(String(e.message))) throw e;   // erro definitivo do ZEN (4xx): não adianta repetir
+            await new Promise(s => setTimeout(s, 800 * (i + 1)));
+        }
     }
-    throw new Error("ZEN sem autorização");
+    throw ultimoErro || new Error("ZEN sem autorização");
 }
 
 // Fonte principal: notas de saída marcadas com a tag "bmax" no ZEN (case-insensitive). Uma consulta só traz
@@ -173,17 +181,66 @@ async function itensDaNota(idNota) {
 }
 
 // Pedido de venda do ZEN (uma venda pode ter várias NFs): valores como vieram, sem cálculo.
+function normalizarPedido(s) {
+    const pr = s.properties || {};
+    return {
+        pedido_id: String(s.id), status: s.status || null, data: dia(s.date), total: s.totalValue != null ? Number(s.totalValue) : null, custo_total: s.costTotalValue != null ? Number(s.costTotalValue) : null,
+        tipo_frete: s.freightType || null, tags: s.tags || null, comissao_vendedor_zen: pr.salesCommission != null ? Number(pr.salesCommission) : null, forma_pagamento: pr.paymentMethods != null ? String(pr.paymentMethods) : null,
+        observacao: pr.comments != null ? String(pr.comments) : null,
+        perfil: s.saleProfile ? (s.saleProfile.code || null) : null, perfil_descricao: s.saleProfile ? (s.saleProfile.description || null) : null,
+        operacao_fiscal: s.fiscalProfileOperation ? (s.fiscalProfileOperation.description || s.fiscalProfileOperation.code || null) : null,
+        nf_id: s.invoice && s.invoice.id != null ? s.invoice.id : null, nf_numero: s.invoice && s.invoice.number != null ? String(s.invoice.number) : null,
+        vendedor: pessoaResumo(s.personSalesperson), cliente: pessoaResumo(s.person),
+    };
+}
 const _cachePedido = new Map();
 async function pedidoDeVenda(saleId) {
     const k = String(saleId);
     if (_cachePedido.has(k)) return _cachePedido.get(k);
     const r = await zget("/sale/sale", { q: "id==" + k, max: 1 });
     const s = Array.isArray(r) ? r[0] : r;
-    const pr = (s && s.properties) || {};
-    const out = s ? { pedido_id: k, status: s.status || null, data: dia(s.date), total: s.totalValue != null ? Number(s.totalValue) : null, custo_total: s.costTotalValue != null ? Number(s.costTotalValue) : null, tipo_frete: s.freightType || null,
-        tags: s.tags || null, comissao_vendedor_zen: pr.salesCommission != null ? Number(pr.salesCommission) : null, forma_pagamento: pr.paymentMethods != null ? String(pr.paymentMethods) : null, vendedor: pessoaResumo(s.personSalesperson), cliente: pessoaResumo(s.person) } : null;
+    const out = s ? normalizarPedido(s) : null;
     _cachePedido.set(k, out);
     return out;
+}
+
+// Pedidos do mais novo para o mais antigo, a partir de `startId` (exclusive; null = os mais novos). Para quando: chega em `minId` (varredura incremental), uma página
+// INTEIRA é mais antiga que `desdeISO` (a data do pedido NÃO segue a ordem do id), acaba o orçamento de tempo `budgetMs` ou `maxPaginas`. O ZEN leva de 11 a 27 s por 100 pedidos,
+// por isso a varredura é RETOMÁVEL: devolve `menorId` (onde parou) e `completo` = false quando o tempo acabou. Devolve { pedidos, maiorId, menorId, paginas, completo }.
+async function pedidosRecentes({ startId = null, minId = null, desdeISO = null, budgetMs = 200000, maxPaginas = 60 } = {}) {
+    const t0 = Date.now();
+    const out = [];
+    let ultimo = startId, maiorId = null, menorId = null, completo = false, paginas = 0;
+    while (paginas < maxPaginas) {
+        if (paginas > 0 && Date.now() - t0 > budgetMs) break;   // sem tempo: devolve de onde parou
+        const r = await zget("/sale/sale", { q: ultimo ? "id<" + ultimo : "id>0", order: "-id", max: 50 });
+        paginas++;
+        if (!Array.isArray(r) || !r.length) { completo = true; break; }
+        let recentes = 0, chegouNoMarco = false;
+        for (const s of r) {
+            if (maiorId == null || s.id > maiorId) maiorId = s.id;
+            if (menorId == null || s.id < menorId) menorId = s.id;
+            ultimo = s.id;
+            if (minId != null && s.id <= minId) { chegouNoMarco = true; continue; }
+            const p = normalizarPedido(s);
+            if (!desdeISO || !p.data || p.data >= desdeISO) { out.push(p); recentes++; }
+        }
+        if (chegouNoMarco || r.length < 50 || (desdeISO && recentes === 0)) { completo = true; break; }
+    }
+    return { pedidos: out, maiorId, menorId, paginas, completo };
+}
+
+// Itens do pedido (antes de existir nota): produto, quantidade, preço, desconto, imposto, CUSTO do item e operação tributária, como o ZEN devolve.
+async function itensDoPedido(saleId) {
+    const it = await zget("/sale/saleItem", { q: "sale.id==" + saleId, max: 100 });
+    const num = v => (v == null || v === "" ? null : Number(v));
+    return (Array.isArray(it) ? it : []).map(i => {
+        const pp = i.productPacking || {}, p = pp.product || {};
+        return { item_id: i.id, codigo: String(p.code || p.id || "").trim(), descricao: String(p.description || ""), unidade: pp.unit ? (pp.unit.code || null) : (i.unit ? (i.unit.code || null) : null),
+            quantidade: num(i.quantity), valor_unitario: num(i.unitValue), custo_unitario: num(i.costUnitValue), custo_total: num(i.costTotalValue), valor_bruto_produto: num(i.grossProductValue), desconto: num(i.discountValue), valor_produto: num(i.productValue),
+            outros_valores: i.otherValues || {}, valor_operacao: num(i.operationValue), imposto_incluso: num(i.insideTaxValue), imposto_fora: num(i.outsideTaxValue), valor_total: num(i.totalValue), valor_efetivo: num(i.effectiveValue),
+            operacao_tributaria: i.taxationOperation ? (i.taxationOperation.description || i.taxationOperation.code || null) : null };
+    });
 }
 
 // Tabela de Preços BMax (boxer-sistemas, produtos tabela 2): código -> modelo. Cache de 1 hora.
@@ -196,4 +253,4 @@ async function tabelaBmax() {
     return mapa;
 }
 
-module.exports = { notasPorLeads, notasParaCard, notasDoCnpj, itensDaNota, pedidoDeVenda, tabelaBmax, configurado, cabecalhoNf };
+module.exports = { notasPorLeads, notasParaCard, notasDoCnpj, itensDaNota, pedidoDeVenda, pedidosRecentes, itensDoPedido, tabelaBmax, configurado, cabecalhoNf };

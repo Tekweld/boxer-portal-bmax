@@ -10,7 +10,7 @@ const { logger } = require("../logger");
 // Robôs esperados e a idade máxima (horas) do último sucesso. Todos rodam ao menos 1x por dia.
 const ESPERADOS = {
     "pci12a-prazo": 30, "pci12-followup": 30, "recalcular-comissoes": 30, "termos-prazos": 30,
-    "expirar-cashback": 30, "sync-consulta-lead": 30, "sync-revenda-rep-rd": 30, "status-x-etapa": 30, "pcix-prazo": 30
+    "expirar-cashback": 30, "cheques-zen": 30, "sync-consulta-lead": 30, "sync-revenda-rep-rd": 30, "status-x-etapa": 30, "pcix-prazo": 30
 };
 
 // Crédito de comissão em volume anormal (incidente de 24/11/2026: a virada para o Pipefy duplicou 213 créditos, R$ 114 mil).

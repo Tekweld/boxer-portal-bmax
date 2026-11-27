@@ -835,6 +835,21 @@ app.get("/api/cron/auditor", async (req, res) => {
     }
 });
 
+// Robô cheques-zen (27/11/2026): varre os pedidos novos do ZEN, acha os que citam código de cheque de cashback e guarda (cheque, pedido, itens). Só lê o ZEN; incremental.
+app.get("/api/cron/cheques-zen", async (req, res) => {
+    const secret = req.headers["authorization"];
+    const valido = secret === `Bearer ${process.env.CRON_SECRET}` ||
+        (process.env.CRON_TRIGGER_KEY && secret === `Bearer ${process.env.CRON_TRIGGER_KEY}`);
+    if (!valido) return res.status(401).json({ error: "unauthorized" });
+    try {
+        const { sequelize } = require("./database");
+        res.json(await require("./services/chequeUso.service").sincronizar({ sequelize, zen: require("./services/zenNf.service") }));
+    } catch (err) {
+        logger.error({ message: "Erro no robô cheques-zen", error: err.message, stack: err.stack });
+        res.status(500).json({ error: err.message });
+    }
+});
+
 // Despachante dos robôs (27/11/2026): roda a cada 10 min e dispara qualquer robô cuja rodada já passou sem sucesso (rede de segurança contra cron perdido da Vercel).
 // Só grava em bmax_robo_execucoes quando de fato acionou algo (ver despachante.service.js).
 app.get("/api/cron/despachante", async (req, res) => {

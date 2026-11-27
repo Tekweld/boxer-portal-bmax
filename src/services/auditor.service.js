@@ -92,6 +92,15 @@ function criarContexto({ dryRun, rodada = "manual" }) {
                 return new Map(rows.map(r => [String(r.deal_id), r]));
             },
             async andamentos(ids) { return require("./negociacaoStatus.service").ultimosPorDeal(ids); },
+            // Cheques de cashback (bmax_saques) e o que o ZEN diz deles (bmax_cheque_uso). Ver chequeUso.service.js e scripts/sql/cheques-uso-27-11-2026.sql
+            cheques: {
+                // usos guardados pelo robô cheques-zen, com o estado ATUAL do cheque no Portal (utilizado_em pode ter sido marcado depois da leitura)
+                async usos() {
+                    return sequelize.query(`SELECT u.codigo_cheque, u.pedido_id, u.codigo_existe, u.cliente_nome, u.cliente_cnpj, u.pedido_total, u.pedido_data, u.pedido_status, u.pedido_perfil, u.vendedor_nome,
+                               s.revenda, s.tipo_uso, s.valor AS valor_cheque, s.status AS cheque_status, s.utilizado_em AS cheque_utilizado_em
+                          FROM bmax_cheque_uso u LEFT JOIN bmax_saques s ON s.codigo_cheque = u.codigo_cheque`, { type: QueryTypes.SELECT });
+                },
+            },
             // Fatos da venda (Pipefy x ZEN) guardados para o Portal e para a visão de margem. Ver vendaNfSync.service.js e scripts/sql/vendas-nf-27-11-2026.sql
             vendaNf: {
                 async nfsComItens() {
@@ -319,6 +328,30 @@ async function checarPci12Responsavel(ctx) {
     return achados;
 }
 
+// CHEQUES DE CASHBACK x PEDIDOS DO ZEN (27/11/2026). O uso da comissão da revenda é o saque que gera o cheque; o pedido do ZEN que o aplica cita o código na
+// observação. O robô cheques-zen (chequeUso.service.js) guarda o vínculo em bmax_cheque_uso; ESTA checagem só lê o banco (nenhuma chamada ao ZEN) e só AVISA:
+// (a) cheque citado no ZEN mas sem baixa no Portal; (b) pedido cita código que não existe. Não fixa perfil de pedido: bonificação pode vir como Brinde ou
+// Bonificação; desconto vem em pedido de venda comum.
+async function checarChequesZen(ctx) {
+    if (!ctx.db || !ctx.db.cheques || !ctx.db.cheques.usos) return [];
+    let usos;
+    try { usos = await ctx.db.cheques.usos(); } catch (e) { if (ctx.dryRun) { ctx.avisos.push("Checagem dos cheques: a tabela bmax_cheque_uso ainda não existe."); return []; } throw e; }
+    const achados = [];
+    for (const u of usos) {
+        const base = { cheque: u.codigo_cheque, pedido: u.pedido_id, nome: u.cliente_nome || "", cnpj: u.cliente_cnpj || "", pedidoTotal: u.pedido_total != null ? Number(u.pedido_total) : null, pedidoData: u.pedido_data ? String(u.pedido_data).slice(0, 10) : "", perfil: u.pedido_perfil || "", responsavel: u.vendedor_nome || "", revenda: u.revenda || "" };
+        if (!u.codigo_existe) {
+            achados.push({ chave: `cheque_codigo_desconhecido:${u.codigo_cheque}:${u.pedido_id}`, grupo: "dinheiro", checagem: "cheque_codigo_desconhecido", severidade: "alta",
+                titulo: `Pedido ${u.pedido_id} do ZEN (${u.cliente_nome || "cliente"}, ${brl(base.pedidoTotal || 0)}, ${base.pedidoData}) cita o cheque ${u.codigo_cheque}, que não existe no Portal`, detalhe: base,
+                acao: "Conferir o código digitado no pedido (erro de digitação?) ou se o cheque foi emitido fora do Portal. O auditor não altera nada." });
+        } else if (u.cheque_status === "aprovado" && !u.cheque_utilizado_em) {
+            achados.push({ chave: `cheque_usado_sem_baixa:${u.codigo_cheque}`, grupo: "dinheiro", checagem: "cheque_usado_sem_baixa", severidade: "media",
+                titulo: `Cheque ${u.codigo_cheque} (${u.revenda || "revenda"}, ${u.tipo_uso || "uso"}, ${brl(Number(u.valor_cheque) || 0)}) já aparece no pedido ${u.pedido_id} do ZEN (${base.pedidoData}, ${u.pedido_status || "?"}), mas não está marcado como utilizado no Portal`, detalhe: base,
+                acao: "Conferir o pedido e marcar o cheque como utilizado no Portal. O auditor não altera nada." });
+        }
+    }
+    return achados;
+}
+
 // Guarda nas tabelas bmax_venda_* o que o Pipefy e o ZEN dizem de cada venda (sem nenhum cálculo). Incremental: nota que já tem itens guardados não é relida.
 // Falha (inclusive tabela ainda não criada) vira aviso; não afeta os achados do auditor.
 async function guardarVendasNf(ctx, comNotas, res, tabela, semCnpj = []) {
@@ -529,6 +562,7 @@ const CHECAGENS = [
     { id: "pci12_responsavel", grupo: "cards", cobre: ["pci12_responsavel"], roda: checarPci12Responsavel },
     { id: "pcix_produto", grupo: "cards", cobre: ["pcix_produto"], roda: checarPciXProduto2 },
     { id: "pcix_resumo", grupo: "prazos", cobre: ["pcix_resumo"], roda: checarPciXResumo },
+    { id: "cheques_zen", grupo: "dinheiro", cobre: ["cheque_usado_sem_baixa", "cheque_codigo_desconhecido"], roda: checarChequesZen },
     { id: "vendas_zen", grupo: "cards", cobre: ["venda_sem_nota_zen", "venda_valor_zen", "venda_produto_zen", "venda_sem_cnpj_zen"], roda: checarVendasZen },
     { id: "mudancas_campos", grupo: "cards", cobre: ["mudanca_campos"], roda: checarMudancasCampos },
     { id: "pci12a_sem_resposta", grupo: "prazos", cobre: ["pci12a_sem_resposta"], roda: checarPci12aSemResposta },
@@ -581,6 +615,8 @@ const TEMAS = [
     ["venda_valor_zen", "14. Valor do card diferente da nota do ZEN (acima de 1%)"],
     ["venda_produto_zen", "15. Produto do card diferente da nota do ZEN"],
     ["venda_sem_cnpj_zen", "16. Venda sem CNPJ válido no card"],
+    ["cheque_usado_sem_baixa", "17. Cheque de cashback usado no ZEN sem baixa no Portal"],
+    ["cheque_codigo_desconhecido", "18. Pedido do ZEN cita cheque que não existe no Portal"],
 ];
 const ORDEM_SEV = { alta: 0, media: 1, baixa: 2 };
 const ordemTema = c => { const i = TEMAS.findIndex(t => t[0] === c); return i < 0 ? TEMAS.length : i; };
@@ -727,5 +763,5 @@ async function rodarAuditoria({ rodada = "manual", dryRun = false } = {}) {
 
 module.exports = {
     rodarAuditoria, reconciliar, montarEmail, CHECAGENS, REAVISO_DIAS,
-    checarRodadaPerdida, checarPci12Responsavel, checarVendaSemDados, checarPciXProduto, checarMudancasCampos, checarPci12aSemResposta, checarVendasZen,
+    checarRodadaPerdida, checarPci12Responsavel, checarVendaSemDados, checarPciXProduto, checarMudancasCampos, checarPci12aSemResposta, checarVendasZen, checarChequesZen,
 };

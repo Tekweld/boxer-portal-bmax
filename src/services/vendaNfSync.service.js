@@ -39,7 +39,7 @@ function prepararRegistros({ vinculos, itensPorNf = new Map(), pedidos = new Map
                 vendedor_zen_id: cab.vendedor ? cab.vendedor.id : null, vendedor_nome: cab.vendedor ? cab.vendedor.nome : null, vendedor_categoria1: cab.vendedor ? cab.vendedor.categoria1 : null,
                 comissao_vendedor_zen: cab.comissao_vendedor_zen != null ? cab.comissao_vendedor_zen : null,
                 pedido_id: cab.pedido_id || null, pedido_status: ped ? ped.status : null, pedido_data: ped ? ped.data : null, pedido_valor_total: ped ? ped.total : null, pedido_custo_total: ped ? ped.custo_total : null,
-                pedido_tags: ped ? ped.tags : null, pedido_forma_pagamento: ped ? ped.forma_pagamento : null, pedido_comissao_vendedor_zen: ped ? ped.comissao_vendedor_zen : null,
+                pedido_tags: ped ? ped.tags : null, pedido_observacao: ped ? ped.observacao : null, pedido_perfil: ped ? ped.perfil : null, pedido_forma_pagamento: ped ? ped.forma_pagamento : null, pedido_comissao_vendedor_zen: ped ? ped.comissao_vendedor_zen : null,
                 zen_bruto: { nota: cab, pedido: ped || null },
                 tem_detalhe: itensPorNf.has(String(n.id)) || !!ped,
             });
@@ -79,10 +79,10 @@ async function gravar(sequelize, regs) {
         for (const n of regs.nfs) {
             await q(`INSERT INTO bmax_venda_nf (nf_id, nf_numero, nf_serie, data_emissao, status, devolvida, valor_total, tags, chave_acesso, operacao_fiscal, tipo_frete, peso_bruto_kg, peso_liquido_kg, volume_m3, volumes, observacao,
                        cnpj, cliente_zen_id, cliente_nome, vendedor_zen_id, vendedor_nome, vendedor_categoria1, comissao_vendedor_zen, pedido_id, pedido_status, pedido_data, pedido_valor_total, pedido_custo_total, pedido_tags,
-                       pedido_forma_pagamento, pedido_comissao_vendedor_zen, zen_bruto)
+                       pedido_forma_pagamento, pedido_comissao_vendedor_zen, pedido_observacao, pedido_perfil, zen_bruto)
                      VALUES (:nf_id, :nf_numero, :nf_serie, :data_emissao, :status, :devolvida, :valor_total, :tags, :chave_acesso, :operacao_fiscal, :tipo_frete, :peso_bruto_kg, :peso_liquido_kg, :volume_m3, :volumes, :observacao,
                        :cnpj, :cliente_zen_id, :cliente_nome, :vendedor_zen_id, :vendedor_nome, :vendedor_categoria1, :comissao_vendedor_zen, :pedido_id, :pedido_status, :pedido_data, :pedido_valor_total, :pedido_custo_total, :pedido_tags,
-                       :pedido_forma_pagamento, :pedido_comissao_vendedor_zen, CAST(:zen_bruto AS jsonb))
+                       :pedido_forma_pagamento, :pedido_comissao_vendedor_zen, :pedido_observacao, :pedido_perfil, CAST(:zen_bruto AS jsonb))
                      ON CONFLICT (nf_id) DO UPDATE SET nf_numero = EXCLUDED.nf_numero, nf_serie = EXCLUDED.nf_serie, data_emissao = EXCLUDED.data_emissao, status = EXCLUDED.status, devolvida = EXCLUDED.devolvida, valor_total = EXCLUDED.valor_total,
                        tags = EXCLUDED.tags, chave_acesso = EXCLUDED.chave_acesso, operacao_fiscal = EXCLUDED.operacao_fiscal, tipo_frete = EXCLUDED.tipo_frete, peso_bruto_kg = EXCLUDED.peso_bruto_kg, peso_liquido_kg = EXCLUDED.peso_liquido_kg,
                        volume_m3 = EXCLUDED.volume_m3, volumes = EXCLUDED.volumes, observacao = EXCLUDED.observacao, cnpj = EXCLUDED.cnpj, cliente_zen_id = EXCLUDED.cliente_zen_id, cliente_nome = EXCLUDED.cliente_nome,
@@ -92,6 +92,7 @@ async function gravar(sequelize, regs) {
                        pedido_valor_total = COALESCE(EXCLUDED.pedido_valor_total, bmax_venda_nf.pedido_valor_total), pedido_custo_total = COALESCE(EXCLUDED.pedido_custo_total, bmax_venda_nf.pedido_custo_total),
                        pedido_tags = COALESCE(EXCLUDED.pedido_tags, bmax_venda_nf.pedido_tags), pedido_forma_pagamento = COALESCE(EXCLUDED.pedido_forma_pagamento, bmax_venda_nf.pedido_forma_pagamento),
                        pedido_comissao_vendedor_zen = COALESCE(EXCLUDED.pedido_comissao_vendedor_zen, bmax_venda_nf.pedido_comissao_vendedor_zen),
+                       pedido_observacao = COALESCE(EXCLUDED.pedido_observacao, bmax_venda_nf.pedido_observacao), pedido_perfil = COALESCE(EXCLUDED.pedido_perfil, bmax_venda_nf.pedido_perfil),
                        zen_bruto = CASE WHEN EXCLUDED.zen_bruto->'pedido' IS NOT NULL AND EXCLUDED.zen_bruto->>'pedido' <> 'null' THEN EXCLUDED.zen_bruto ELSE bmax_venda_nf.zen_bruto END, atualizado_em = now()`,
                 { ...n, zen_bruto: J(n.zen_bruto) });
         }
