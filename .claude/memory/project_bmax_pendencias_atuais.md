@@ -53,3 +53,10 @@ Esta é a lista atual. A mesma lista está na seção 6 do `Documentação/Regis
 - Canal no ZEN = `personSalesperson.category1.description` (Industria/Varejo/Representante/vazio); só pista, não filtro.
 - FASE B (pendente, só com aprovação do André): corrigir valor no Pipefy sozinho se card concluído há ≤1 dia, 1 nota única livre, diferença ≤4%, com comentário no card + log. Crédito já lançado em bmax_transacoes exige recálculo/estorno.
 - Planilha da limpeza única: Documentação/Simulacao_Vendas_CRM_x_ZEN_26-11-2026.xlsx (script scripts/auditoria-vendas-zen-fase1-26-11-2026.js).
+
+## 4f. Fatos da venda (Pipefy x ZEN) para a visão de margem — PREPARADO, NÃO APLICADO (27/11/2026)
+- Princípio do André: só guardar, sem calcular. Tabelas novas (DDL em scripts/sql/vendas-nf-27-11-2026.sql): bmax_cliente_zen, bmax_venda_vinculo, bmax_venda_card_nf, bmax_venda_nf, bmax_venda_nf_item. Views: vw_bmax_cards_venda (cache do Pipefy em colunas), vw_bmax_vendas, vw_bmax_venda_itens. Comissão: scripts/sql/vw-bmax-comissoes-27-11-2026.sql (3 views + papel bmax_margem_leitura comentado).
+- Preenchimento: auditor diário (checagem vendas_zen) via vendaNfSync.service.js, incremental, falha vira aviso. Novo achado venda_sem_cnpj_zen (card vendido sem CNPJ válido).
+- PENDENTE de autorização do André (escrita em produção): aplicar o DDL e as views; criar papel de leitura; completar bmax_rd_pipefy_map (98 ids achados pelo campo "ID no RD" do cache; 1 sem correspondência: 6ad0cc79...).
+- Scripts locais devem forçar CRM_PROVIDER=pipefy (senão leem o RD parado); o mapa de ids (PIPEFY_MAPA_JSON) só existe na Vercel. A simulação card x NF de 26-27/11 usou RD e NÃO vale; refazer com a 1ª rodada do auditor em produção.
+- Base de conhecimento para o outro Claude: Documentação/Base_Conhecimento_Comissoes_BMax_para_Margem_27-11-2026.md.

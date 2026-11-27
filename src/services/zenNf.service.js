@@ -68,6 +68,20 @@ async function notasComTagBmax() {
     return porCnpj;
 }
 
+// Tira o "lixo" (empresa, nacionalidade, endereços aninhados) e guarda só o que descreve a nota. Nenhum cálculo: valores como vieram do ZEN.
+const pessoaResumo = p => (p ? { id: p.id, nome: p.name || null, fantasia: p.fantasyName || null, tipo: p.type || null, documento: so(p.documentNumber) || null, email: p.email || null, telefone: p.phone || null, cep: p.zipcode || null, categoria1: (p.category1 && (p.category1.description || p.category1.name)) || null, tags: p.tags || null } : null);
+function cabecalhoNf(n) {
+    const pr = n.properties || {};
+    return {
+        id: n.id, numero: n.number, serie: n.invoiceSeries ? (n.invoiceSeries.code || null) : null, data_emissao: dia(n.issueDate), status: n.status || null, devolvida: !!n.returned,
+        total: Number(n.totalValue) || 0, tags: n.tags || null, chave_acesso: pr.fiscal_br_chNFe || null, pedido_id: pr.saleId != null ? String(pr.saleId) : null, volumes: pr.volumes != null ? Number(pr.volumes) : null,
+        comissao_vendedor_zen: pr.salesCommission != null ? Number(pr.salesCommission) : null, observacao: pr["#comments"] || pr.comments || null,
+        tipo_frete: n.freightType || null, peso_bruto_kg: n.grossWeightKg != null ? Number(n.grossWeightKg) : null, peso_liquido_kg: n.netWeightKg != null ? Number(n.netWeightKg) : null, volume_m3: n.volumeM3 != null ? Number(n.volumeM3) : null,
+        operacao_fiscal: n.fiscalProfileOperation ? (n.fiscalProfileOperation.description || n.fiscalProfileOperation.code || null) : null,
+        cliente: pessoaResumo(n.person), vendedor: pessoaResumo(n.personSalesperson), transportadora: pessoaResumo(n.personShipping),
+    };
+}
+
 async function notasDoCnpj(cnpj) {
     const c = so(cnpj);
     if (c.length !== 14) return [];
@@ -79,7 +93,7 @@ async function notasDoCnpj(cnpj) {
         const r = await zget("/fiscal/outgoingInvoice", { q: "person.id==" + p.id, order: "-id", max: 200 });
         for (const n of r) {
             if (n.status === "CANCELED" || n.returned) continue;
-            nfs.push({ id: n.id, numero: n.number, data: dia(n.issueDate), total: Number(n.totalValue) || 0 });
+            nfs.push({ id: n.id, numero: n.number, data: dia(n.issueDate), total: Number(n.totalValue) || 0, cab: cabecalhoNf(n) });
         }
     }
     _cacheCnpj.set(c, { ts: Date.now(), nfs });
@@ -136,17 +150,40 @@ async function notasParaCard(cnpj, desde) {
     return { comTag, semTag };
 }
 
-// Itens de uma nota (só leitura): [{ codigo, descricao }]. Cache por nota (nota emitida não muda).
+// Itens de uma nota (só leitura), com todos os valores como o ZEN devolve. Cache por nota (nota emitida não muda).
 const _cacheItens = new Map();
 async function itensDaNota(idNota) {
     if (_cacheItens.has(idNota)) return _cacheItens.get(idNota);
-    const it = await zget("/fiscal/outgoingInvoiceItem", { q: "invoice.id==" + idNota, max: 50 });
+    const it = await zget("/fiscal/outgoingInvoiceItem", { q: "invoice.id==" + idNota, max: 100 });
+    const num = v => (v == null || v === "" ? null : Number(v));
     const lista = (Array.isArray(it) ? it : []).map(i => {
-        const p = (i.productPacking && i.productPacking.product) || {};
-        return { codigo: String(p.code || p.id || (i.productPacking && i.productPacking.code) || "").trim(), descricao: String(p.description || "") };
+        const pp = i.productPacking || {}, p = pp.product || {}, props = i.properties || {};
+        return {
+            item_id: i.id, sequencia: props.sequence != null ? Number(props.sequence) : null, item_pedido: props.nItemPed != null ? String(props.nItemPed) : null,
+            codigo: String(p.code || p.id || pp.code || "").trim(), descricao: String(p.description || ""), produto_id_zen: p.id != null ? p.id : null,
+            perfil_produto: p.productProfile ? (p.productProfile.code || null) : null, perfil_produto_descricao: p.productProfile ? (p.productProfile.description || null) : null,
+            unidade: i.unit ? (i.unit.code || null) : null, quantidade: num(i.quantity), quantidade_fisica: num(i.physicalQuantity), peso_liquido_kg: num(i.netWeightKg), peso_bruto_kg: num(i.grossWeightKg),
+            valor_unitario: num(i.unitValue), valor_bruto_produto: num(i.grossProductValue), desconto: num(i.discountValue), valor_produto: num(i.productValue), outros_valores: i.otherValues || {},
+            valor_operacao: num(i.operationValue), imposto_incluso: num(i.insideTaxValue), imposto_fora: num(i.outsideTaxValue), valor_total: num(i.totalValue), compensacao_imposto: num(i.taxCompensationValue), valor_efetivo: num(i.effectiveValue),
+            tipo_contabil: i.accountingType || null, operacao_tributaria: i.taxationOperation ? (i.taxationOperation.description || i.taxationOperation.code || null) : null, descricao_calculada: props.descriptionCalc || null,
+        };
     });
     _cacheItens.set(idNota, lista);
     return lista;
+}
+
+// Pedido de venda do ZEN (uma venda pode ter várias NFs): valores como vieram, sem cálculo.
+const _cachePedido = new Map();
+async function pedidoDeVenda(saleId) {
+    const k = String(saleId);
+    if (_cachePedido.has(k)) return _cachePedido.get(k);
+    const r = await zget("/sale/sale", { q: "id==" + k, max: 1 });
+    const s = Array.isArray(r) ? r[0] : r;
+    const pr = (s && s.properties) || {};
+    const out = s ? { pedido_id: k, status: s.status || null, data: dia(s.date), total: s.totalValue != null ? Number(s.totalValue) : null, custo_total: s.costTotalValue != null ? Number(s.costTotalValue) : null, tipo_frete: s.freightType || null,
+        tags: s.tags || null, comissao_vendedor_zen: pr.salesCommission != null ? Number(pr.salesCommission) : null, forma_pagamento: pr.paymentMethods != null ? String(pr.paymentMethods) : null, vendedor: pessoaResumo(s.personSalesperson), cliente: pessoaResumo(s.person) } : null;
+    _cachePedido.set(k, out);
+    return out;
 }
 
 // Tabela de Preços BMax (boxer-sistemas, produtos tabela 2): código -> modelo. Cache de 1 hora.
@@ -159,4 +196,4 @@ async function tabelaBmax() {
     return mapa;
 }
 
-module.exports = { notasPorLeads, notasParaCard, notasDoCnpj, itensDaNota, tabelaBmax, configurado };
+module.exports = { notasPorLeads, notasParaCard, notasDoCnpj, itensDaNota, pedidoDeVenda, tabelaBmax, configurado, cabecalhoNf };

@@ -84,6 +84,7 @@ SELECT
   CASE a.checagem
     WHEN 'venda_sem_nota_zen'  THEN 'Venda do CRM sem nota no ZEN (receita não comprovada)'
     WHEN 'venda_valor_zen'     THEN 'Valor do card diferente da nota em mais de 1% (base da comissão errada)'
+    WHEN 'venda_sem_cnpj_zen'  THEN 'Venda sem CNPJ válido no card (não se liga ao ZEN)'
     WHEN 'venda_produto_zen'   THEN 'Produto do card diferente do vendido na nota (PCI/segmento podem estar errados)'
     WHEN 'venda_sem_dados'     THEN 'Venda sem PCI/classe (comissão não creditada)'
     WHEN 'mudanca_campos'      THEN 'PCI/produto/classe mudou depois do cálculo (comissão pode estar desatualizada)'
@@ -103,7 +104,7 @@ SELECT
   a.link, a.primeira_vez, a.ultima_vez
 FROM bmax_auditoria_achados a
 WHERE a.resolvido_em IS NULL
-  AND a.checagem IN ('venda_sem_nota_zen','venda_valor_zen','venda_produto_zen','venda_sem_dados','mudanca_campos','pci_x_produto','pci12_responsavel','saldo_vs_razao','creditos_anormais');
+  AND a.checagem IN ('venda_sem_nota_zen','venda_valor_zen','venda_produto_zen','venda_sem_cnpj_zen','venda_sem_dados','mudanca_campos','pci_x_produto','pci12_responsavel','saldo_vs_razao','creditos_anormais');
 
 -- ─── Acesso somente leitura para o outro Claude (APLICAR SÓ COM AUTORIZAÇÃO; defina a senha fora do chat e guarde no cofre) ───
 -- CREATE ROLE bmax_margem_leitura LOGIN PASSWORD '<definir-fora-do-chat>';

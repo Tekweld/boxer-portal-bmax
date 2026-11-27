@@ -45,7 +45,7 @@ function criarContexto({ dryRun, rodada = "manual" }) {
             return cache;
         },
         desfechoDoCard: d => require("./pci12Desfecho.service").desfechoDoCard(d),
-        zen: { configurado: () => require("./zenNf.service").configurado(), notasDoCnpj: c => require("./zenNf.service").notasDoCnpj(c), itensDaNota: id => require("./zenNf.service").itensDaNota(id), tabelaBmax: () => require("./zenNf.service").tabelaBmax() },
+        zen: { configurado: () => require("./zenNf.service").configurado(), notasDoCnpj: c => require("./zenNf.service").notasDoCnpj(c), itensDaNota: id => require("./zenNf.service").itensDaNota(id), pedidoDeVenda: id => require("./zenNf.service").pedidoDeVenda(id), tabelaBmax: () => require("./zenNf.service").tabelaBmax() },
         db: {
             async snapshot() {
                 const rows = await sequelize.query(`SELECT card_id, pci, produto, classe FROM bmax_auditoria_cards_ultimo`, { type: QueryTypes.SELECT });
@@ -92,6 +92,14 @@ function criarContexto({ dryRun, rodada = "manual" }) {
                 return new Map(rows.map(r => [String(r.deal_id), r]));
             },
             async andamentos(ids) { return require("./negociacaoStatus.service").ultimosPorDeal(ids); },
+            // Fatos da venda (Pipefy x ZEN) guardados para o Portal e para a visão de margem. Ver vendaNfSync.service.js e scripts/sql/vendas-nf-27-11-2026.sql
+            vendaNf: {
+                async nfsComItens() {
+                    const rows = await sequelize.query(`SELECT DISTINCT nf_id FROM bmax_venda_nf_item`, { type: QueryTypes.SELECT });
+                    return new Set(rows.map(r => String(r.nf_id)));
+                },
+                gravar: regs => require("./vendaNfSync.service").gravar(sequelize, regs),
+            },
         },
     };
 }
@@ -303,6 +311,35 @@ async function checarPci12Responsavel(ctx) {
     return achados;
 }
 
+// Guarda nas tabelas bmax_venda_* o que o Pipefy e o ZEN dizem de cada venda (sem nenhum cálculo). Incremental: nota que já tem itens guardados não é relida.
+// Falha (inclusive tabela ainda não criada) vira aviso; não afeta os achados do auditor.
+async function guardarVendasNf(ctx, comNotas, res, tabela, semCnpj = []) {
+    if (ctx.dryRun || !ctx.db || !ctx.db.vendaNf || typeof ctx.zen.pedidoDeVenda !== "function") return;
+    try {
+        const Sync = require("./vendaNfSync.service");
+        const vinculos = comNotas.filter(c => res.get(c.id)).map(c => ({ card: { id: c.id, nome: c.nome, cnpj: c.cnpj, valor: c.valor, fechadoEm: c.fechadoEm }, res: res.get(c.id) }))
+            .concat(semCnpj.map(c => ({ card: { id: c.id, nome: c.nome, cnpj: c.cnpj, valor: c.valor, fechadoEm: c.fechadoEm }, res: { estado: "sem_cnpj", usadas: [] } })));
+        const jaTem = await ctx.db.vendaNf.nfsComItens();
+        const novas = Sync.notasParaDetalhar(vinculos, jaTem);
+        const itensPorNf = new Map(), pedidos = new Map();
+        const fila = novas.slice();
+        await Promise.all(Array.from({ length: 6 }, async () => {
+            while (fila.length) {
+                const n = fila.shift();
+                try {
+                    itensPorNf.set(String(n.id), await ctx.zen.itensDaNota(n.id));
+                    const pid = n.cab && n.cab.pedido_id;
+                    if (pid && !pedidos.has(String(pid))) { const p = await ctx.zen.pedidoDeVenda(pid); if (p) pedidos.set(String(pid), p); }
+                } catch (e) { logger.warn({ message: "Auditor: falha ao ler detalhe da nota no ZEN", nf: n.numero, error: e.message }); }
+            }
+        }));
+        await ctx.db.vendaNf.gravar(Sync.prepararRegistros({ vinculos, itensPorNf, pedidos, tabela }));
+    } catch (e) {
+        logger.warn({ message: "Auditor: não foi possível guardar os fatos da venda (tabelas bmax_venda_*)", error: e.message });
+        ctx.avisos.push("Fatos da venda (bmax_venda_*) não foram gravados: " + String(e.message).slice(0, 140));
+    }
+}
+
 // Venda do CRM x nota no ZEN (Fase A, 27/11/2026): TODOS os cards de venda no escopo do Portal (sem janela de data). Só avisa; não altera Pipefy nem ZEN.
 // 1) sem nota (só depois de 3 dias do fechamento); 2) valor do card diferente da nota em mais de 1% (André: acima de 1% já é erro);
 // 3) produto do card diferente do que a nota vendeu (família da máquina x itens da nota + Tabela de Preços BMax).
@@ -327,7 +364,18 @@ async function checarVendasZen(ctx) {
     const res = V.avaliarVendas(comNotas, nfsPorCnpj);
     let tabela = null;
     try { tabela = await ctx.zen.tabelaBmax(); } catch (e) { ctx.avisos.push("Tabela de Preços BMax indisponível: o produto foi conferido só pela descrição dos itens da nota."); }
+    await guardarVendasNf(ctx, comNotas, res, tabela, cards.filter(x => x.cnpj.length !== 14));   // só grava as tabelas de fatos; nunca derruba a checagem
     const achados = [];
+    // Venda sem CNPJ válido no card: não dá para ligar ao ZEN (nem à nota, nem ao cliente). Antes ficava de fora da conferência em silêncio.
+    for (const c of cards.filter(x => x.cnpj.length !== 14)) {
+        const base = { card: c.id, nome: c.nome, cnpj: c.cnpj || "", valorCard: c.valor, fechadoEm: String(c.fechadoEm || "").slice(0, 10), responsavel: String(c.responsavel || "").trim() || "(ninguém)", revenda: c.revenda };
+        achados.push({
+            chave: `venda_sem_cnpj_zen:${c.id}`, grupo: "cards", checagem: "venda_sem_cnpj_zen", severidade: "media",
+            titulo: `"${c.nome}" (${brl(c.valor)}, vendido em ${base.fechadoEm}): CNPJ ${c.cnpj ? "inválido (" + c.cnpj + ")" : "em branco"} no card; não dá para conferir a venda com o ZEN${respTxt(c)}`,
+            detalhe: base, link: linkCard(c.id),
+            acao: "Preencher o CNPJ correto no card do Pipefy. Sem ele a venda não se liga à nota nem ao cliente do ZEN.",
+        });
+    }
     for (const c of comNotas) {
         const r = res.get(c.id);
         if (!r) continue;
@@ -468,7 +516,7 @@ const CHECAGENS = [
     { id: "pci12_responsavel", grupo: "cards", cobre: ["pci12_responsavel"], roda: checarPci12Responsavel },
     { id: "pcix_produto", grupo: "cards", cobre: ["pcix_produto"], roda: checarPciXProduto2 },
     { id: "pcix_resumo", grupo: "prazos", cobre: ["pcix_resumo"], roda: checarPciXResumo },
-    { id: "vendas_zen", grupo: "cards", cobre: ["venda_sem_nota_zen", "venda_valor_zen", "venda_produto_zen"], roda: checarVendasZen },
+    { id: "vendas_zen", grupo: "cards", cobre: ["venda_sem_nota_zen", "venda_valor_zen", "venda_produto_zen", "venda_sem_cnpj_zen"], roda: checarVendasZen },
     { id: "mudancas_campos", grupo: "cards", cobre: ["mudanca_campos"], roda: checarMudancasCampos },
     { id: "pci12a_sem_resposta", grupo: "prazos", cobre: ["pci12a_sem_resposta"], roda: checarPci12aSemResposta },
     { id: "rodada_perdida", grupo: "robos", cobre: ["auditor_rodada_perdida"], roda: checarRodadaPerdida },
@@ -519,6 +567,7 @@ const TEMAS = [
     ["venda_sem_nota_zen", "13. Venda do CRM sem nota no ZEN"],
     ["venda_valor_zen", "14. Valor do card diferente da nota do ZEN (acima de 1%)"],
     ["venda_produto_zen", "15. Produto do card diferente da nota do ZEN"],
+    ["venda_sem_cnpj_zen", "16. Venda sem CNPJ válido no card"],
 ];
 const ORDEM_SEV = { alta: 0, media: 1, baixa: 2 };
 const ordemTema = c => { const i = TEMAS.findIndex(t => t[0] === c); return i < 0 ? TEMAS.length : i; };
