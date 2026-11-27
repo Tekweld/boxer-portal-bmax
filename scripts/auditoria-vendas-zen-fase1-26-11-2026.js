@@ -2,6 +2,9 @@
 // Não escreve nada no CRM, no ZEN nem no banco. Só gera uma planilha.
 // Uso: node scripts/auditoria-vendas-zen-fase1-26-11-2026.js <caminho do .env com ZEN_EMAIL/ZEN_SENHA> [saida.xlsx]
 require("dotenv").config({ quiet: true });
+// O CRM é o PIPEFY (desde 23/11/2026). Sem isto o Portal cai no padrão "rd" e lê o RD antigo (ids hex, dados parados).
+process.env.CRM_PROVIDER = "pipefy";
+process.env.PIPEFY_TOKEN = process.env.PIPEFY_TOKEN || process.env.PIPEFY_TOKEN_ADMIN || "";
 const fs = require("fs");
 const path = require("path");
 const ExcelJS = require("exceljs");
